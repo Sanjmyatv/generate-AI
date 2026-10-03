@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoginModal } from "@/components/LoginModal";
+import { TemplatePreview } from "@/components/TemplatePreview";
 import { prepareImage } from "@/lib/image-client";
 import type { Template } from "@/types";
 
@@ -35,6 +36,12 @@ const PROGRESS_MESSAGES = [
   "Adding the final touches...",
   "Almost there, this may take a little while.",
 ];
+
+/** "9:16" -> "9 / 16" for the CSS aspect-ratio property; falls back to 3/4. */
+function aspectCss(ratio: string) {
+  const [w, h] = ratio.split(":").map(Number);
+  return w > 0 && h > 0 ? `${w} / ${h}` : "3 / 4";
+}
 
 class ApiError extends Error {
   constructor(readonly code: string, readonly extra?: Record<string, unknown>) {
@@ -275,7 +282,18 @@ export function GenerateFlow({
   return (
     <div className="mx-auto max-w-md py-8">
       {step !== "result" && (
-        <div className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-violet-500/30 to-pink-500/30" />
+        // Height-limited so tall (9:16) previews fit on a phone without scrolling forever.
+        <div
+          className="mx-auto overflow-hidden rounded-2xl"
+          style={{ aspectRatio: aspectCss(template.aspectRatio), height: "min(60vh, 520px)", maxWidth: "100%" }}
+        >
+          <TemplatePreview
+            src={template.previewUrl}
+            alt={template.name}
+            mode="detail"
+            className="h-full w-full"
+          />
+        </div>
       )}
       <h1 className="mt-4 text-2xl font-bold">{template.name}</h1>
       <p className="mt-1 text-foreground/70">{template.description}</p>
