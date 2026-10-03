@@ -7,8 +7,10 @@ function getClient(): PrismaClient {
   if (!globalForPrisma.prisma) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error("DATABASE_URL is not set");
+    // Optional cap on pooled connections (useful with small managed-Postgres limits).
+    const max = Number(process.env.DATABASE_POOL_MAX) || undefined;
     globalForPrisma.prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString }),
+      adapter: new PrismaPg({ connectionString, max }),
     });
   }
   return globalForPrisma.prisma;

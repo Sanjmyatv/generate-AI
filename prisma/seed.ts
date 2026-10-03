@@ -7,12 +7,6 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  // Only seed an empty database so redeploys never overwrite admin edits.
-  if ((await prisma.category.count()) > 0) {
-    console.log("Seed skipped: database already has data.");
-    return;
-  }
-
   const categories = [
     { id: "trending", name: "Trending", sortOrder: 0 },
     { id: "dance", name: "Dance", sortOrder: 1 },
@@ -75,14 +69,51 @@ async function main() {
     { id: "value", name: "Value Pack", credits: 50, priceMnt: 25000, sortOrder: 1 },
   ];
 
+  // Hidden edit instruction for the Seedance video-edit model. Users never see it.
+  const threeGuysConfig = {
+    provider: "seedance",
+    // Replace with the real, publicly reachable template video (set
+    // THREE_GUYS_TEMPLATE_VIDEO_URL on the server and redeploy to apply it).
+    templateVideoUrl:
+      process.env.THREE_GUYS_TEMPLATE_VIDEO_URL ?? "https://example.com/REPLACE-ME/three-guys-dancing.mp4",
+    prompt:
+      "Replace the three dancing men with the person shown in the reference image. " +
+      "Keep the original choreography, funny dance moves, timing, camera movement, lighting and background exactly the same. " +
+      "All three dancers must clearly have the face, hairstyle and identity of the person in the reference image.",
+    resolution: "720p",
+    duration: 5,
+    generateAudio: true,
+  };
+  const threeGuys = {
+    id: "three-guys-dancing",
+    name: "3 Guys Dancing",
+    description: "Put yourself in the funniest dance trio on the internet.",
+    categoryId: "dance",
+    type: "VIDEO" as const,
+    creditCost: 5,
+    aspectRatio: "9:16",
+    requiredPhotoCount: 1,
+    photoRequirement: "FACE" as const,
+    trendingRank: 0,
+    generationConfig: threeGuysConfig,
+  };
+
+  // Idempotent and non-destructive: rows that already exist (and any admin edits to
+  // them) are left alone, so new seed entries can ship with every deploy.
   for (const c of categories) {
-    await prisma.category.upsert({ where: { id: c.id }, update: c, create: c });
+    await prisma.category.upsert({ where: { id: c.id }, update: {}, create: c });
   }
   for (const t of templates) {
-    await prisma.template.upsert({ where: { id: t.id }, update: t, create: t });
+    await prisma.template.upsert({ where: { id: t.id }, update: {}, create: t });
   }
+  await prisma.template.upsert({
+    where: { id: threeGuys.id },
+    // Only touch the config when a real template video URL was provided.
+    update: process.env.THREE_GUYS_TEMPLATE_VIDEO_URL ? { generationConfig: threeGuysConfig } : {},
+    create: threeGuys,
+  });
   for (const p of packages) {
-    await prisma.creditPackage.upsert({ where: { id: p.id }, update: p, create: p });
+    await prisma.creditPackage.upsert({ where: { id: p.id }, update: {}, create: p });
   }
 }
 

@@ -109,6 +109,10 @@ model Generation {
   inputKeys    String[]
   previewKey   String?
   outputKey    String?
+  /// Task id returned by the generation provider (Seedance); never exposed to clients.
+  providerTaskId String?
+  /// Provider-hosted result URL. Served to clients only through our own proxy route.
+  outputUrl    String?
   creditCost   Int
   error        String?
   createdAt    DateTime         @default(now())
@@ -116,6 +120,20 @@ model Generation {
 
   @@index([userId, createdAt])
   @@index([guestId])
+}
+
+/// Photos uploaded for a generation. Served by an unguessable URL so the AI provider
+/// can fetch them; swap for object storage (S3/R2) when volume grows.
+model Upload {
+  id          String   @id @default(uuid())
+  /// "u:<userId>" or "g:<guestId>"
+  ownerKey    String
+  contentType String
+  data        Bytes
+  createdAt   DateTime @default(now())
+
+  @@index([ownerKey, createdAt])
+  @@index([createdAt])
 }
 
 model CreditLedger {
