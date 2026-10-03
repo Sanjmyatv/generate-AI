@@ -26,9 +26,24 @@ const PROVIDER_DEFAULTS = {
 } as const;
 
 export class SeedanceError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(
+    message: string,
+    readonly status?: number,
+    /** Provider error code, e.g. "InputImageSensitiveContentDetected.PrivacyInformation". */
+    readonly code?: string,
+  ) {
     super(message);
     this.name = "SeedanceError";
+  }
+}
+
+/** Extracts the provider's error code from an error response body, if present. */
+function parseErrorCode(body: string): string | undefined {
+  try {
+    const code = (JSON.parse(body) as { error?: { code?: unknown } }).error?.code;
+    return typeof code === "string" ? code : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -90,7 +105,7 @@ async function request(url: string, init: RequestInit, headers: Record<string, s
     // Provider detail is logged server-side only; callers surface a generic error.
     const detail = await res.text().catch(() => "");
     console.error(`[seedance] ${res.status} ${url}`, detail.slice(0, 800));
-    throw new SeedanceError(`Seedance responded with ${res.status}`, res.status);
+    throw new SeedanceError(`Seedance responded with ${res.status}`, res.status, parseErrorCode(detail));
   }
   return res.json() as Promise<unknown>;
 }

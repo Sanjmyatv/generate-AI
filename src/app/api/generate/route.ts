@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getActor, getBaseUrl } from "@/lib/actor";
 import { failGeneration } from "@/lib/generations";
-import { parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
+import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
 
 export const dynamic = "force-dynamic";
 
@@ -130,7 +130,16 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     console.error("[generate] submit failed", e);
-    await failGeneration(generation.id, "provider_submit_failed");
+    const code = e instanceof SeedanceError ? e.code ?? "" : "";
+    await failGeneration(generation.id, code || "provider_submit_failed"); // refunds credits
+
+    // Tell the client *why* in terms it can show, without leaking provider details.
+    if (code.startsWith("InputImage")) {
+      return Response.json({ error: "invalid_image" }, { status: 422 }); // the user's photo was rejected
+    }
+    if (code.startsWith("InputVideo") || code === "ModelNotOpen") {
+      return Response.json({ error: "template_unavailable" }, { status: 503 }); // our side, not the user's
+    }
     return Response.json({ error: "generation_failed" }, { status: 502 });
   }
 

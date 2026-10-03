@@ -18,7 +18,7 @@ interface StatusResponse {
 }
 
 // Provider codes meaning the uploaded photo itself was rejected.
-const REJECTED_INPUT = /sensitive|moderation|privacy|inputimage|inputvideo|face/i;
+const REJECTED_INPUT = /^InputImage/i;
 
 interface FlowError {
   title: string;
