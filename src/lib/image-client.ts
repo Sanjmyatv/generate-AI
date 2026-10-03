@@ -5,6 +5,15 @@
  */
 export async function prepareImage(file: File, maxSide = 1280): Promise<Blob> {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+
+  // Seedance rejects reference images under 90,000 px or with extreme aspect ratios
+  // (it accepts width/height between 0.4 and 2.5), so fail early with a clear message.
+  const ratio = bitmap.width / bitmap.height;
+  if (bitmap.width * bitmap.height < 90_000 || ratio < 0.4 || ratio > 2.5) {
+    bitmap.close();
+    throw new Error("image_unsuitable");
+  }
+
   const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
