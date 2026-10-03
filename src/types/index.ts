@@ -20,6 +20,8 @@ export interface Template {
   creditCost: number;
   aspectRatio: string;
   requiredPhotoCount: number;
+  /** Label for each required photo slot, in order. May be shorter than requiredPhotoCount. */
+  photoLabels: string[];
   photoRequirement: PhotoRequirement;
   active: boolean;
   trendingRank: number | null;

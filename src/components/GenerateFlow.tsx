@@ -106,6 +106,45 @@ function toFlowError(e: unknown): FlowError {
   }
 }
 
+/** A single photo picker: shows a preview once chosen and lets the user replace it. */
+function PhotoSlot({
+  label,
+  file,
+  onSelect,
+}: {
+  label: string;
+  file: File | null;
+  onSelect: (file: File) => void;
+}) {
+  const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+
+  return (
+    <label className="block cursor-pointer text-center">
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-foreground/30 text-xs text-foreground/60">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt={label} className="h-full w-full object-cover" />
+        ) : (
+          <span className="px-2">+ Upload</span>
+        )}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onSelect(f);
+            e.target.value = ""; // allow re-selecting the same file
+          }}
+        />
+      </div>
+      <span className="mt-1 block text-xs font-medium">{label}</span>
+      {file && <span className="text-[11px] text-foreground/50">Tap to replace</span>}
+    </label>
+  );
+}
+
 export function GenerateFlow({
   template,
   isAuthenticated,
@@ -119,7 +158,10 @@ export function GenerateFlow({
   resumeId?: string;
 }) {
   const [step, setStep] = useState<Step>(resumeId ? "processing" : "detail");
-  const [files, setFiles] = useState<File[]>([]);
+  // One entry per required photo; null until the user picks that photo.
+  const [photos, setPhotos] = useState<(File | null)[]>(() =>
+    Array.from({ length: template.requiredPhotoCount }, () => null),
+  );
   const [generationId, setGenerationId] = useState<string | null>(resumeId ?? null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<FlowError | null>(null);
@@ -129,6 +171,7 @@ export function GenerateFlow({
   const startedAt = useRef(0);
 
   const needed = template.requiredPhotoCount;
+  const allPhotosSelected = photos.every((p): p is File => p !== null);
   const hint =
     template.photoRequirement === "full-body"
       ? "Use a full-body photo."
@@ -139,14 +182,14 @@ export function GenerateFlow({
     setStep("error");
   }, []);
 
-  function reset() {
-    setFiles([]);
+  const reset = useCallback(() => {
+    setPhotos(Array.from({ length: needed }, () => null));
     setGenerationId(null);
     setVideoUrl(null);
     setError(null);
     setStep("detail");
     window.history.replaceState(null, "", window.location.pathname);
-  }
+  }, [needed]);
 
   async function generate() {
     setError(null);
@@ -154,7 +197,8 @@ export function GenerateFlow({
     setElapsed(0);
     setStep("processing");
     try {
-      const uploadIds = await Promise.all(files.map(uploadPhoto));
+      // Promise.all keeps the order, which the AI uses to map Image 1..N to the dancers.
+      const uploadIds = await Promise.all(photos.filter((p): p is File => p !== null).map(uploadPhoto));
       const { id } = await postJson<{ id: string }>("/api/generate", {
         templateId: template.id,
         uploadIds,
@@ -224,11 +268,7 @@ export function GenerateFlow({
       clearInterval(poll);
       clearInterval(clock);
     };
-  }, [step, generationId, fail]);
-
-  // Object URLs for the selected photos, revoked when the selection changes.
-  const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
-  useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
+  }, [step, generationId, fail, reset]);
 
   const message = PROGRESS_MESSAGES[Math.min(Math.floor(elapsed / 20), PROGRESS_MESSAGES.length - 1)];
 
@@ -255,29 +295,23 @@ export function GenerateFlow({
 
       {step === "upload" && (
         <div className="mt-6 space-y-3">
-          <label className="block cursor-pointer rounded-xl border-2 border-dashed border-foreground/30 p-6 text-center text-sm">
-            {files.length === 0
-              ? `Upload your photo${needed > 1 ? "s" : ""} (0/${needed})`
-              : `Replace photo${needed > 1 ? "s" : ""} (${files.length}/${needed})`}
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple={needed > 1}
-              className="hidden"
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, needed))}
-            />
-          </label>
-          {previews.length > 0 && (
-            <div className="flex gap-2">
-              {previews.map((src) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={src} src={src} alt="Your photo" className="h-24 w-24 rounded-lg object-cover" />
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-foreground/60">{hint}</p>
+          {/* One slot per required photo, in the order the AI maps them to the template. */}
+          <div className={needed > 1 ? "grid grid-cols-3 gap-3" : ""}>
+            {photos.map((file, i) => (
+              <PhotoSlot
+                key={i}
+                label={template.photoLabels[i] ?? (needed > 1 ? `Photo ${i + 1}` : "Your photo")}
+                file={file}
+                onSelect={(f) => setPhotos((prev) => prev.map((p, j) => (j === i ? f : p)))}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-foreground/60">
+            {needed > 1 ? `Add ${needed} photos, one per person. ` : ""}
+            {hint}
+          </p>
           <button
-            disabled={files.length !== needed}
+            disabled={!allPhotosSelected}
             onClick={generate}
             className="w-full rounded-full bg-foreground py-3 font-semibold text-background disabled:opacity-40"
           >

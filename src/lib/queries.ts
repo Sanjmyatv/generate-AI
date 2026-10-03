@@ -17,6 +17,7 @@ function toTemplate(t: DbTemplate): Template {
     creditCost: t.creditCost,
     aspectRatio: t.aspectRatio,
     requiredPhotoCount: t.requiredPhotoCount,
+    photoLabels: t.photoLabels,
     photoRequirement: t.photoRequirement === "FULL_BODY" ? "full-body" : "face",
     active: t.active,
     trendingRank: t.trendingRank,

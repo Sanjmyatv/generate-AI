@@ -73,6 +73,8 @@ model Template {
   creditCost         Int
   aspectRatio        String           @default("3:4")
   requiredPhotoCount Int              @default(1)
+  /// One label per required photo, in order (e.g. "Dancer on the left"). Empty = "Photo N".
+  photoLabels        String[]         @default([])
   photoRequirement   PhotoRequirement @default(FACE)
   /// AI model / provider configuration (opaque to the frontend).
   generationConfig   Json?
