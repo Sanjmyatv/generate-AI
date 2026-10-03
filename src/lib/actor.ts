@@ -44,7 +44,12 @@ export async function getActor({ createGuest = false } = {}): Promise<Actor> {
 
 /** Public base URL, used to build links the AI provider can fetch. */
 export function getBaseUrl(req: Request) {
-  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/+$/, "");
+  const configured = process.env.APP_URL?.trim();
+  if (configured) {
+    // A typo such as "ttps://..." would make the provider reject every image URL.
+    if (/^https?:\/\/[^/\s]+/i.test(configured)) return configured.replace(/\/+$/, "");
+    console.error("[config] APP_URL is not a valid http(s) URL, falling back to request headers");
+  }
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   return `${proto}://${host}`;
