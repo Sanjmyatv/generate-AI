@@ -31,7 +31,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       try {
         const task = await getTask(gen.providerTaskId);
         if (task.status === "completed") await completeGeneration(gen.id, task.videoUrl);
-        else if (task.status === "failed") await failGeneration(gen.id, "provider_failed");
+        else if (task.status === "failed") await failGeneration(gen.id, task.error);
       } catch (e) {
         // Transient provider/network errors: keep the job running and let the next poll retry.
         console.error("[status] provider poll failed", e);

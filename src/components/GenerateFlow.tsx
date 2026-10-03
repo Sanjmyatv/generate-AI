@@ -11,8 +11,13 @@ type Step = "detail" | "upload" | "processing" | "result" | "error";
 interface StatusResponse {
   status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
   videoUrl: string | null;
+  /** Provider error code when the job failed (e.g. an input-moderation rejection). */
+  error: string | null;
   refunded: boolean;
 }
+
+// Provider codes meaning the uploaded photo itself was rejected.
+const REJECTED_INPUT = /sensitive|moderation|privacy|inputimage|inputvideo|face/i;
 
 interface FlowError {
   title: string;
@@ -189,12 +194,18 @@ export function GenerateFlow({
           setVideoUrl(data.videoUrl);
           setStep("result");
         } else if (data.status === "FAILED") {
-          fail({
-            title: "Something went wrong",
-            message: data.refunded
-              ? "Something went wrong while creating your content. Your credits have been refunded."
-              : "Something went wrong while creating your content. Please try again.",
-          });
+          const refund = data.refunded ? " Your credits have been refunded." : "";
+          if (data.error && REJECTED_INPUT.test(data.error)) {
+            fail({
+              title: "Invalid image",
+              message: `This photo doesn't meet the requirements. Please upload a clearer photo.${refund}`,
+            });
+          } else {
+            fail({
+              title: "Something went wrong",
+              message: `Something went wrong while creating your content.${refund || " Please try again."}`,
+            });
+          }
         }
       } catch {
         if (cancelled) return;

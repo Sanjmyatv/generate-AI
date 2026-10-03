@@ -76,10 +76,11 @@ async function main() {
     // THREE_GUYS_TEMPLATE_VIDEO_URL on the server and redeploy to apply it).
     templateVideoUrl:
       process.env.THREE_GUYS_TEMPLATE_VIDEO_URL ?? "https://example.com/REPLACE-ME/three-guys-dancing.mp4",
+    // "Video 1" is the template video and "Image 1" the user's photo (ModelArk's reference syntax).
     prompt:
-      "Replace the three dancing men with the person shown in the reference image. " +
-      "Keep the original choreography, funny dance moves, timing, camera movement, lighting and background exactly the same. " +
-      "All three dancers must clearly have the face, hairstyle and identity of the person in the reference image.",
+      "Edit the video: replace the three dancing men in Video 1 with the person in Image 1. " +
+      "Keep the original choreography, funny dance moves, timing, camera movement, lighting and background of Video 1 exactly the same. " +
+      "All three dancers must clearly have the face, hairstyle and identity of the person in Image 1.",
     resolution: "720p",
     duration: 5,
     generateAudio: true,
