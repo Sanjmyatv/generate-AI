@@ -113,6 +113,39 @@ async function main() {
     generationConfig: threeGuysConfig,
   };
 
+  // "Reference" mode template: no source video. Seedance generates a new video from the
+  // user's photo plus this hidden prompt, so no third-party footage is involved.
+  const goldenHour = {
+    id: "golden-hour-selfie",
+    name: "Golden Hour Selfie",
+    description: "Turn one photo into the sunset gas-station selfie everyone is posting.",
+    categoryId: "dance",
+    type: "VIDEO" as const,
+    creditCost: 5,
+    aspectRatio: "9:16",
+    requiredPhotoCount: 1,
+    photoLabels: ["Your photo"],
+    photoRequirement: "FACE" as const,
+    trendingRank: 1,
+    generationConfig: {
+      version: 1,
+      provider: "seedance",
+      mode: "reference",
+      prompt:
+        "Vertical cinematic selfie-style video, shot on a phone with an ultra-wide lens held at arm's length. " +
+        "The person from Image 1 stands at a gas station forecourt at golden hour with a glowing orange and blue sunset sky behind them, " +
+        "trucks and fuel pumps softly out of focus in the background. " +
+        "They wear a stylish leather bomber jacket over a white tee and a gold chain. " +
+        "They laugh, point up at the sky and dance with fun, confident energy while the camera slowly sways. " +
+        "The face, hairstyle, skin tone and identity of the person must match Image 1 exactly. " +
+        "Warm natural light, realistic skin, subtle film grain, trendy social-media look, upbeat music.",
+      ratio: "9:16",
+      duration: 8,
+      resolution: "720p",
+      generateAudio: true,
+    },
+  };
+
   // Idempotent and non-destructive: rows that already exist (and any admin edits to
   // them) are left alone, so new seed entries can ship with every deploy.
   for (const c of categories) {
@@ -139,6 +172,7 @@ async function main() {
       },
     });
   }
+  await prisma.template.upsert({ where: { id: goldenHour.id }, update: {}, create: goldenHour });
   for (const p of packages) {
     await prisma.creditPackage.upsert({ where: { id: p.id }, update: {}, create: p });
   }

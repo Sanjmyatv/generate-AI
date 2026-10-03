@@ -117,11 +117,13 @@ export async function POST(req: Request) {
   try {
     const base = getBaseUrl(req);
     const taskId = await submitVideoEdit({
-      templateVideoUrl: config.templateVideoUrl,
+      // Undefined in reference mode: the video is generated from the photo(s) + prompt alone.
+      templateVideoUrl: config.mode === "reference" ? undefined : config.templateVideoUrl,
       imageUrls: uploadIds.map((id) => `${base}/api/uploads/${id}`),
       prompt: config.prompt,
       resolution: config.resolution,
       duration: config.duration,
+      ratio: config.ratio,
       generateAudio: config.generateAudio,
     });
     await prisma.generation.update({

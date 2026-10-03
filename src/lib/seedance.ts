@@ -50,25 +50,38 @@ function parseErrorCode(body: string): string | undefined {
 /** Per-template settings stored in `Template.generationConfig`. */
 export interface SeedanceTemplateConfig {
   provider: "seedance";
-  /** Public URL of the template video that gets edited (ModelArk: 4–30 s). */
-  templateVideoUrl: string;
   /**
-   * Hidden edit instruction; the user never sees or changes it. Refer to the assets
-   * as "Video 1" (the template) and "Image 1" (the user's photo).
+   * "edit" (default): edits `templateVideoUrl`, swapping its subject for the user's photo.
+   * "reference": generates a brand-new video from the user's photo(s) and the prompt alone,
+   * with no source video (so no third-party footage is involved).
+   */
+  mode?: "edit" | "reference";
+  /** Public URL of the template video that gets edited (edit mode; ModelArk: 4–30 s). */
+  templateVideoUrl?: string;
+  /**
+   * Hidden instruction; the user never sees or changes it. Refer to the assets as
+   * "Image 1", "Image 2"… (the user's photos, in upload order) and, in edit mode,
+   * "Video 1" (the template).
    */
   prompt: string;
   resolution?: "480p" | "720p" | "1080p" | "4k";
-  /** Output length in seconds. Muapi only — ModelArk keeps the template video's length. */
+  /**
+   * Output length in seconds (reference mode: 4–30 on ModelArk). In edit mode ModelArk keeps
+   * the template video's length and ignores this.
+   */
   duration?: number;
+  /** Output aspect ratio for reference mode, e.g. "9:16". Edit mode keeps the source ratio. */
+  ratio?: string;
   generateAudio?: boolean;
 }
 
 export function parseSeedanceConfig(value: unknown): SeedanceTemplateConfig | null {
   if (!value || typeof value !== "object") return null;
   const c = value as Record<string, unknown>;
-  if (c.provider !== "seedance") return null;
-  if (typeof c.templateVideoUrl !== "string" || typeof c.prompt !== "string") return null;
-  if (!c.templateVideoUrl.startsWith("https://")) return null;
+  if (c.provider !== "seedance" || typeof c.prompt !== "string") return null;
+  if (c.mode === "reference") return c as unknown as SeedanceTemplateConfig;
+  // Edit mode needs a public template video.
+  if (typeof c.templateVideoUrl !== "string" || !c.templateVideoUrl.startsWith("https://")) return null;
   return c as unknown as SeedanceTemplateConfig;
 }
 
@@ -111,19 +124,54 @@ async function request(url: string, init: RequestInit, headers: Record<string, s
 }
 
 export interface SubmitVideoEditInput {
-  templateVideoUrl: string;
+  /** Source video to edit. Omit for reference mode (generate from the photos + prompt only). */
+  templateVideoUrl?: string;
   /** Public URLs of the user's reference photos. */
   imageUrls: string[];
   prompt: string;
   resolution?: SeedanceTemplateConfig["resolution"];
   duration?: number;
+  /** Output aspect ratio, reference mode only. */
+  ratio?: string;
   generateAudio?: boolean;
 }
 
-/** Starts a video-edit task and returns the provider's task id. */
+/** Starts a video task (edit or reference-to-video) and returns the provider's task id. */
 export async function submitVideoEdit(input: SubmitVideoEditInput): Promise<string> {
   const { provider, apiKey, baseUrl, model } = getConfig();
   const headers = authHeaders(provider, apiKey);
+
+  if (!input.templateVideoUrl) {
+    // Reference-to-video: no source video; the model invents the scene from the prompt
+    // and keeps the identity of the reference photo(s).
+    if (provider !== "modelark") throw new SeedanceError("Reference mode requires the ModelArk provider");
+    const data = (await request(
+      `${baseUrl}/contents/generations/tasks`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          model,
+          content: [
+            { type: "text", text: input.prompt },
+            ...input.imageUrls.map((url) => ({
+              type: "image_url",
+              image_url: { url },
+              role: "reference_image",
+            })),
+          ],
+          omni_reference_task_type: "reference",
+          ratio: input.ratio ?? "9:16",
+          duration: input.duration ?? 8,
+          resolution: input.resolution ?? "720p",
+          generate_audio: input.generateAudio ?? true,
+          watermark: false,
+        }),
+      },
+      headers,
+    )) as { id?: unknown };
+    if (typeof data.id !== "string" || !data.id) throw new SeedanceError("Seedance did not return a task id");
+    return data.id;
+  }
 
   if (provider === "muapi") {
     const data = (await request(
