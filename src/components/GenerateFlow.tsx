@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LoginModal } from "@/components/LoginModal";
 import type { Template } from "@/types";
 
 type Step = "detail" | "upload" | "processing" | "result";
@@ -8,9 +9,27 @@ type Step = "detail" | "upload" | "processing" | "result";
 // UI-only skeleton. Real generation must go through the backend: create an async
 // job (QUEUED → PROCESSING → COMPLETED/FAILED), reserve credits server-side and
 // refund on failure. The client never decides credit balances.
-export function GenerateFlow({ template }: { template: Template }) {
+export function GenerateFlow({
+  template,
+  isAuthenticated,
+  providers,
+}: {
+  template: Template;
+  isAuthenticated: boolean;
+  providers: ("google" | "apple")[];
+}) {
   const [step, setStep] = useState<Step>("detail");
   const [files, setFiles] = useState<File[]>([]);
+  const [showLogin, setShowLogin] = useState(false);
+
+  function download() {
+    // Guests can generate and preview, but must log in before downloading.
+    if (!isAuthenticated) {
+      setShowLogin(true);
+      return;
+    }
+    // TODO: request a temporary signed URL for the full-resolution file.
+  }
 
   const needed = template.requiredPhotoCount;
   const hint =
@@ -77,7 +96,10 @@ export function GenerateFlow({ template }: { template: Template }) {
       {step === "result" && (
         <div className="mt-6 space-y-3">
           <p className="text-center font-semibold">Your creation is ready.</p>
-          <button className="w-full rounded-full bg-foreground py-3 font-semibold text-background">
+          <button
+            onClick={download}
+            className="w-full rounded-full bg-foreground py-3 font-semibold text-background"
+          >
             Download
           </button>
           <button
@@ -90,6 +112,14 @@ export function GenerateFlow({ template }: { template: Template }) {
             Create Another
           </button>
         </div>
+      )}
+
+      {showLogin && (
+        <LoginModal
+          providers={providers}
+          redirectTo={`/templates/${template.id}`}
+          onClose={() => setShowLogin(false)}
+        />
       )}
     </div>
   );
