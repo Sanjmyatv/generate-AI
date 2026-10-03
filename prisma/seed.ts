@@ -7,6 +7,12 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  // Only seed an empty database so redeploys never overwrite admin edits.
+  if ((await prisma.category.count()) > 0) {
+    console.log("Seed skipped: database already has data.");
+    return;
+  }
+
   const categories = [
     { id: "trending", name: "Trending", sortOrder: 0 },
     { id: "dance", name: "Dance", sortOrder: 1 },
