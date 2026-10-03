@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OutputType {
+  IMAGE
+  VIDEO
+}
+
+enum PhotoRequirement {
+  FACE
+  FULL_BODY
+}
+
+enum GenerationStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum LedgerReason {
+  PURCHASE
+  GENERATION
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  /** Public, immutable, human-readable ID (e.g. USR_829381). */
+  publicId  String   @unique
+  name      String?
+  email     String?  @unique
+  googleId  String?  @unique
+  appleId   String?  @unique
+  /** Cached balance. The CreditLedger is the source of truth. */
+  credits   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  generations Generation[]
+  ledger      CreditLedger[]
+  payments    Payment[]
+}
+
+model Category {
+  id        String     @id
+  name      String
+  sortOrder Int        @default(0)
+  active    Boolean    @default(true)
+  templates Template[]
+}
+
+model Template {
+  id                 String           @id
+  name               String
+  description        String
+  previewUrl         String?
+  categoryId         String
+  category           Category         @relation(fields: [categoryId], references: [id])
+  type               OutputType
+  creditCost         Int
+  aspectRatio        String           @default("3:4")
+  requiredPhotoCount Int              @default(1)
+  photoRequirement   PhotoRequirement @default(FACE)
+  /// AI model / provider configuration (opaque to the frontend).
+  generationConfig   Json?
+  active             Boolean          @default(true)
+  trendingRank       Int?
+  createdAt          DateTime         @default(now())
+
+  generations Generation[]
+
+  @@index([categoryId])
+  @@index([trendingRank])
+}
+
+model CreditPackage {
+  id       String    @id
+  name     String
+  credits  Int
+  priceMnt Int
+  active   Boolean   @default(true)
+  sortOrder Int      @default(0)
+  payments Payment[]
+}
+
+model Generation {
+  id           String           @id @default(cuid())
+  /** Null for guest generations until they sign in. */
+  userId       String?
+  user         User?            @relation(fields: [userId], references: [id])
+  /** Anonymous session that owns a guest generation. */
+  guestId      String?
+  templateId   String
+  template     Template         @relation(fields: [templateId], references: [id])
+  status       GenerationStatus @default(QUEUED)
+  inputKeys    String[]
+  previewKey   String?
+  outputKey    String?
+  creditCost   Int
+  error        String?
+  createdAt    DateTime         @default(now())
+  completedAt  DateTime?
+
+  @@index([userId, createdAt])
+  @@index([guestId])
+}
+
+model CreditLedger {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  /** Positive = credits added, negative = credits spent. */
+  delta        Int
+  reason       LedgerReason
+  generationId String?
+  paymentId    String?
+  createdAt    DateTime     @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  packageId   String
+  package     CreditPackage @relation(fields: [packageId], references: [id])
+  amountMnt   Int
+  credits     Int
+  status      PaymentStatus @default(PENDING)
+  /** Provider's transaction/invoice reference, used to verify webhooks. */
+  providerRef String?       @unique
+  createdAt   DateTime      @default(now())
+  paidAt      DateTime?
+
+  @@index([userId])
+}
