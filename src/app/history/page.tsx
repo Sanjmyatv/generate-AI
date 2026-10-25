@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { auth, enabledProviders } from "@/auth";
 import { LoginButtons } from "@/components/LoginButtons";
+import { getActor } from "@/lib/actor";
 import { prisma } from "@/lib/db";
+import { claimGuestGenerations } from "@/lib/generations";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,9 @@ export default async function HistoryPage() {
       </div>
     );
   }
+
+  // Creations made before logging in belong to this account now.
+  await claimGuestGenerations(await getActor());
 
   const generations = await prisma.generation.findMany({
     where: { userId: session.user.id },

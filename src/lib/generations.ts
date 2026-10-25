@@ -24,6 +24,19 @@ export async function claimIfGuest(gen: Generation, actor: Actor) {
 }
 
 /**
+ * Attaches every generation made as this browser's guest to the signed-in account. The
+ * `?g=` redirect only rescues the one generation being viewed when the user logs in, so
+ * logging in from History or Profile would otherwise leave guest creations behind.
+ */
+export async function claimGuestGenerations(actor: Actor) {
+  if (!actor.userId || !actor.guestId) return;
+  await prisma.generation.updateMany({
+    where: { guestId: actor.guestId, userId: null },
+    data: { userId: actor.userId },
+  });
+}
+
+/**
  * Marks a generation failed and refunds any credits that were charged.
  * Idempotent: only the call that flips the status performs the refund, so
  * concurrent polls cannot refund twice.
