@@ -179,32 +179,40 @@ async function main() {
     },
   };
 
-  // Image edit on Higgsfield Marketing Studio (direct mode, no preset): colorizes a black and
-  // white photo. Public pricing for this model isn't listed, so check the cost in the Higgsfield
-  // console and adjust creditCost (and resolution) to match.
+  // Bump when the colorize definition below changes; applied to the existing row only when the
+  // stored version is older.
+  const COLORIZE_VERSION = 2;
+
+  // Image edit on Higgsfield Marketing Studio (direct mode, no preset): restores, sharpens and
+  // colorizes an old photo at high resolution. Public pricing for this model isn't listed, so
+  // check the cost in the Higgsfield console and adjust creditCost (and resolution) to match.
   const colorize = {
     id: "colorize-old-photo",
-    name: "Colorize Old Photo",
-    description: "Bring a black and white photo to life with natural, realistic color.",
+    name: "Restore & Colorize Photo",
+    description: "Colorize an old photo, repair its damage and sharpen it into a high-resolution picture.",
     categoryId: "photo",
     type: "IMAGE" as const,
-    creditCost: 3,
+    creditCost: 5,
     aspectRatio: "3:4",
     requiredPhotoCount: 1,
-    photoLabels: ["Black and white photo"],
+    photoLabels: ["Old photo"],
     photoRequirement: "FACE" as const,
     trendingRank: 5,
     generationConfig: {
-      version: 1,
+      version: COLORIZE_VERSION,
       provider: "marketing-image",
       prompt:
-        "Colorize this black and white photograph with natural, realistic, historically plausible colors. " +
-        "Keep the exact same people, faces, expressions, poses, clothing, objects and composition. " +
-        "Do not add, remove or alter anything, and do not change the framing, crop or background layout. " +
-        "Realistic skin tones, believable fabric and material colors, soft natural lighting, " +
-        "keep the fine detail and grain of the original photo.",
+        "Restore and colorize this old photograph into a sharp, high-resolution, modern-looking photo. " +
+        "Colorize it with natural, realistic, historically plausible colors: accurate skin tones, hair and eye colors, " +
+        "believable clothing, materials and surroundings, with balanced exposure, contrast and soft natural lighting. " +
+        "Repair the damage: remove scratches, dust, stains, creases, tears, fading and noise, and fix blur and low-resolution softness. " +
+        "Rebuild fine detail with crisp, natural clarity, as if shot on a modern high-end camera: " +
+        "individual hair strands, eyes, real skin texture, fabric weave and background detail. " +
+        "Preserve identity exactly: the same people, faces, expressions, age, poses, clothing, objects and composition. " +
+        "Do not change the framing or crop, do not add or remove anything, and do not beautify or alter facial features. " +
+        "No plastic or over-smoothed skin, no artificial filters, no heavy stylization.",
       quality: "high",
-      resolution: "1k",
+      resolution: "4k",
       aspectRatio: "auto",
     },
   };
@@ -237,7 +245,22 @@ async function main() {
     });
   }
   await prisma.template.upsert({ where: { id: goldenHour.id }, update: {}, create: goldenHour });
-  await prisma.template.upsert({ where: { id: colorize.id }, update: {}, create: colorize });
+  const existingColorize = await prisma.template.findUnique({ where: { id: colorize.id } });
+  const colorizeVersion = (existingColorize?.generationConfig as { version?: number } | null)?.version ?? 0;
+  if (!existingColorize) {
+    await prisma.template.create({ data: colorize });
+  } else if (colorizeVersion < COLORIZE_VERSION) {
+    await prisma.template.update({
+      where: { id: colorize.id },
+      data: {
+        name: colorize.name,
+        description: colorize.description,
+        creditCost: colorize.creditCost,
+        photoLabels: colorize.photoLabels,
+        generationConfig: colorize.generationConfig,
+      },
+    });
+  }
   if (genjutsuVideoUrl) {
     await prisma.template.upsert({ where: { id: characterSwap.id }, update: {}, create: characterSwap });
   }

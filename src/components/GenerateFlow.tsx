@@ -66,10 +66,13 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-async function uploadPhoto(file: File): Promise<string> {
+// Photo templates restore detail, so keep more of the original resolution than video ones do.
+const PHOTO_PREPARE = { maxSide: 2560, quality: 0.93, videoLimits: false } as const;
+
+async function uploadPhoto(file: File, forPhoto: boolean): Promise<string> {
   let blob: Blob;
   try {
-    blob = await prepareImage(file);
+    blob = await prepareImage(file, forPhoto ? PHOTO_PREPARE : undefined);
   } catch {
     throw new ApiError("invalid_image");
   }
@@ -211,7 +214,10 @@ export function GenerateFlow({
     setStep("processing");
     try {
       // Promise.all keeps the order, which the AI uses to map Image 1..N to the dancers.
-      const uploadIds = await Promise.all(photos.filter((p): p is File => p !== null).map(uploadPhoto));
+      const forPhoto = template.type === "image";
+      const uploadIds = await Promise.all(
+        photos.filter((p): p is File => p !== null).map((p) => uploadPhoto(p, forPhoto)),
+      );
       const { id } = await postJson<{ id: string }>("/api/generate", {
         templateId: template.id,
         uploadIds,

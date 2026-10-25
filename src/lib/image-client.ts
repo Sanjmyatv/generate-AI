@@ -1,15 +1,30 @@
+export interface PrepareImageOptions {
+  /** Longest side after downsizing; larger photos are scaled down, smaller ones are never enlarged. */
+  maxSide?: number;
+  /** JPEG quality, 0–1. */
+  quality?: number;
+  /**
+   * Enforce Seedance's reference-image limits (at least 90,000 px, width/height between 0.4 and
+   * 2.5). Photo-restoration templates turn this off so small scans and panoramas are accepted.
+   */
+  videoLimits?: boolean;
+}
+
 /**
  * Browser-only helper: decodes a photo (honouring EXIF rotation), downsizes it and
- * re-encodes it as JPEG. Phone photos are often 5–10 MB; the AI only needs ~1280px,
- * and the smaller file uploads faster on mobile networks.
+ * re-encodes it as JPEG. Phone photos are often 5–10 MB; video templates only need ~1280px,
+ * and the smaller file uploads faster on mobile networks. Photo templates pass larger
+ * `maxSide`/`quality` values to keep the detail the AI works from.
  */
-export async function prepareImage(file: File, maxSide = 1280): Promise<Blob> {
+export async function prepareImage(
+  file: File,
+  { maxSide = 1280, quality = 0.88, videoLimits = true }: PrepareImageOptions = {},
+): Promise<Blob> {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
 
-  // Seedance rejects reference images under 90,000 px or with extreme aspect ratios
-  // (it accepts width/height between 0.4 and 2.5), so fail early with a clear message.
   const ratio = bitmap.width / bitmap.height;
-  if (bitmap.width * bitmap.height < 90_000 || ratio < 0.4 || ratio > 2.5) {
+  const tooSmall = videoLimits ? bitmap.width * bitmap.height < 90_000 : Math.min(bitmap.width, bitmap.height) < 32;
+  if (tooSmall || (videoLimits && (ratio < 0.4 || ratio > 2.5))) {
     bitmap.close();
     throw new Error("image_unsuitable");
   }
@@ -25,7 +40,7 @@ export async function prepareImage(file: File, maxSide = 1280): Promise<Blob> {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("encode_failed"))),
       "image/jpeg",
-      0.88,
+      quality,
     ),
   );
 }
