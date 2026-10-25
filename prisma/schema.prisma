@@ -47,6 +47,8 @@ model User {
   appleId   String?  @unique
   /// scrypt hash for email + password sign-in; null for Google/Apple-only accounts.
   passwordHash String?
+  /// Can open /admin. Set by hand in the database, never from the app.
+  isAdmin   Boolean  @default(false)
   /** Cached balance. The CreditLedger is the source of truth. */
   credits   Int      @default(0)
   createdAt DateTime @default(now())
@@ -138,6 +140,19 @@ model Upload {
 
   @@index([ownerKey, createdAt])
   @@index([createdAt])
+}
+
+/// Media uploaded in the admin panel (template previews and source videos). Served by an
+/// unguessable URL (/api/assets/<id>) so the AI provider can fetch source videos; swap for
+/// object storage (S3/R2) when volume grows.
+model Asset {
+  id          String   @id @default(uuid())
+  contentType String
+  size        Int
+  /// Length in seconds for videos.
+  duration    Float?
+  data        Bytes
+  createdAt   DateTime @default(now())
 }
 
 /// Finished video copied from the provider (whose result URLs expire), so history and

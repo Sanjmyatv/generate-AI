@@ -47,6 +47,14 @@ export default async function ProfilePage() {
           </dd>
         </div>
       </dl>
+      {user.isAdmin && (
+        <Link
+          href="/admin"
+          className="mt-6 block rounded-full bg-foreground py-3 text-center font-semibold text-background"
+        >
+          Admin panel
+        </Link>
+      )}
       <form action={signOutAction}>
         <button className="mt-6 w-full rounded-full border border-foreground/30 py-3 font-semibold">
           Log Out
