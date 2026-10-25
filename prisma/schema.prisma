@@ -138,6 +138,17 @@ model Upload {
   @@index([createdAt])
 }
 
+/// Finished video copied from the provider (whose result URLs expire), so history and
+/// downloads keep working. Kept apart from Generation so list queries never load the bytes;
+/// swap for object storage (S3/R2) when volume grows.
+model GenerationVideo {
+  generationId String   @id
+  contentType  String
+  size         Int
+  data         Bytes
+  createdAt    DateTime @default(now())
+}
+
 model CreditLedger {
   id           String       @id @default(cuid())
   userId       String

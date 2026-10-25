@@ -388,12 +388,21 @@ export function GenerateFlow({
             className="mx-auto max-h-[70vh] w-full rounded-2xl bg-black"
           />
           {isAuthenticated ? (
-            <a
-              href={`${videoUrl}?download=1`}
-              className="block rounded-full bg-foreground py-3 text-center font-semibold text-background"
-            >
-              Download
-            </a>
+            <>
+              <a
+                href={`${videoUrl}?download=1`}
+                className="block rounded-full bg-foreground py-3 text-center font-semibold text-background"
+              >
+                Download
+              </a>
+              <p className="text-center text-xs text-foreground/60">
+                Saved to your{" "}
+                <Link href="/history" className="underline">
+                  History
+                </Link>
+                .
+              </p>
+            </>
           ) : (
             // Guests can preview but must log in before downloading.
             <button

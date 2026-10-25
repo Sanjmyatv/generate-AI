@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/actor";
 import {
   GENERATION_TIMEOUT_MS,
+  archiveVideo,
   canAccess,
   claimIfGuest,
   completeGeneration,
@@ -38,8 +39,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         const task = parseGenjutsuConfig(template?.generationConfig)
           ? await getMotionTransferTask(gen.providerTaskId)
           : await getTask(gen.providerTaskId);
-        if (task.status === "completed") await completeGeneration(gen.id, task.videoUrl);
-        else if (task.status === "failed") await failGeneration(gen.id, task.error);
+        if (task.status === "completed") {
+          // Only the poll that flips the status copies the video, so polls can't duplicate it.
+          if (await completeGeneration(gen.id, task.videoUrl)) await archiveVideo(gen.id, task.videoUrl);
+        } else if (task.status === "failed") await failGeneration(gen.id, task.error);
       } catch (e) {
         // Transient provider/network errors: keep the job running and let the next poll retry.
         console.error("[status] provider poll failed", e);

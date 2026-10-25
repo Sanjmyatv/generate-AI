@@ -53,6 +53,38 @@ export async function failGeneration(id: string, error: string) {
   });
 }
 
+const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
+
+/**
+ * Copies the provider's finished video into our database; provider URLs expire, so this is
+ * what keeps History and Download working later. Best effort: on failure the video route
+ * still proxies the provider URL while it is valid.
+ */
+export async function archiveVideo(id: string, url: string) {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(90_000), cache: "no-store" });
+    if (!res.ok) return false;
+    if (Number(res.headers.get("content-length")) > MAX_VIDEO_BYTES) return false;
+    const data = new Uint8Array(await res.arrayBuffer());
+    if (data.byteLength === 0 || data.byteLength > MAX_VIDEO_BYTES) return false;
+    const type = res.headers.get("content-type") ?? "";
+    await prisma.generationVideo.upsert({
+      where: { generationId: id },
+      update: {},
+      create: {
+        generationId: id,
+        contentType: type.startsWith("video/") ? type : "video/mp4",
+        size: data.byteLength,
+        data,
+      },
+    });
+    return true;
+  } catch (e) {
+    console.error("[generations] archive failed", id, e);
+    return false;
+  }
+}
+
 /** Records a finished video. Returns false if another request already did. */
 export async function completeGeneration(id: string, outputUrl: string) {
   const res = await prisma.generation.updateMany({
