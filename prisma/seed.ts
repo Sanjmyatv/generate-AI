@@ -146,6 +146,34 @@ async function main() {
     },
   };
 
+  // Higgsfield Genjutsu motion transfer: keeps the template video's motion and swaps its
+  // character for the user's photo. Billed per second of source video at list price
+  // $0.318 / $0.681 / $1.632 (480p / 720p / 1080p) before any account discount, so creditCost
+  // must cover the template's length. Only seeded once a real video URL is set.
+  const genjutsuVideoUrl = process.env.GENJUTSU_TEMPLATE_VIDEO_URL;
+  const characterSwap = {
+    id: "character-swap",
+    name: "Character Swap",
+    description: "Star in this video — your photo replaces the character, the moves stay the same.",
+    categoryId: "trending",
+    type: "VIDEO" as const,
+    creditCost: 10,
+    aspectRatio: "9:16", // match the template video
+    requiredPhotoCount: 1,
+    photoLabels: ["Your photo"],
+    photoRequirement: "FULL_BODY" as const,
+    trendingRank: 4,
+    generationConfig: {
+      version: 1,
+      provider: "genjutsu",
+      templateVideoUrl: genjutsuVideoUrl ?? "",
+      prompt:
+        "Replace the main character with the person in the reference image. " +
+        "Keep the original motion, timing, camera movement and background exactly the same.",
+      resolution: "720p",
+    },
+  };
+
   // Idempotent and non-destructive: rows that already exist (and any admin edits to
   // them) are left alone, so new seed entries can ship with every deploy.
   for (const c of categories) {
@@ -173,6 +201,9 @@ async function main() {
     });
   }
   await prisma.template.upsert({ where: { id: goldenHour.id }, update: {}, create: goldenHour });
+  if (genjutsuVideoUrl) {
+    await prisma.template.upsert({ where: { id: characterSwap.id }, update: {}, create: characterSwap });
+  }
   for (const p of packages) {
     await prisma.creditPackage.upsert({ where: { id: p.id }, update: {}, create: p });
   }

@@ -8,6 +8,7 @@ import {
   failGeneration,
 } from "@/lib/generations";
 import { getTask } from "@/lib/seedance";
+import { getMotionTransferTask, parseGenjutsuConfig } from "@/lib/higgsfield";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       await failGeneration(gen.id, "timeout");
     } else {
       try {
-        const task = await getTask(gen.providerTaskId);
+        // The template decides which provider owns this task id.
+        const template = await prisma.template.findUnique({
+          where: { id: gen.templateId },
+          select: { generationConfig: true },
+        });
+        const task = parseGenjutsuConfig(template?.generationConfig)
+          ? await getMotionTransferTask(gen.providerTaskId)
+          : await getTask(gen.providerTaskId);
         if (task.status === "completed") await completeGeneration(gen.id, task.videoUrl);
         else if (task.status === "failed") await failGeneration(gen.id, task.error);
       } catch (e) {

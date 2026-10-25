@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getActor, getBaseUrl } from "@/lib/actor";
 import { failGeneration } from "@/lib/generations";
 import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
+import { parseGenjutsuConfig, submitMotionTransfer } from "@/lib/higgsfield";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,8 @@ export async function POST(req: Request) {
 
   const template = await prisma.template.findFirst({ where: { id: templateId, active: true } });
   const config = template ? parseSeedanceConfig(template.generationConfig) : null;
-  if (!template || !config) return Response.json({ error: "template_unavailable" }, { status: 400 });
+  const genjutsu = template && !config ? parseGenjutsuConfig(template.generationConfig) : null;
+  if (!template || (!config && !genjutsu)) return Response.json({ error: "template_unavailable" }, { status: 400 });
   if (uploadIds.length !== template.requiredPhotoCount) {
     return Response.json({ error: "invalid_photo_count" }, { status: 400 });
   }
@@ -116,16 +118,24 @@ export async function POST(req: Request) {
 
   try {
     const base = getBaseUrl(req);
-    const taskId = await submitVideoEdit({
-      // Undefined in reference mode: the video is generated from the photo(s) + prompt alone.
-      templateVideoUrl: config.mode === "reference" ? undefined : config.templateVideoUrl,
-      imageUrls: uploadIds.map((id) => `${base}/api/uploads/${id}`),
-      prompt: config.prompt,
-      resolution: config.resolution,
-      duration: config.duration,
-      ratio: config.ratio,
-      generateAudio: config.generateAudio,
-    });
+    const imageUrls = uploadIds.map((id) => `${base}/api/uploads/${id}`);
+    const taskId = genjutsu
+      ? await submitMotionTransfer({
+          templateVideoUrl: genjutsu.templateVideoUrl,
+          imageUrls,
+          prompt: genjutsu.prompt,
+          resolution: genjutsu.resolution,
+        })
+      : await submitVideoEdit({
+          // Undefined in reference mode: the video is generated from the photo(s) + prompt alone.
+          templateVideoUrl: config!.mode === "reference" ? undefined : config!.templateVideoUrl,
+          imageUrls,
+          prompt: config!.prompt,
+          resolution: config!.resolution,
+          duration: config!.duration,
+          ratio: config!.ratio,
+          generateAudio: config!.generateAudio,
+        });
     await prisma.generation.update({
       where: { id: generation.id },
       data: { providerTaskId: taskId, status: "PROCESSING" },

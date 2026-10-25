@@ -27,7 +27,10 @@ export function LoginButtons({
   return (
     <div className="space-y-3">
       {providers.map((provider) => (
-        <form key={provider} action={() => signInWithProvider(provider, redirectTo)}>
+        <form
+          key={provider}
+          action={() => signInWithProvider(provider, redirectTo)}
+        >
           <button
             type="submit"
             className="w-full rounded-full border border-foreground/30 py-3 font-semibold hover:bg-foreground/5"
