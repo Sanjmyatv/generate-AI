@@ -67,6 +67,8 @@ export interface TemplateFormValues {
   imageResolution: string;
   imageQuality: string;
   imageAspect: string;
+  /** What one generation costs us, in USD. Used for margin math only; providers never see it. */
+  costUsd: string;
 }
 
 export function defaultFormValues(): TemplateFormValues {
@@ -94,6 +96,7 @@ export function defaultFormValues(): TemplateFormValues {
     imageResolution: "2k",
     imageQuality: "high",
     imageAspect: "auto",
+    costUsd: "",
   };
 }
 
@@ -127,6 +130,7 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   v.trendingRank = t.trendingRank === null ? "" : String(t.trendingRank);
   v.previewUrl = t.previewUrl ?? "";
   v.sourceVideoUrl = str(config.templateVideoUrl);
+  if (typeof config.costUsd === "number") v.costUsd = String(config.costUsd);
   if (engine === "marketing-image") {
     v.imageResolution = str(config.resolution) || v.imageResolution;
     v.imageQuality = str(config.quality) || v.imageQuality;
@@ -173,6 +177,7 @@ export function readForm(form: FormData): TemplateFormValues {
     imageResolution: text("imageResolution"),
     imageQuality: text("imageQuality"),
     imageAspect: text("imageAspect"),
+    costUsd: text("costUsd").trim(),
   };
 }
 
@@ -197,8 +202,11 @@ export interface TemplateData {
 
 const oneOf = <T extends string>(list: readonly T[], value: string): value is T => (list as readonly string[]).includes(value);
 
-/** Only our own paths and https URLs are allowed, so a template can't point at arbitrary schemes. */
-function checkUrl(value: string, baseUrl: string): string | null {
+/**
+ * Resolves an upload path or https URL to a full URL. Anything else (other schemes, junk) is
+ * refused, so a template can't point at arbitrary places.
+ */
+export function resolveUrl(value: string, baseUrl: string): string | null {
   if (value.startsWith("/api/assets/") || value.startsWith("/templates/")) return `${baseUrl}${value}`;
   return /^https:\/\/[^\s/]+/i.test(value) ? value : null;
 }
@@ -244,12 +252,17 @@ export function buildTemplateData(
 
   let previewUrl: string | null = null;
   if (v.previewUrl) {
-    const checked = checkUrl(v.previewUrl, baseUrl);
+    const checked = resolveUrl(v.previewUrl, baseUrl);
     if (!checked) errors.previewUrl = "The preview must be an upload or an https link.";
     else previewUrl = v.previewUrl; // relative paths stay relative; the site serves them itself
   }
 
   const config: Record<string, unknown> = {};
+  if (v.costUsd) {
+    const costUsd = Number(v.costUsd);
+    if (!Number.isFinite(costUsd) || costUsd < 0 || costUsd > 1000) errors.costUsd = "Enter the cost in USD, e.g. 2.39.";
+    else config.costUsd = costUsd;
+  }
   const prevVersion = (existingConfig as { version?: unknown } | null)?.version;
   if (typeof prevVersion === "number") config.version = prevVersion;
 
@@ -260,7 +273,7 @@ export function buildTemplateData(
   const needsVideo = v.engine === "genjutsu" || v.engine === "seedance-edit";
   let sourceVideoUrl = "";
   if (needsVideo) {
-    sourceVideoUrl = (v.sourceVideoUrl && checkUrl(v.sourceVideoUrl, baseUrl)) || "";
+    sourceVideoUrl = (v.sourceVideoUrl && resolveUrl(v.sourceVideoUrl, baseUrl)) || "";
     if (!sourceVideoUrl) errors.sourceVideoUrl = "Upload a source video or paste a public https link.";
   }
 

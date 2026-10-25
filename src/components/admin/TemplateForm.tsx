@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 import { saveTemplateAction, type TemplateFormState } from "@/app/actions/admin";
+import { CostMargin } from "@/components/admin/CostMargin";
 import { TemplatePreview } from "@/components/TemplatePreview";
+import type { PackagePrice } from "@/lib/pricing";
 import {
   CARD_SHAPES,
   ENGINES,
@@ -70,10 +72,16 @@ const UPLOAD_ERRORS: Record<string, string> = {
 export function TemplateForm({
   initial,
   categories,
+  packages,
+  usdMnt,
   templateId,
 }: {
   initial: TemplateFormValues;
   categories: { id: string; name: string }[];
+  /** Credit packs, used to work out what a credit earns. */
+  packages: PackagePrice[];
+  /** Default exchange rate (₮ per $1) for the cost box. */
+  usdMnt: number;
   templateId?: string;
 }) {
   const [v, setV] = useState(initial);
@@ -375,6 +383,7 @@ export function TemplateForm({
         <Field label="Credit cost" error={err.creditCost} hint="Credits charged for one generation.">
           <input {...text("creditCost")} inputMode="numeric" className={`${inputClass} max-w-32`} />
         </Field>
+        <CostMargin values={v} onChange={set} packages={packages} defaultUsdMnt={usdMnt} error={err.costUsd} />
       </Section>
 
       {state.message && (

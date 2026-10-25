@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { prisma } from "@/lib/db";
 import { deleteTemplateAction, setTemplateActiveAction } from "@/app/actions/admin";
+import { marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
 import { ENGINES, templateToFormValues } from "@/lib/template-admin";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,10 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
     orderBy: [{ active: "desc" }, { createdAt: "desc" }],
     include: { category: { select: { name: true } } },
   });
+  // Margin is shown against the cheapest credit pack, the worst case for what a credit earns.
+  const packages = await prisma.creditPackage.findMany({ where: { active: true } });
+  const cheapest = packages.sort((a, b) => perCreditMnt(a) - perCreditMnt(b))[0];
+  const usdMnt = usdMntRate();
 
   return (
     <div className="pt-6">
@@ -35,6 +40,11 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         {templates.map((t) => {
           const engine = ENGINES.find((e) => e.value === templateToFormValues(t).engine);
           const configured = t.generationConfig !== null;
+          const costUsd = (t.generationConfig as { costUsd?: unknown } | null)?.costUsd;
+          const margin =
+            typeof costUsd === "number" && cheapest
+              ? marginFor({ costUsd, creditCost: t.creditCost, perCredit: perCreditMnt(cheapest), usdMnt })
+              : null;
           return (
             <li key={t.id} className="flex gap-3 rounded-2xl border border-foreground/15 p-3">
               <div className="h-24 w-16 shrink-0 overflow-hidden rounded-lg">
@@ -52,6 +62,13 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                   {t.category.name} · {t.type === "VIDEO" ? "Video" : "Image"} · {t.creditCost} credits ·{" "}
                   {configured ? engine?.label : "No method chosen"}
                 </p>
+                {configured && (
+                  <p className={`text-xs ${margin && margin.marginMnt < 0 ? "text-red-500" : "text-foreground/60"}`}>
+                    {margin
+                      ? `Cost $${(costUsd as number).toFixed(2)} · margin ${margin.marginPct.toFixed(0)}% on the ${cheapest.name}`
+                      : "Cost not set: open Edit to check the price"}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                   <Link href={`/admin/templates/${t.id}`} className="rounded-full border border-foreground/30 px-3 py-1">
                     Edit

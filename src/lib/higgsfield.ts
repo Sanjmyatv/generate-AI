@@ -173,3 +173,38 @@ export async function getHiggsfieldTask(requestId: string): Promise<TaskState> {
   }
   return { status: "pending" }; // queued | in_progress
 }
+
+/**
+ * Asks Higgsfield what a request would cost this account, in USD, before submitting it.
+ * `modelPath` is the same path used to generate; the estimate lives under `/estimate/`.
+ * The response is the authoritative amount, discounts included.
+ */
+async function estimateUsd(modelPath: string, body: unknown): Promise<number> {
+  const data = (await request(`estimate/${modelPath}`, { method: "POST", body: JSON.stringify(body) })) as {
+    usd?: unknown;
+  };
+  const usd = Number(data.usd);
+  if (!Number.isFinite(usd) || usd < 0) throw new HiggsfieldError("Higgsfield returned no estimate");
+  return usd;
+}
+
+export function estimateMotionTransferUsd(input: SubmitMotionTransferInput) {
+  return estimateUsd(MODEL_PATH, {
+    prompt: input.prompt ?? "",
+    video_url: input.templateVideoUrl,
+    image_urls: input.imageUrls,
+    resolution: input.resolution ?? "720p",
+  });
+}
+
+export function estimateImageEditUsd(input: SubmitImageEditInput) {
+  return estimateUsd("marketing-studio/image", {
+    prompt: input.prompt,
+    image_urls: input.imageUrls,
+    quality: input.quality ?? "high",
+    resolution: input.resolution ?? "1k",
+    aspect_ratio: input.aspectRatio ?? "auto",
+    moderation: "auto",
+    enhance_prompt: false,
+  });
+}
