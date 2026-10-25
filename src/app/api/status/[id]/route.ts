@@ -9,7 +9,7 @@ import {
   failGeneration,
 } from "@/lib/generations";
 import { getTask } from "@/lib/seedance";
-import { getMotionTransferTask, parseGenjutsuConfig } from "@/lib/higgsfield";
+import { getHiggsfieldTask, isHiggsfieldConfig } from "@/lib/higgsfield";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +36,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
           where: { id: gen.templateId },
           select: { generationConfig: true },
         });
-        const task = parseGenjutsuConfig(template?.generationConfig)
-          ? await getMotionTransferTask(gen.providerTaskId)
+        const task = isHiggsfieldConfig(template?.generationConfig)
+          ? await getHiggsfieldTask(gen.providerTaskId)
           : await getTask(gen.providerTaskId);
         if (task.status === "completed") {
           // Only the poll that flips the status copies the video, so polls can't duplicate it.

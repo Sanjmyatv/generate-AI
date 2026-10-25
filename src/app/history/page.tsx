@@ -38,7 +38,7 @@ export default async function HistoryPage() {
       id: true,
       status: true,
       createdAt: true,
-      template: { select: { id: true, name: true, aspectRatio: true } },
+      template: { select: { id: true, name: true, aspectRatio: true, type: true } },
     },
   });
 
@@ -66,7 +66,15 @@ export default async function HistoryPage() {
               className="overflow-hidden rounded-xl bg-foreground/10"
               style={{ aspectRatio: aspectCss(g.template.aspectRatio) }}
             >
-              {g.status === "COMPLETED" ? (
+              {g.status === "COMPLETED" && g.template.type === "IMAGE" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/api/generations/${g.id}/video`}
+                  alt={g.template.name}
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              ) : g.status === "COMPLETED" ? (
                 <video
                   src={`/api/generations/${g.id}/video`}
                   controls

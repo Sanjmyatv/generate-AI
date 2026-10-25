@@ -11,6 +11,7 @@ async function main() {
     { id: "trending", name: "Trending", sortOrder: 0 },
     { id: "dance", name: "Dance", sortOrder: 1 },
     { id: "horoscope", name: "Horoscope", sortOrder: 2 },
+    { id: "photo", name: "Photo", sortOrder: 3 },
   ];
 
   const templates = [
@@ -178,6 +179,36 @@ async function main() {
     },
   };
 
+  // Image edit on Higgsfield Marketing Studio (direct mode, no preset): colorizes a black and
+  // white photo. Public pricing for this model isn't listed, so check the cost in the Higgsfield
+  // console and adjust creditCost (and resolution) to match.
+  const colorize = {
+    id: "colorize-old-photo",
+    name: "Colorize Old Photo",
+    description: "Bring a black and white photo to life with natural, realistic color.",
+    categoryId: "photo",
+    type: "IMAGE" as const,
+    creditCost: 3,
+    aspectRatio: "3:4",
+    requiredPhotoCount: 1,
+    photoLabels: ["Black and white photo"],
+    photoRequirement: "FACE" as const,
+    trendingRank: 5,
+    generationConfig: {
+      version: 1,
+      provider: "marketing-image",
+      prompt:
+        "Colorize this black and white photograph with natural, realistic, historically plausible colors. " +
+        "Keep the exact same people, faces, expressions, poses, clothing, objects and composition. " +
+        "Do not add, remove or alter anything, and do not change the framing, crop or background layout. " +
+        "Realistic skin tones, believable fabric and material colors, soft natural lighting, " +
+        "keep the fine detail and grain of the original photo.",
+      quality: "high",
+      resolution: "1k",
+      aspectRatio: "auto",
+    },
+  };
+
   // Idempotent and non-destructive: rows that already exist (and any admin edits to
   // them) are left alone, so new seed entries can ship with every deploy.
   for (const c of categories) {
@@ -206,6 +237,7 @@ async function main() {
     });
   }
   await prisma.template.upsert({ where: { id: goldenHour.id }, update: {}, create: goldenHour });
+  await prisma.template.upsert({ where: { id: colorize.id }, update: {}, create: colorize });
   if (genjutsuVideoUrl) {
     await prisma.template.upsert({ where: { id: characterSwap.id }, update: {}, create: characterSwap });
   }

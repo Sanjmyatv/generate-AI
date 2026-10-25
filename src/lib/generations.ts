@@ -55,10 +55,28 @@ export async function failGeneration(id: string, error: string) {
 
 const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
 
+/** The result's media type: the provider's header if usable, else sniffed from the bytes. */
+function resultContentType(header: string | null, data: Uint8Array) {
+  const type = header?.split(";")[0].trim().toLowerCase() ?? "";
+  if (type.startsWith("video/") || type.startsWith("image/")) return type;
+  if (data[0] === 0x89 && data[1] === 0x50) return "image/png";
+  if (data[0] === 0xff && data[1] === 0xd8) return "image/jpeg";
+  if (data[0] === 0x52 && data[1] === 0x49 && data[8] === 0x57) return "image/webp"; // RIFF....WEBP
+  return "video/mp4";
+}
+
+/** File extension for a stored result's media type. */
+export function resultExtension(contentType: string) {
+  if (contentType === "image/png") return "png";
+  if (contentType === "image/jpeg") return "jpg";
+  if (contentType === "image/webp") return "webp";
+  return "mp4";
+}
+
 /**
- * Copies the provider's finished video into our database; provider URLs expire, so this is
- * what keeps History and Download working later. Best effort: on failure the video route
- * still proxies the provider URL while it is valid.
+ * Copies the provider's finished video or image into our database; provider URLs expire, so
+ * this is what keeps History and Download working later. Best effort: on failure the media
+ * route still proxies the provider URL while it is valid.
  */
 export async function archiveVideo(id: string, url: string) {
   try {
@@ -67,13 +85,12 @@ export async function archiveVideo(id: string, url: string) {
     if (Number(res.headers.get("content-length")) > MAX_VIDEO_BYTES) return false;
     const data = new Uint8Array(await res.arrayBuffer());
     if (data.byteLength === 0 || data.byteLength > MAX_VIDEO_BYTES) return false;
-    const type = res.headers.get("content-type") ?? "";
     await prisma.generationVideo.upsert({
       where: { generationId: id },
       update: {},
       create: {
         generationId: id,
-        contentType: type.startsWith("video/") ? type : "video/mp4",
+        contentType: resultContentType(res.headers.get("content-type"), data),
         size: data.byteLength,
         data,
       },

@@ -2,7 +2,12 @@ import { prisma } from "@/lib/db";
 import { getActor, getBaseUrl } from "@/lib/actor";
 import { failGeneration } from "@/lib/generations";
 import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
-import { parseGenjutsuConfig, submitMotionTransfer } from "@/lib/higgsfield";
+import {
+  parseGenjutsuConfig,
+  parseMarketingImageConfig,
+  submitImageEdit,
+  submitMotionTransfer,
+} from "@/lib/higgsfield";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +56,9 @@ export async function POST(req: Request) {
   const template = await prisma.template.findFirst({ where: { id: templateId, active: true } });
   const config = template ? parseSeedanceConfig(template.generationConfig) : null;
   const genjutsu = template && !config ? parseGenjutsuConfig(template.generationConfig) : null;
-  if (!template || (!config && !genjutsu)) return Response.json({ error: "template_unavailable" }, { status: 400 });
+  const imageEdit =
+    template && !config && !genjutsu ? parseMarketingImageConfig(template.generationConfig) : null;
+  if (!template || (!config && !genjutsu && !imageEdit)) return Response.json({ error: "template_unavailable" }, { status: 400 });
   if (uploadIds.length !== template.requiredPhotoCount) {
     return Response.json({ error: "invalid_photo_count" }, { status: 400 });
   }
@@ -119,7 +126,15 @@ export async function POST(req: Request) {
   try {
     const base = getBaseUrl(req);
     const imageUrls = uploadIds.map((id) => `${base}/api/uploads/${id}`);
-    const taskId = genjutsu
+    const taskId = imageEdit
+      ? await submitImageEdit({
+          imageUrls,
+          prompt: imageEdit.prompt,
+          quality: imageEdit.quality,
+          resolution: imageEdit.resolution,
+          aspectRatio: imageEdit.aspectRatio,
+        })
+      : genjutsu
       ? await submitMotionTransfer({
           templateVideoUrl: genjutsu.templateVideoUrl,
           imageUrls,

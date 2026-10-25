@@ -39,6 +39,33 @@ export function parseGenjutsuConfig(value: unknown): GenjutsuTemplateConfig | nu
   return c as unknown as GenjutsuTemplateConfig;
 }
 
+/**
+ * Settings for a Higgsfield Marketing Studio image edit (`marketing-studio/image`), stored in
+ * `Template.generationConfig`. Used in direct mode (`enhance_prompt: false`): the user's
+ * photo(s) plus the hidden prompt, no preset.
+ */
+export interface MarketingImageTemplateConfig {
+  provider: "marketing-image";
+  /** Hidden instruction; the user never sees it. */
+  prompt: string;
+  quality?: "low" | "medium" | "high";
+  resolution?: "1k" | "2k" | "4k";
+  /** "auto" keeps the source photo's shape. */
+  aspectRatio?: string;
+}
+
+export function parseMarketingImageConfig(value: unknown): MarketingImageTemplateConfig | null {
+  if (!value || typeof value !== "object") return null;
+  const c = value as Record<string, unknown>;
+  if (c.provider !== "marketing-image" || typeof c.prompt !== "string" || !c.prompt) return null;
+  return c as unknown as MarketingImageTemplateConfig;
+}
+
+/** True for templates whose jobs run on Higgsfield (polled with getHiggsfieldTask). */
+export function isHiggsfieldConfig(value: unknown): boolean {
+  return parseGenjutsuConfig(value) !== null || parseMarketingImageConfig(value) !== null;
+}
+
 function authHeader() {
   const credentials = process.env.HIGGSFIELD_CREDENTIALS;
   if (!credentials) throw new HiggsfieldError("HIGGSFIELD_CREDENTIALS is not set");
@@ -91,20 +118,54 @@ export async function submitMotionTransfer(input: SubmitMotionTransferInput): Pr
   return data.request_id;
 }
 
-/** Fetches a request and normalises Higgsfield's status vocabulary. */
-export async function getMotionTransferTask(requestId: string): Promise<TaskState> {
+export interface SubmitImageEditInput {
+  /** Public URLs of the user's photo(s) to edit (up to 16). */
+  imageUrls: string[];
+  prompt: string;
+  quality?: MarketingImageTemplateConfig["quality"];
+  resolution?: MarketingImageTemplateConfig["resolution"];
+  aspectRatio?: string;
+}
+
+/** Starts a Marketing Studio image edit (no preset) and returns Higgsfield's request id. */
+export async function submitImageEdit(input: SubmitImageEditInput): Promise<string> {
+  const data = (await request("marketing-studio/image", {
+    method: "POST",
+    body: JSON.stringify({
+      prompt: input.prompt,
+      image_urls: input.imageUrls,
+      quality: input.quality ?? "high",
+      resolution: input.resolution ?? "1k",
+      aspect_ratio: input.aspectRatio ?? "auto",
+      moderation: "auto",
+      // Presets rewrite the prompt into an ad layout; we want a faithful edit of the photo.
+      enhance_prompt: false,
+    }),
+  })) as { request_id?: unknown };
+  if (typeof data.request_id !== "string" || !data.request_id) {
+    throw new HiggsfieldError("Higgsfield did not return a request_id");
+  }
+  return data.request_id;
+}
+
+/**
+ * Fetches a request and normalises Higgsfield's status vocabulary. For image jobs the
+ * finished image URL comes back in `videoUrl`: TaskState is shared with the video providers.
+ */
+export async function getHiggsfieldTask(requestId: string): Promise<TaskState> {
   const data = (await request(`requests/${encodeURIComponent(requestId)}/status`, { method: "GET" })) as {
     status?: unknown;
     video?: { url?: unknown } | null;
+    images?: { url?: unknown }[] | null;
     error?: unknown;
   };
   const status = String(data.status ?? "").toLowerCase();
 
   if (status === "completed") {
-    const url = data.video?.url;
+    const url = data.video?.url ?? data.images?.[0]?.url;
     return typeof url === "string" && url.startsWith("https://")
       ? { status: "completed", videoUrl: url }
-      : { status: "failed", error: "Provider finished without a video" };
+      : { status: "failed", error: "Provider finished without a result" };
   }
   if (status === "failed" || status === "nsfw" || status === "canceled") {
     console.error("[higgsfield] request failed", requestId, status, JSON.stringify(data.error ?? null));

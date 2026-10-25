@@ -37,6 +37,12 @@ const PROGRESS_MESSAGES = [
   "Almost there, this may take a little while.",
 ];
 
+const IMAGE_PROGRESS_MESSAGES = [
+  "Working on your photo...",
+  "Adding the finishing touches...",
+  "Almost there, this may take a little while.",
+];
+
 /** "9:16" -> "9 / 16" for the CSS aspect-ratio property; falls back to 3/4. */
 function aspectCss(ratio: string) {
   const [w, h] = ratio.split(":").map(Number);
@@ -277,7 +283,8 @@ export function GenerateFlow({
     };
   }, [step, generationId, fail, reset]);
 
-  const message = PROGRESS_MESSAGES[Math.min(Math.floor(elapsed / 20), PROGRESS_MESSAGES.length - 1)];
+  const messages = template.type === "video" ? PROGRESS_MESSAGES : IMAGE_PROGRESS_MESSAGES;
+  const message = messages[Math.min(Math.floor(elapsed / 20), messages.length - 1)];
 
   return (
     <div className="mx-auto max-w-md py-8">
@@ -333,7 +340,7 @@ export function GenerateFlow({
             onClick={generate}
             className="w-full rounded-full bg-foreground py-3 font-semibold text-background disabled:opacity-40"
           >
-            Generate Video ✨
+            {template.type === "video" ? "Generate Video ✨" : "Generate ✨"}
           </button>
         </div>
       )}
@@ -379,14 +386,23 @@ export function GenerateFlow({
       {step === "result" && videoUrl && (
         <div className="space-y-3">
           <p className="text-center font-semibold">Your creation is ready.</p>
-          <video
-            src={videoUrl}
-            controls
-            playsInline
-            autoPlay
-            loop
-            className="mx-auto max-h-[70vh] w-full rounded-2xl bg-black"
-          />
+          {template.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={videoUrl}
+              alt={template.name}
+              className="mx-auto max-h-[70vh] w-full rounded-2xl bg-black object-contain"
+            />
+          ) : (
+            <video
+              src={videoUrl}
+              controls
+              playsInline
+              autoPlay
+              loop
+              className="mx-auto max-h-[70vh] w-full rounded-2xl bg-black"
+            />
+          )}
           {isAuthenticated ? (
             <>
               <a
