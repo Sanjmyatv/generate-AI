@@ -168,7 +168,9 @@ export async function getHiggsfieldTask(requestId: string): Promise<TaskState> {
       : { status: "failed", error: "Provider finished without a result" };
   }
   if (status === "failed" || status === "nsfw" || status === "canceled") {
-    console.error("[higgsfield] request failed", requestId, status, JSON.stringify(data.error ?? null));
+    // The whole status body, not just `error`: it is often a bare "Generation failed" and any
+    // extra fields Higgsfield adds are the only other clue.
+    console.error("[higgsfield] request failed", requestId, status, JSON.stringify(data));
     return { status: "failed", error: status === "nsfw" ? "content_flagged" : "Generation failed" };
   }
   return { status: "pending" }; // queued | in_progress
