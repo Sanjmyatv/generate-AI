@@ -179,6 +179,51 @@ async function main() {
     },
   };
 
+  // "Shine": a single young man dancing on a restaurant terrace at night (14.8 s, 9:16, with
+  // music). The clip shows real people in the background, which Seedance/ModelArk rejects, so it
+  // runs on Genjutsu motion transfer like 3 Guys Dancing: 15 billed seconds, about $2.39 at 480p
+  // with our discount, hence the credit cost. The video is served from this app's own
+  // /templates folder; its origin comes from SHINE_TEMPLATE_VIDEO_URL, APP_URL, or the origin of
+  // THREE_GUYS_TEMPLATE_VIDEO_URL, whichever is a valid https URL.
+  const shineVideoUrl = (() => {
+    const explicit = process.env.SHINE_TEMPLATE_VIDEO_URL;
+    if (explicit?.startsWith("https://")) return explicit;
+    for (const base of [process.env.APP_URL, process.env.THREE_GUYS_TEMPLATE_VIDEO_URL]) {
+      try {
+        const url = new URL(base ?? "");
+        if (url.protocol === "https:") return `${url.origin}/templates/shine.mp4`;
+      } catch {
+        // not a URL; try the next source
+      }
+    }
+    return null;
+  })();
+  const shine = shineVideoUrl && {
+    id: "shine",
+    name: "Shine",
+    description: "Step into this viral night-out dance — your photo, the exact same moves.",
+    categoryId: "dance",
+    type: "VIDEO" as const,
+    creditCost: 25,
+    aspectRatio: "9:16", // the template video is 320x568
+    previewUrl: "/templates/shine.mp4",
+    requiredPhotoCount: 1,
+    photoLabels: ["Your photo (full body)"],
+    photoRequirement: "FULL_BODY" as const,
+    trendingRank: 2,
+    generationConfig: {
+      version: 1,
+      provider: "genjutsu",
+      templateVideoUrl: shineVideoUrl,
+      prompt:
+        "Replace the young man who is dancing with the person in the reference image. " +
+        "Keep the original dance moves, timing, camera framing, the restaurant terrace, the night lighting " +
+        "and the people sitting in the background exactly the same. " +
+        "The dancer must clearly have the face, hairstyle and identity of the reference image.",
+      resolution: "480p",
+    },
+  };
+
   // Bump when the colorize definition below changes; applied to the existing row only when the
   // stored version is older.
   const COLORIZE_VERSION = 2;
@@ -260,6 +305,11 @@ async function main() {
         generationConfig: colorize.generationConfig,
       },
     });
+  }
+  if (shine) {
+    await prisma.template.upsert({ where: { id: shine.id }, update: {}, create: shine });
+  } else {
+    console.warn("[seed] Shine template skipped: set APP_URL (https) or SHINE_TEMPLATE_VIDEO_URL");
   }
   if (genjutsuVideoUrl) {
     await prisma.template.upsert({ where: { id: characterSwap.id }, update: {}, create: characterSwap });
