@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getActor, getBaseUrl } from "@/lib/actor";
-import { failGeneration } from "@/lib/generations";
+import { failGeneration, refreshGeneration } from "@/lib/generations";
 import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
 import {
   parseGenjutsuConfig,
@@ -72,11 +72,22 @@ export async function POST(req: Request) {
     return Response.json({ error: "invalid_image" }, { status: 400 });
   }
 
+  const owner = actor.userId ? { userId: actor.userId } : { guestId: actor.guestId, userId: null };
+
+  // Jobs only advance while someone polls /api/status, so one the user walked away from can
+  // look "active" long after the provider finished. Settle those first so they don't block
+  // a new generation (failed ones are refunded here too).
+  const running = await prisma.generation.findMany({
+    where: { status: { in: ["QUEUED", "PROCESSING"] }, ...owner },
+    take: 10,
+  });
+  await Promise.all(running.map(refreshGeneration));
+
   const active = await prisma.generation.count({
     where: {
       status: { in: ["QUEUED", "PROCESSING"] },
       createdAt: { gt: new Date(Date.now() - ACTIVE_WINDOW_MS) },
-      ...(actor.userId ? { userId: actor.userId } : { guestId: actor.guestId, userId: null }),
+      ...owner,
     },
   });
   if (active >= MAX_ACTIVE_PER_ACTOR) return Response.json({ error: "too_many_active" }, { status: 429 });

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import type { Generation } from "@/generated/prisma/client";
 import type { Actor } from "@/lib/actor";
+import { getTask } from "@/lib/seedance";
+import { getHiggsfieldTask, isHiggsfieldConfig } from "@/lib/higgsfield";
 
 /** A job still running after this long is treated as failed (and refunded). */
 export const GENERATION_TIMEOUT_MS = 15 * 60 * 1000;
@@ -109,4 +111,38 @@ export async function completeGeneration(id: string, outputUrl: string) {
     data: { status: "COMPLETED", outputUrl, completedAt: new Date() },
   });
   return res.count === 1;
+}
+
+/**
+ * Syncs a running generation with its provider: completes it (and copies the result),
+ * fails it (and refunds), or times it out. Returns the fresh row. Safe to call from any
+ * request; only the call that flips the status acts on it.
+ */
+export async function refreshGeneration(gen: Generation): Promise<Generation> {
+  if (gen.status !== "QUEUED" && gen.status !== "PROCESSING") return gen;
+
+  if (Date.now() - gen.createdAt.getTime() > GENERATION_TIMEOUT_MS) {
+    await failGeneration(gen.id, "timeout");
+  } else if (gen.providerTaskId) {
+    try {
+      // The template decides which provider owns this task id.
+      const template = await prisma.template.findUnique({
+        where: { id: gen.templateId },
+        select: { generationConfig: true },
+      });
+      const task = isHiggsfieldConfig(template?.generationConfig)
+        ? await getHiggsfieldTask(gen.providerTaskId)
+        : await getTask(gen.providerTaskId);
+      if (task.status === "completed") {
+        // Only the call that flips the status copies the result, so polls can't duplicate it.
+        if (await completeGeneration(gen.id, task.videoUrl)) await archiveVideo(gen.id, task.videoUrl);
+      } else if (task.status === "failed") {
+        await failGeneration(gen.id, task.error);
+      }
+    } catch (e) {
+      // Transient provider/network errors: keep the job running and let the next call retry.
+      console.error("[generations] provider poll failed", gen.id, e);
+    }
+  }
+  return (await prisma.generation.findUnique({ where: { id: gen.id } })) ?? gen;
 }
