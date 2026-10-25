@@ -45,6 +45,8 @@ model User {
   email     String?  @unique
   googleId  String?  @unique
   appleId   String?  @unique
+  /// scrypt hash for email + password sign-in; null for Google/Apple-only accounts.
+  passwordHash String?
   /** Cached balance. The CreditLedger is the source of truth. */
   credits   Int      @default(0)
   createdAt DateTime @default(now())

@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import { hashPassword, verifyPassword } from "@/lib/password";
 
 export type OAuthProvider = "google" | "apple";
 
@@ -41,7 +42,10 @@ export async function findOrCreateUser(identity: OAuthIdentity) {
     if (byEmail) {
       return prisma.user.update({
         where: { id: byEmail.id },
-        data: { ...providerId, name: byEmail.name ?? name },
+        // Password sign-up doesn't verify the email, so someone could have registered an
+        // address that isn't theirs. The provider just verified it: drop any password so
+        // only the real owner keeps access.
+        data: { ...providerId, name: byEmail.name ?? name, passwordHash: null },
       });
     }
   }
@@ -67,6 +71,54 @@ export async function findOrCreateUser(identity: OAuthIdentity) {
     }
   }
   throw new Error("Could not allocate a unique user ID");
+}
+
+export const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function normalizeEmail(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+export type SignUpResult =
+  | { ok: true }
+  | { ok: false; error: "invalid_email" | "weak_password" | "email_taken" };
+
+/**
+ * Creates an email + password account. An address that already has any account (including
+ * a Google/Apple one) is refused, never given a password, so nobody can take over an
+ * existing account by signing up with its email.
+ */
+export async function createPasswordUser(emailInput: unknown, password: unknown): Promise<SignUpResult> {
+  const email = normalizeEmail(emailInput);
+  if (!EMAIL_PATTERN.test(email) || email.length > 254) return { ok: false, error: "invalid_email" };
+  if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+    return { ok: false, error: "weak_password" };
+  }
+  if (await prisma.user.findUnique({ where: { email } })) return { ok: false, error: "email_taken" };
+
+  const passwordHash = await hashPassword(password);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await prisma.user.create({ data: { publicId: newPublicId(), name: email, email, passwordHash } });
+      return { ok: true };
+    } catch (e) {
+      if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e;
+      // Either the publicId collided (retry) or the email was just taken by a concurrent sign-up.
+      if (await prisma.user.findUnique({ where: { email } })) return { ok: false, error: "email_taken" };
+    }
+  }
+  throw new Error("Could not allocate a unique user ID");
+}
+
+/** Returns the user when the email + password match, otherwise null. */
+export async function verifyPasswordLogin(emailInput: unknown, password: unknown) {
+  const email = normalizeEmail(emailInput);
+  if (!email || typeof password !== "string" || password.length > MAX_PASSWORD_LENGTH) return null;
+  const user = await prisma.user.findUnique({ where: { email } });
+  const ok = await verifyPassword(password, user?.passwordHash ?? null);
+  return ok ? user : null;
 }
 
 export async function getUserById(id: string) {

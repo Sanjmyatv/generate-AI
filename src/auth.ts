@@ -1,12 +1,21 @@
 import NextAuth from "next-auth";
 import Apple from "next-auth/providers/apple";
+import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import type { Provider } from "next-auth/providers";
-import { findOrCreateUser, type OAuthProvider } from "@/lib/users";
+import { findOrCreateUser, verifyPasswordLogin, type OAuthProvider } from "@/lib/users";
 
-// Providers are only enabled when their credentials exist, so the app still
-// runs (as guest-only) before Google/Apple are configured.
-const providers: Provider[] = [];
+// Email + password is always available. Google/Apple are only enabled when their credentials
+// exist, so the app still works before they are configured.
+const providers: Provider[] = [
+  Credentials({
+    credentials: { email: {}, password: {} },
+    async authorize(credentials) {
+      const user = await verifyPasswordLogin(credentials?.email, credentials?.password);
+      return user ? { id: user.id, name: user.name, email: user.email, publicId: user.publicId } : null;
+    },
+  }),
+];
 if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) providers.push(Google);
 if (process.env.AUTH_APPLE_ID && process.env.AUTH_APPLE_SECRET) providers.push(Apple);
 
@@ -34,6 +43,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         token.uid = dbUser.id;
         token.publicId = dbUser.publicId;
+      }
+      if (account?.provider === "credentials" && user?.id) {
+        token.uid = user.id;
+        token.publicId = (user as { publicId?: string }).publicId;
       }
       return token;
     },

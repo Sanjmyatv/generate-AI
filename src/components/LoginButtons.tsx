@@ -1,6 +1,7 @@
 "use client";
 
 import { signInWithProvider } from "@/app/actions/auth";
+import { EmailAuthForm } from "@/components/EmailAuthForm";
 
 type Provider = "google" | "apple";
 
@@ -16,29 +17,30 @@ export function LoginButtons({
   providers: Provider[];
   redirectTo: string;
 }) {
-  if (providers.length === 0) {
-    return (
-      <p className="text-sm text-foreground/60">
-        Login is not available yet. Please try again later.
-      </p>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {providers.map((provider) => (
-        <form
-          key={provider}
-          action={() => signInWithProvider(provider, redirectTo)}
-        >
-          <button
-            type="submit"
-            className="w-full rounded-full border border-foreground/30 py-3 font-semibold hover:bg-foreground/5"
-          >
-            {labels[provider]}
-          </button>
-        </form>
-      ))}
+    <div className="space-y-4">
+      <EmailAuthForm redirectTo={redirectTo} />
+      {providers.length > 0 && (
+        <>
+          <div className="flex items-center gap-3 text-xs text-foreground/50">
+            <span className="h-px flex-1 bg-foreground/15" />
+            or
+            <span className="h-px flex-1 bg-foreground/15" />
+          </div>
+          <div className="space-y-3">
+            {providers.map((provider) => (
+              <form key={provider} action={() => signInWithProvider(provider, redirectTo)}>
+                <button
+                  type="submit"
+                  className="w-full rounded-full border border-foreground/30 py-3 font-semibold hover:bg-foreground/5"
+                >
+                  {labels[provider]}
+                </button>
+              </form>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

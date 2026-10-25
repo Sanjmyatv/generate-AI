@@ -27,7 +27,7 @@ export function LoginModal({
           Log in to download
         </h2>
         <p className="mt-2 mb-5 text-sm text-foreground/70">
-          Your creation is ready. Log in with Google or Apple to download your
+          Your creation is ready. Log in or create an account to download your
           full-resolution result.
         </p>
         <LoginButtons providers={providers} redirectTo={redirectTo} />
