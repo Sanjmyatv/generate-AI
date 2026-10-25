@@ -71,30 +71,34 @@ async function main() {
 
   // Bump when the template definition below changes; the seed re-applies it to an
   // existing row only when the stored version is older (so later admin edits survive).
-  const THREE_GUYS_VERSION = 4;
+  const THREE_GUYS_VERSION = 5;
 
-  // Hidden edit instruction for the Seedance video-edit model. Users never see it.
+  // The template video shows real people, which Seedance/ModelArk rejects
+  // (InputVideoSensitiveContentDetected.PrivacyInformation), so this template runs on
+  // Higgsfield Genjutsu. It bills per second of source video (~14.7 s → 15 s): at 480p with
+  // our 50% discount that is about $2.39 per generation, hence the higher credit cost.
+  const THREE_GUYS_CREDIT_COST = 25;
+
+  // Hidden instruction for Genjutsu motion transfer. Users never see it.
   const threeGuysConfig = {
     version: THREE_GUYS_VERSION,
-    provider: "seedance",
+    provider: "genjutsu",
     // Replace with the real, publicly reachable template video (set
     // THREE_GUYS_TEMPLATE_VIDEO_URL on the server and redeploy to apply it).
     templateVideoUrl:
       process.env.THREE_GUYS_TEMPLATE_VIDEO_URL ?? "https://example.com/REPLACE-ME/three-guys-dancing.mp4",
-    // "Video 1" is the template video; "Image 1..3" are the users' photos in upload order
-    // (ModelArk's reference syntax). The video is a montage of three different young men in
-    // separate shots, in this order: (1) dancing in a parking lot at the start, (2) a selfie-style
-    // shot of a man with glasses at a gas station, (3) close-ups at sunset (plus a car shot between).
+    // The video is a montage of three different young men in separate shots, in this order:
+    // (1) dancing in a parking lot at the start, (2) a selfie-style shot of a man with glasses
+    // at a gas station, (3) close-ups at sunset (plus a car shot between). The reference images
+    // are the users' photos in upload order.
     prompt:
-      "Edit the video: Video 1 shows three different young men in separate shots. " +
-      "Replace the first man (the one dancing in the parking lot at the start of the video) with the person in Image 1. " +
-      "Replace the second man (the one with glasses in the selfie-style shot) with the person in Image 2. " +
-      "Replace the third man (the one in the close-up shots at sunset) with the person in Image 3. " +
-      "Keep the original moves, timing, camera movement, lighting, background, car shots and music of Video 1 exactly the same. " +
+      "The video shows three different young men in separate shots. " +
+      "Replace the first man (the one dancing in the parking lot at the start of the video) with the person in the first reference image. " +
+      "Replace the second man (the one with glasses in the selfie-style shot) with the person in the second reference image. " +
+      "Replace the third man (the one in the close-up shots at sunset) with the person in the third reference image. " +
+      "Keep the original moves, timing, camera movement, lighting, background and car shots exactly the same. " +
       "Each man must clearly have the face, hairstyle and identity of his matching reference image.",
-    resolution: "720p",
-    duration: 5,
-    generateAudio: true,
+    resolution: "480p",
   };
   const threeGuys = {
     id: "three-guys-dancing",
@@ -102,7 +106,7 @@ async function main() {
     description: "Put yourself and two friends into this viral video — each of you gets your own scene.",
     categoryId: "dance",
     type: "VIDEO" as const,
-    creditCost: 5,
+    creditCost: THREE_GUYS_CREDIT_COST,
     aspectRatio: "9:16", // the template video is 720x1280
     // Preview shown on cards and the template page (same file as the edit source).
     previewUrl: "/templates/three-guys-dancing.mp4",
@@ -192,6 +196,7 @@ async function main() {
       where: { id: threeGuys.id },
       data: {
         description: threeGuys.description,
+        creditCost: threeGuys.creditCost,
         aspectRatio: threeGuys.aspectRatio,
         previewUrl: threeGuys.previewUrl,
         requiredPhotoCount: threeGuys.requiredPhotoCount,
