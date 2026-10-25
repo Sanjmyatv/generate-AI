@@ -245,7 +245,11 @@ export function TemplateForm({
         </Field>
 
         {needsVideo && (
-          <Field label="Source video" error={err.sourceVideoUrl || sourceUpload.error || undefined} hint="MP4 or MOV, at least 4 seconds, up to 30 seconds is used.">
+          <Field label="Source video" error={err.sourceVideoUrl || sourceUpload.error || undefined} hint={
+              v.sourceVideoUrl
+                ? "Choose a new file to replace this video."
+                : "Upload an MP4 or MOV, at least 4 seconds long (up to 30 seconds is used)."
+            }>
             <input
               type="file"
               accept="video/mp4,video/quicktime"
@@ -268,12 +272,6 @@ export function TemplateForm({
                 </div>
               </div>
             )}
-            <input
-              value={v.sourceVideoUrl}
-              onChange={(e) => set("sourceVideoUrl", e.target.value)}
-              placeholder="…or paste a public https link"
-              className={`${inputClass} mt-2 text-sm`}
-            />
           </Field>
         )}
 
