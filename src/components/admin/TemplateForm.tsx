@@ -99,6 +99,12 @@ export function TemplateForm({
       set(key, e.target.value as never),
   });
 
+  // One label field per photo; the labels travel as one newline-separated string.
+  const photoCount = Math.min(Math.max(Math.trunc(Number(v.requiredPhotoCount)) || 1, 1), MAX_PHOTOS);
+  const labels = Array.from({ length: photoCount }, (_, i) => v.photoLabels.split("\n")[i] ?? "");
+  const setLabel = (index: number, value: string) =>
+    set("photoLabels", labels.map((label, i) => (i === index ? value : label)).join("\n"));
+
   const err = state.errors;
   const needsVideo = v.engine === "genjutsu" || v.engine === "seedance-edit";
   const engines = ENGINES.filter((e) => e.type === v.type);
@@ -375,8 +381,26 @@ export function TemplateForm({
             </select>
           </Field>
         </div>
-        <Field label="Photo labels" error={err.photoLabels} hint="One per line, in photo order. Shown under each upload slot.">
-          <textarea {...text("photoLabels")} rows={3} className={inputClass} />
+        <Field
+          label="Photo labels"
+          error={err.photoLabels}
+          hint="Name each photo slot, for example “Dancer on the left”. Shown under that upload slot. Leave one empty to show “Photo N”."
+        >
+          <input type="hidden" name="photoLabels" value={v.photoLabels} />
+          <div className="space-y-2">
+            {Array.from({ length: photoCount }, (_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-16 shrink-0 text-xs text-foreground/60">Photo {i + 1}</span>
+                <input
+                  value={labels[i]}
+                  onChange={(e) => setLabel(i, e.target.value)}
+                  maxLength={60}
+                  placeholder={photoCount > 1 ? `Photo ${i + 1}` : "Your photo"}
+                  className={inputClass}
+                />
+              </div>
+            ))}
+          </div>
         </Field>
         <Field label="Credit cost" error={err.creditCost} hint="Credits charged for one generation.">
           <input {...text("creditCost")} inputMode="numeric" className={`${inputClass} max-w-32`} />

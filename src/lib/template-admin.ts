@@ -240,8 +240,10 @@ export function buildTemplateData(
   }
   if (!oneOf(CARD_SHAPES, v.aspectRatio)) errors.aspectRatio = "Choose a card shape.";
 
-  const photoLabels = v.photoLabels.split("\n").map((l) => l.trim()).filter(Boolean);
-  if (photoLabels.length > requiredPhotoCount) errors.photoLabels = "More labels than photos.";
+  // One label per photo, by position: an empty one keeps its place (the site shows "Photo N").
+  // Labels past the photo count are dropped, and so are empty ones at the end.
+  const photoLabels = v.photoLabels.split("\n").map((l) => l.trim()).slice(0, requiredPhotoCount || 0);
+  while (photoLabels.length > 0 && !photoLabels[photoLabels.length - 1]) photoLabels.pop();
   if (photoLabels.some((l) => l.length > 60)) errors.photoLabels = "Labels can be up to 60 characters.";
 
   let trendingRank: number | null = null;

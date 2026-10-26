@@ -331,7 +331,7 @@ export function GenerateFlow({
             {photos.map((file, i) => (
               <PhotoSlot
                 key={i}
-                label={template.photoLabels[i] ?? (needed > 1 ? `Photo ${i + 1}` : "Your photo")}
+                label={template.photoLabels[i] || (needed > 1 ? `Photo ${i + 1}` : "Your photo")}
                 file={file}
                 onSelect={(f) => setPhotos((prev) => prev.map((p, j) => (j === i ? f : p)))}
               />
