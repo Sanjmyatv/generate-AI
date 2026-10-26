@@ -19,7 +19,7 @@ export default async function PricingPage() {
               {pkg.priceMnt.toLocaleString("en-US")}₮
             </p>
             <p className="mt-2 text-sm text-foreground/70">{pkg.credits} credits</p>
-            <button className="mt-6 w-full rounded-full bg-foreground py-3 font-semibold text-background">
+            <button className="mt-6 w-full rounded-full bg-purple py-3 font-semibold text-foreground">
               Buy Now
             </button>
           </div>

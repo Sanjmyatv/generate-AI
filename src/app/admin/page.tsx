@@ -28,7 +28,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
     <div className="pt-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Templates</h1>
-        <Link href="/admin/templates/new" className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background">
+        <Link href="/admin/templates/new" className="rounded-full bg-purple px-4 py-2 text-sm font-semibold text-foreground">
           New template
         </Link>
       </div>

@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="530" height="460" viewBox="0 0 530 460" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse id="Purple blue atmosphere" cx="265" cy="230" rx="265" ry="230" fill="url(#paint0_radial_0_10)"/>
+<defs>
+<radialGradient id="paint0_radial_0_10" cx="0" cy="0" r="1" gradientTransform="matrix(265 92 -106 230 265 230)" gradientUnits="userSpaceOnUse">
+<stop stop-color="#6F42C3" stop-opacity="0.239216"/>
+<stop offset="0.5" stop-color="#303AA7" stop-opacity="0.101961"/>
+<stop offset="1" stop-color="#070711" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>

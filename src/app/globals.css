@@ -1,26 +1,45 @@
 @import "tailwindcss";
 
+/* zyro.ai design tokens (Figma: ZYRO AI / Color). The site is dark only. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #070711; /* Canvas */
+  --foreground: #f8fafc; /* Text primary */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-secondary: #0d0d1b;
+  --color-card: #121225;
+  --color-purple: #8b5cf6;
+  --color-purple-soft: #c4aeff;
+  --color-purple-label: #bda5fc;
+  --color-muted: #a1a1b8; /* Text secondary */
+  --color-line: rgba(255, 255, 255, 0.09);
+  --color-surface: rgba(255, 255, 255, 0.04);
+  --font-sans: var(--font-geologica);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-geologica), Arial, Helvetica, sans-serif;
+}
+
+/* Anchored sections stop below the sticky navigation. */
+[id] {
+  scroll-margin-top: 104px;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

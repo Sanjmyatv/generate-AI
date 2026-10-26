@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Geologica } from "next/font/google";
+import { auth } from "@/auth";
+import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Geologica is the zyro.ai typeface; Cyrillic is included for Mongolian text.
+const geologica = Geologica({
+  variable: "--font-geologica",
+  subsets: ["latin", "cyrillic"],
 });
 
 const geistMono = Geist_Mono({
@@ -14,22 +17,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GenerateAI — AI templates from your photos",
+  title: "zyro.ai — AI videos and images from your photos",
   description:
-    "Choose a template, upload your photo, and let AI do the rest.",
+    "Choose a template, upload your photo, and let zyro.ai turn it into an AI video or image.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const session = await auth();
+
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geologica.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Nav />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 md:pb-8">
-          {children}
-        </main>
+        <Nav signedIn={Boolean(session?.user?.id)} />
+        <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 md:px-8 lg:px-16">{children}</main>
+        <Footer />
       </body>
     </html>
   );

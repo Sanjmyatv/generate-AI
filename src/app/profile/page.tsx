@@ -40,7 +40,7 @@ export default async function ProfilePage() {
             <span className="font-semibold">{user.credits}</span>
             <Link
               href="/pricing"
-              className="rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background"
+              className="rounded-full bg-purple px-3 py-1 text-xs font-semibold text-foreground"
             >
               Buy Credits
             </Link>
@@ -50,7 +50,7 @@ export default async function ProfilePage() {
       {user.isAdmin && (
         <Link
           href="/admin"
-          className="mt-6 block rounded-full bg-foreground py-3 text-center font-semibold text-background"
+          className="mt-6 block rounded-full bg-purple py-3 text-center font-semibold text-foreground"
         >
           Admin panel
         </Link>

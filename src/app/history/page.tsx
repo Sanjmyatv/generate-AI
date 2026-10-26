@@ -98,7 +98,7 @@ export default async function HistoryPage() {
             {g.status === "COMPLETED" ? (
               <a
                 href={`/api/generations/${g.id}/video?download=1`}
-                className="mt-2 block rounded-full bg-foreground py-2 text-center text-sm font-semibold text-background"
+                className="mt-2 block rounded-full bg-purple py-2 text-center text-sm font-semibold text-foreground"
               >
                 Download
               </a>

@@ -54,6 +54,15 @@ export async function getHomeSections() {
     .filter((s) => s.templates.length > 0);
 }
 
+/** Everything the home page's discovery section needs; it filters by type and category itself. */
+export async function getDiscoveryData() {
+  const [categories, templates] = await Promise.all([
+    prisma.category.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
+    prisma.template.findMany({ where: { active: true }, orderBy: { createdAt: "desc" } }),
+  ]);
+  return { categories: categories.map(toCategory), templates: templates.map(toTemplate) };
+}
+
 export async function getTemplate(id: string) {
   const t = await prisma.template.findFirst({ where: { id, active: true } });
   return t ? toTemplate(t) : null;

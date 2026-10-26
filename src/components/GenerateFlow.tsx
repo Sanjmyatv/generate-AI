@@ -318,7 +318,7 @@ export function GenerateFlow({
       {step === "detail" && (
         <button
           onClick={() => setStep("upload")}
-          className="mt-6 w-full rounded-full bg-foreground py-3 font-semibold text-background"
+          className="mt-6 w-full rounded-full bg-purple py-3 font-semibold text-foreground"
         >
           Use This Template
         </button>
@@ -344,7 +344,7 @@ export function GenerateFlow({
           <button
             disabled={!allPhotosSelected}
             onClick={generate}
-            className="w-full rounded-full bg-foreground py-3 font-semibold text-background disabled:opacity-40"
+            className="w-full rounded-full bg-purple py-3 font-semibold text-foreground disabled:opacity-40"
           >
             {template.type === "video" ? "Generate Video ✨" : "Generate ✨"}
           </button>
@@ -371,14 +371,14 @@ export function GenerateFlow({
           {error.buyCredits ? (
             <Link
               href="/pricing"
-              className="block rounded-full bg-foreground py-3 font-semibold text-background"
+              className="block rounded-full bg-purple py-3 font-semibold text-foreground"
             >
               Buy Credits
             </Link>
           ) : (
             <button
               onClick={() => setStep("upload")}
-              className="w-full rounded-full bg-foreground py-3 font-semibold text-background"
+              className="w-full rounded-full bg-purple py-3 font-semibold text-foreground"
             >
               Try Again
             </button>
@@ -413,7 +413,7 @@ export function GenerateFlow({
             <>
               <a
                 href={`${videoUrl}?download=1`}
-                className="block rounded-full bg-foreground py-3 text-center font-semibold text-background"
+                className="block rounded-full bg-purple py-3 text-center font-semibold text-foreground"
               >
                 Download
               </a>
@@ -429,7 +429,7 @@ export function GenerateFlow({
             // Guests can preview but must log in before downloading.
             <button
               onClick={() => setShowLogin(true)}
-              className="w-full rounded-full bg-foreground py-3 font-semibold text-background"
+              className="w-full rounded-full bg-purple py-3 font-semibold text-foreground"
             >
               Download
             </button>
