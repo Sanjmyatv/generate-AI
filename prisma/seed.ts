@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { IMAGE_CREDITS, PACKAGES, VIDEO_CREDITS } from "../src/config/pricing";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -21,7 +22,9 @@ async function main() {
       description: "Upload your photo and generate an AI dance video.",
       categoryId: "dance",
       type: "VIDEO" as const,
-      creditCost: 5,
+      creditCost: 3500,
+      creditCostHd: 5000,
+      durationSeconds: 10,
       aspectRatio: "9:16",
       requiredPhotoCount: 1,
       photoRequirement: "FULL_BODY" as const,
@@ -33,7 +36,9 @@ async function main() {
       description: "Turn your photo into a street dance clip.",
       categoryId: "dance",
       type: "VIDEO" as const,
-      creditCost: 5,
+      creditCost: 3500,
+      creditCostHd: 5000,
+      durationSeconds: 10,
       aspectRatio: "9:16",
       requiredPhotoCount: 1,
       photoRequirement: "FULL_BODY" as const,
@@ -45,7 +50,7 @@ async function main() {
       description: "A mystical portrait styled after your zodiac sign.",
       categoryId: "horoscope",
       type: "IMAGE" as const,
-      creditCost: 1,
+      creditCost: IMAGE_CREDITS,
       aspectRatio: "3:4",
       requiredPhotoCount: 1,
       photoRequirement: "FACE" as const,
@@ -57,17 +62,12 @@ async function main() {
       description: "A cosmic portrait of two people under the stars.",
       categoryId: "horoscope",
       type: "IMAGE" as const,
-      creditCost: 2,
+      creditCost: IMAGE_CREDITS,
       aspectRatio: "3:4",
       requiredPhotoCount: 2,
       photoRequirement: "FACE" as const,
       trendingRank: 3,
     },
-  ];
-
-  const packages = [
-    { id: "starter", name: "Starter Pack", credits: 20, priceMnt: 15000, sortOrder: 0 },
-    { id: "value", name: "Value Pack", credits: 50, priceMnt: 25000, sortOrder: 1 },
   ];
 
   // Bump when the template definition below changes; the seed re-applies it to an
@@ -77,8 +77,9 @@ async function main() {
   // The template video shows real people, which Seedance/ModelArk rejects
   // (InputVideoSensitiveContentDetected.PrivacyInformation), so this template runs on
   // Higgsfield Genjutsu. It bills per second of source video (~14.7 s → 15 s): at 480p with
-  // our 50% discount that is about $2.39 per generation, hence the higher credit cost.
-  const THREE_GUYS_CREDIT_COST = 25;
+  // our 50% discount that is about $2.39 per generation. Prices come from src/config/pricing.ts
+  // (the 20 s tier); check the margin in /admin, because that provider cost is above the standard price.
+  const THREE_GUYS_CREDITS = VIDEO_CREDITS[20];
 
   // Hidden instruction for Genjutsu motion transfer. Users never see it.
   const threeGuysConfig = {
@@ -107,7 +108,9 @@ async function main() {
     description: "Put yourself and two friends into this viral video — each of you gets your own scene.",
     categoryId: "dance",
     type: "VIDEO" as const,
-    creditCost: THREE_GUYS_CREDIT_COST,
+    creditCost: THREE_GUYS_CREDITS["480p"],
+    creditCostHd: THREE_GUYS_CREDITS["720p"],
+    durationSeconds: 15, // the template video is 14.7 s: the 20 s price tier
     aspectRatio: "9:16", // the template video is 720x1280
     // Preview shown on cards and the template page (same file as the edit source).
     previewUrl: "/templates/three-guys-dancing.mp4",
@@ -126,7 +129,9 @@ async function main() {
     description: "Turn one photo into the sunset gas-station selfie everyone is posting.",
     categoryId: "dance",
     type: "VIDEO" as const,
-    creditCost: 5,
+    creditCost: VIDEO_CREDITS[10]["480p"],
+    creditCostHd: VIDEO_CREDITS[10]["720p"],
+    durationSeconds: 8,
     aspectRatio: "9:16",
     requiredPhotoCount: 1,
     photoLabels: ["Your photo"],
@@ -162,7 +167,9 @@ async function main() {
     description: "Star in this video — your photo replaces the character, the moves stay the same.",
     categoryId: "trending",
     type: "VIDEO" as const,
-    creditCost: 10,
+    creditCost: VIDEO_CREDITS[20]["480p"],
+    creditCostHd: VIDEO_CREDITS[20]["720p"],
+    durationSeconds: 15,
     aspectRatio: "9:16", // match the template video
     requiredPhotoCount: 1,
     photoLabels: ["Your photo"],
@@ -182,7 +189,7 @@ async function main() {
   // "Shine": a single young man dancing on a restaurant terrace at night (14.8 s, 9:16, with
   // music). The clip shows real people in the background, which Seedance/ModelArk rejects, so it
   // runs on Genjutsu motion transfer like 3 Guys Dancing: 15 billed seconds, about $2.39 at 480p
-  // with our discount, hence the credit cost. The video is served from this app's own
+  // with our discount; priced at the 20 s tier. The video is served from this app's own
   // /templates folder; its origin comes from SHINE_TEMPLATE_VIDEO_URL, APP_URL, or the origin of
   // THREE_GUYS_TEMPLATE_VIDEO_URL, whichever is a valid https URL.
   const shineVideoUrl = (() => {
@@ -204,7 +211,9 @@ async function main() {
     description: "Step into this viral night-out dance — your photo, the exact same moves.",
     categoryId: "dance",
     type: "VIDEO" as const,
-    creditCost: 25,
+    creditCost: VIDEO_CREDITS[20]["480p"],
+    creditCostHd: VIDEO_CREDITS[20]["720p"],
+    durationSeconds: 15,
     aspectRatio: "9:16", // the template video is 320x568
     previewUrl: "/templates/shine.mp4",
     requiredPhotoCount: 1,
@@ -237,7 +246,7 @@ async function main() {
     description: "Colorize an old photo, repair its damage and sharpen it into a high-resolution picture.",
     categoryId: "photo",
     type: "IMAGE" as const,
-    creditCost: 5,
+    creditCost: IMAGE_CREDITS,
     aspectRatio: "3:4",
     requiredPhotoCount: 1,
     photoLabels: ["Old photo"],
@@ -281,6 +290,8 @@ async function main() {
       data: {
         description: threeGuys.description,
         creditCost: threeGuys.creditCost,
+        creditCostHd: threeGuys.creditCostHd,
+        durationSeconds: threeGuys.durationSeconds,
         aspectRatio: threeGuys.aspectRatio,
         previewUrl: threeGuys.previewUrl,
         requiredPhotoCount: threeGuys.requiredPhotoCount,
@@ -314,9 +325,25 @@ async function main() {
   if (genjutsuVideoUrl) {
     await prisma.template.upsert({ where: { id: characterSwap.id }, update: {}, create: characterSwap });
   }
-  for (const p of packages) {
-    await prisma.creditPackage.upsert({ where: { id: p.id }, update: {}, create: p });
+  // Credit packs follow src/config/pricing.ts and are re-applied on every deploy (nothing edits
+  // them elsewhere). Packs that are no longer in the list are hidden, not deleted, because
+  // payments may point at them.
+  for (const [sortOrder, p] of PACKAGES.entries()) {
+    const data = {
+      name: p.name,
+      credits: p.credits,
+      bonusCredits: p.bonusCredits,
+      priceMnt: p.priceMnt,
+      highlighted: p.highlighted,
+      sortOrder,
+      active: true,
+    };
+    await prisma.creditPackage.upsert({ where: { id: p.id }, update: data, create: { id: p.id, ...data } });
   }
+  await prisma.creditPackage.updateMany({
+    where: { id: { notIn: PACKAGES.map((p) => p.id) } },
+    data: { active: false },
+  });
 }
 
 main()

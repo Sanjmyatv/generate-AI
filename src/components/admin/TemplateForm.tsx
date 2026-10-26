@@ -5,6 +5,13 @@ import { startTransition, useActionState, useState } from "react";
 import { saveTemplateAction, type TemplateFormState } from "@/app/actions/admin";
 import { CostMargin } from "@/components/admin/CostMargin";
 import { TemplatePreview } from "@/components/TemplatePreview";
+import {
+  IMAGE_CREDITS,
+  RESOLUTIONS,
+  VIDEO_CREDITS,
+  formatCredits,
+  standardPrice,
+} from "@/config/pricing";
 import type { PackagePrice } from "@/lib/pricing";
 import {
   CARD_SHAPES,
@@ -14,7 +21,6 @@ import {
   IMAGE_RESOLUTIONS,
   MAX_PHOTOS,
   VIDEO_RATIOS,
-  VIDEO_RESOLUTIONS,
   type Engine,
   type TemplateFormValues,
 } from "@/lib/template-admin";
@@ -123,6 +129,8 @@ export function TemplateForm({
       else {
         set("sourceVideoUrl", data.url);
         setSourceSeconds(typeof data.duration === "number" ? data.duration : null);
+        // The uploaded video's length is the template's length (it picks the price tier).
+        if (typeof data.duration === "number") set("durationSeconds", String(Math.round(data.duration)));
       }
       setState({ busy: false, error: null });
     } catch (e) {
@@ -130,10 +138,16 @@ export function TemplateForm({
     }
   }
 
-  const estimate =
+  const estimates =
     v.engine === "genjutsu" && sourceSeconds !== null
-      ? Math.ceil(sourceSeconds) * (GENJUTSU_RATE[v.videoResolution] ?? 0)
+      ? RESOLUTIONS.map((r) => ({ r, usd: Math.ceil(sourceSeconds) * (GENJUTSU_RATE[r] ?? 0) }))
       : null;
+
+  function applyStandardPrice() {
+    const standard = standardPrice(v.type, Number(v.durationSeconds) || null);
+    set("creditCost", String(standard.credits));
+    set("creditCostHd", standard.creditsHd === null ? "" : String(standard.creditsHd));
+  }
 
   return (
     <form
@@ -269,10 +283,11 @@ export function TemplateForm({
                 <video src={v.sourceVideoUrl} controls muted playsInline className="h-40 rounded-lg bg-black" />
                 <div className="text-xs text-foreground/70">
                   {sourceSeconds !== null && <p>Length: {sourceSeconds.toFixed(1)} s</p>}
-                  {estimate !== null && (
+                  {estimates && (
                     <p>
-                      Genjutsu list price ≈ ${estimate.toFixed(2)} per generation at {v.videoResolution} (your
-                      account discount applies on top). Set the credit cost above that.
+                      Genjutsu list price per generation:{" "}
+                      {estimates.map((e) => `${e.r} ≈ ${e.usd.toFixed(2)}`).join(", ")} (your account discount
+                      applies on top). Check the real cost under Photos and price.
                     </p>
                   )}
                 </div>
@@ -330,29 +345,26 @@ export function TemplateForm({
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Resolution" error={err.videoResolution}>
-                <select {...text("videoResolution")} className={inputClass}>
-                  {VIDEO_RESOLUTIONS.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
-              </Field>
-              {v.engine === "seedance-reference" && (
-                <>
-                  <Field label="Length (s)" error={err.duration}>
-                    <input {...text("duration")} inputMode="numeric" className={inputClass} />
-                  </Field>
-                  <Field label="Video ratio" error={err.ratio}>
-                    <select {...text("ratio")} className={inputClass}>
-                      {VIDEO_RATIOS.map((r) => (
-                        <option key={r}>{r}</option>
-                      ))}
-                    </select>
-                  </Field>
-                </>
-              )}
-            </div>
+            {/* Users pick 480p (default) or 720p HD themselves; this is the fallback stored with the template. */}
+            <input type="hidden" name="videoResolution" value={v.videoResolution} />
+            <p className="text-sm">
+              Users choose <b>480p</b> (default, fast and eco) or <b>720p HD</b> when they generate. Set the credits
+              for each under Photos and price; leave 720p empty to offer 480p only.
+            </p>
+            {v.engine === "seedance-reference" && (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Length (s)" error={err.duration}>
+                  <input {...text("duration")} inputMode="numeric" className={inputClass} />
+                </Field>
+                <Field label="Video ratio" error={err.ratio}>
+                  <select {...text("ratio")} className={inputClass}>
+                    {VIDEO_RATIOS.map((r) => (
+                      <option key={r}>{r}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            )}
             {v.engine !== "genjutsu" && (
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -364,7 +376,6 @@ export function TemplateForm({
                 Generate sound
               </label>
             )}
-            <p className="text-xs text-foreground/60">Higher resolution costs more per generation.</p>
           </>
         )}
       </Section>
@@ -402,9 +413,38 @@ export function TemplateForm({
             ))}
           </div>
         </Field>
-        <Field label="Credit cost" error={err.creditCost} hint="Credits charged for one generation.">
-          <input {...text("creditCost")} inputMode="numeric" className={`${inputClass} max-w-32`} />
-        </Field>
+        <div className="space-y-3 rounded-xl border border-foreground/20 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold">Credits per generation</span>
+            <button
+              type="button"
+              onClick={applyStandardPrice}
+              className="rounded-full border border-foreground/30 px-3 py-1 text-xs font-semibold"
+            >
+              Apply standard price
+            </button>
+          </div>
+          <div className={`grid gap-3 ${v.type === "VIDEO" ? "grid-cols-3" : "grid-cols-1 max-w-40"}`}>
+            {v.type === "VIDEO" && (
+              <Field label="Video length (s)" error={err.durationSeconds}>
+                <input {...text("durationSeconds")} inputMode="numeric" className={inputClass} />
+              </Field>
+            )}
+            <Field label={v.type === "VIDEO" ? "Credits at 480p" : "Credits"} error={err.creditCost}>
+              <input {...text("creditCost")} inputMode="numeric" className={inputClass} />
+            </Field>
+            {v.type === "VIDEO" && (
+              <Field label="Credits at 720p HD" error={err.creditCostHd} hint="Empty = 480p only.">
+                <input {...text("creditCostHd")} inputMode="numeric" className={inputClass} />
+              </Field>
+            )}
+          </div>
+          <p className="text-xs text-foreground/60">
+            Standard prices (1 credit = ₮1): image {formatCredits(IMAGE_CREDITS)} · 10 s video{" "}
+            {formatCredits(VIDEO_CREDITS[10]["480p"])} / {formatCredits(VIDEO_CREDITS[10]["720p"])} · 20 s video{" "}
+            {formatCredits(VIDEO_CREDITS[20]["480p"])} / {formatCredits(VIDEO_CREDITS[20]["720p"])} (480p / 720p).
+          </p>
+        </div>
         <CostMargin values={v} onChange={set} packages={packages} defaultUsdMnt={usdMnt} error={err.costUsd} />
       </Section>
 

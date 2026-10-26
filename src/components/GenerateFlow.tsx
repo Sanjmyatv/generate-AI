@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoginModal } from "@/components/LoginModal";
+import { QPayModal } from "@/components/QPayModal";
+import { ResolutionSelector } from "@/components/ResolutionSelector";
 import { TemplatePreview } from "@/components/TemplatePreview";
+import { DEFAULT_RESOLUTION, formatCredits, type Resolution } from "@/config/pricing";
 import { prepareImage } from "@/lib/image-client";
-import type { Template } from "@/types";
+import type { CreditPackage, Template } from "@/types";
 
 type Step = "detail" | "upload" | "processing" | "result" | "error";
 
@@ -166,10 +169,16 @@ export function GenerateFlow({
   isAuthenticated,
   providers,
   resumeId,
+  credits,
+  packages,
 }: {
   template: Template;
   isAuthenticated: boolean;
   providers: ("google" | "apple")[];
+  /** The signed-in user's credit balance; null for guests. */
+  credits: number | null;
+  /** Credit packs offered when the balance is too low. */
+  packages: CreditPackage[];
   /** A generation id from `?g=` — lets a guest return here after logging in. */
   resumeId?: string;
 }) {
@@ -182,11 +191,25 @@ export function GenerateFlow({
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<FlowError | null>(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [showPay, setShowPay] = useState(false);
+  // 480p is the default; 720p HD only exists when the template has an HD price.
+  const [resolution, setResolution] = useState<Resolution>(DEFAULT_RESOLUTION);
+  // Kept locally so the balance stays right after paying for or being refunded a generation.
+  const [balance, setBalance] = useState(credits);
+  const charged = useRef(0);
   const [elapsed, setElapsed] = useState(0);
   // Set when polling starts; kept in a ref so the timer doesn't re-render the tree.
   const startedAt = useRef(0);
 
   const needed = template.requiredPhotoCount;
+  const isVideo = template.type === "video";
+  const hdPrice = isVideo ? template.creditCostHd : null;
+  const activeResolution: Resolution = hdPrice !== null && resolution === "720p" ? "720p" : "480p";
+  const cost = activeResolution === "720p" && hdPrice !== null ? hdPrice : template.creditCost;
+  const seconds = template.durationSeconds;
+  const generateLabel = isVideo
+    ? `Generate ${seconds ? `${seconds}s ` : ""}Video (${formatCredits(cost)} Credits)`
+    : `Generate (${formatCredits(cost)} Credits)`;
   const allPhotosSelected = photos.every((p): p is File => p !== null);
   const hint =
     template.photoRequirement === "full-body"
@@ -208,6 +231,11 @@ export function GenerateFlow({
   }, [needed]);
 
   async function generate() {
+    // Not enough credits: offer the packs instead of starting a generation that would be refused.
+    if (balance !== null && balance < cost) {
+      setShowPay(true);
+      return;
+    }
     setError(null);
     startedAt.current = 0; // restarted by the polling effect
     setElapsed(0);
@@ -221,7 +249,10 @@ export function GenerateFlow({
       const { id } = await postJson<{ id: string }>("/api/generate", {
         templateId: template.id,
         uploadIds,
+        ...(isVideo ? { resolution: activeResolution } : {}),
       });
+      charged.current = cost;
+      setBalance((b) => (b === null ? b : b - cost));
       // Keep the id in the URL so the result survives a login redirect or refresh.
       window.history.replaceState(null, "", `?g=${id}`);
       setGenerationId(id);
@@ -229,6 +260,13 @@ export function GenerateFlow({
       if (e instanceof ApiError && e.code === "login_required") {
         setStep("upload");
         setShowLogin(true);
+        return;
+      }
+      if (e instanceof ApiError && e.code === "insufficient_credits") {
+        // The server's balance is the truth; show the packs with it.
+        if (typeof e.extra?.balance === "number") setBalance(e.extra.balance);
+        setStep("upload");
+        setShowPay(true);
         return;
       }
       fail(toFlowError(e));
@@ -258,6 +296,8 @@ export function GenerateFlow({
           setStep("result");
         } else if (data.status === "FAILED") {
           const refund = data.refunded ? " Your credits have been refunded." : "";
+          if (data.refunded) setBalance((b) => (b === null ? b : b + charged.current));
+          charged.current = 0;
           if (data.error && REJECTED_INPUT.test(data.error)) {
             fail({
               title: "Invalid image",
@@ -311,8 +351,9 @@ export function GenerateFlow({
       <h1 className="mt-4 text-2xl font-bold">{template.name}</h1>
       <p className="mt-1 text-foreground/70">{template.description}</p>
       <p className="mt-2 text-sm text-foreground/60">
-        {template.type === "video" ? "Video" : "Image"} · Cost: {template.creditCost}{" "}
-        {template.creditCost === 1 ? "credit" : "credits"}
+        {isVideo ? "Video" : "Image"}
+        {isVideo && seconds ? ` · ${seconds}s` : ""} · Cost: {formatCredits(cost)} {cost === 1 ? "credit" : "credits"}
+        {balance !== null && ` · You have ${formatCredits(balance)}`}
       </p>
 
       {step === "detail" && (
@@ -341,12 +382,22 @@ export function GenerateFlow({
             {needed > 1 ? `Add ${needed} photos, one per person. ` : ""}
             {hint}
           </p>
+          {hdPrice !== null && (
+            <ResolutionSelector
+              value={activeResolution}
+              onChange={setResolution}
+              options={[
+                { resolution: "480p", credits: template.creditCost },
+                { resolution: "720p", credits: hdPrice },
+              ]}
+            />
+          )}
           <button
             disabled={!allPhotosSelected}
             onClick={generate}
             className="w-full rounded-full bg-purple py-3 font-semibold text-foreground disabled:opacity-40"
           >
-            {template.type === "video" ? "Generate Video ✨" : "Generate ✨"}
+            {generateLabel}
           </button>
         </div>
       )}
@@ -441,6 +492,15 @@ export function GenerateFlow({
             Create Another
           </button>
         </div>
+      )}
+
+      {showPay && (
+        <QPayModal
+          packages={packages}
+          required={cost}
+          balance={balance ?? 0}
+          onClose={() => setShowPay(false)}
+        />
       )}
 
       {showLogin && (

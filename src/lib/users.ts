@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/db";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, type User } from "@/generated/prisma/client";
+import { SIGNUP_BONUS_CREDITS } from "@/config/pricing";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 export type OAuthProvider = "google" | "apple";
@@ -22,6 +23,29 @@ function newPublicId() {
 }
 
 /**
+ * Gives a Google/Apple account its free signup credits, once. Run on every OAuth sign-in so
+ * an account that missed the grant (an earlier failure, or an account from before the bonus
+ * existed) gets it next time. Email + password accounts are not eligible: their email isn't
+ * verified, so anyone could mint free credits with throwaway addresses.
+ */
+async function grantSignupBonus(user: User): Promise<User> {
+  if (user.signupBonusAt) return user;
+  await prisma.$transaction(async (tx) => {
+    // The claim is atomic, so concurrent sign-ins cannot grant it twice.
+    const claimed = await tx.user.updateMany({
+      where: { id: user.id, signupBonusAt: null },
+      data: { signupBonusAt: new Date(), credits: { increment: SIGNUP_BONUS_CREDITS } },
+    });
+    if (claimed.count === 1) {
+      await tx.creditLedger.create({
+        data: { userId: user.id, delta: SIGNUP_BONUS_CREDITS, reason: "BONUS" },
+      });
+    }
+  });
+  return prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+}
+
+/**
  * Resolves an OAuth identity to our internal user, so the same person signing in
  * with Google and Apple does not end up with two accounts when the email matches.
  * Apple "Hide My Email" relay addresses will not match a Google email; that case
@@ -33,26 +57,27 @@ export async function findOrCreateUser(identity: OAuthIdentity) {
   const name = identity.name?.trim() || email;
 
   const byProvider = await prisma.user.findUnique({ where: providerId });
-  if (byProvider) return byProvider;
+  if (byProvider) return grantSignupBonus(byProvider);
 
   // Only link by email when the provider has verified it, otherwise anyone could
   // take over an account by registering someone else's address.
   if (email && identity.emailVerified) {
     const byEmail = await prisma.user.findUnique({ where: { email } });
     if (byEmail) {
-      return prisma.user.update({
+      const linked = await prisma.user.update({
         where: { id: byEmail.id },
         // Password sign-up doesn't verify the email, so someone could have registered an
         // address that isn't theirs. The provider just verified it: drop any password so
         // only the real owner keeps access.
         data: { ...providerId, name: byEmail.name ?? name, passwordHash: null },
       });
+      return grantSignupBonus(linked);
     }
   }
 
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
-      return await prisma.user.create({
+      const created = await prisma.user.create({
         data: {
           publicId: newPublicId(),
           name,
@@ -61,13 +86,14 @@ export async function findOrCreateUser(identity: OAuthIdentity) {
           ...providerId,
         },
       });
+      return await grantSignupBonus(created);
     } catch (e) {
       const isConflict =
         e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
       if (!isConflict) throw e;
       // Either the publicId collided (retry) or a concurrent sign-in created this user.
       const existing = await prisma.user.findUnique({ where: providerId });
-      if (existing) return existing;
+      if (existing) return grantSignupBonus(existing);
     }
   }
   throw new Error("Could not allocate a unique user ID");

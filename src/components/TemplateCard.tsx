@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { formatCredits } from "@/config/pricing";
 import type { Template } from "@/types";
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
@@ -19,7 +20,7 @@ export function TemplateCard({ template }: { template: Template }) {
   const src = template.previewUrl;
   const previewIsVideo = Boolean(src && VIDEO_EXT.test(src));
   const photos = template.requiredPhotoCount;
-  const credits = `${template.creditCost} ${template.creditCost === 1 ? "credit" : "credits"}`;
+  const credits = `${formatCredits(template.creditCost)} ${template.creditCost === 1 ? "credit" : "credits"}`;
 
   function setHovering(next: boolean) {
     setHover(next);

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth, enabledProviders } from "@/auth";
 import { signOutAction } from "@/app/actions/auth";
 import { LoginButtons } from "@/components/LoginButtons";
+import { formatCredits } from "@/config/pricing";
 import { getUserById } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export default async function ProfilePage() {
         <div className="flex items-center justify-between p-4">
           <dt className="text-foreground/60">Credits</dt>
           <dd className="flex items-center gap-3">
-            <span className="font-semibold">{user.credits}</span>
+            <span className="font-semibold">{formatCredits(user.credits)}</span>
             <Link
               href="/pricing"
               className="rounded-full bg-purple px-3 py-1 text-xs font-semibold text-foreground"

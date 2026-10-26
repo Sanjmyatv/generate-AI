@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { prisma } from "@/lib/db";
 import { deleteTemplateAction, setTemplateActiveAction } from "@/app/actions/admin";
+import { formatCredits } from "@/config/pricing";
 import { marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
 import { ENGINES, templateToFormValues } from "@/lib/template-admin";
 
@@ -59,7 +60,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                   )}
                 </div>
                 <p className="text-xs text-foreground/60">
-                  {t.category.name} · {t.type === "VIDEO" ? "Video" : "Image"} · {t.creditCost} credits ·{" "}
+                  {t.category.name} · {t.type === "VIDEO" ? "Video" : "Image"} · {formatCredits(t.creditCost)}
+                  {t.creditCostHd ? ` / ${formatCredits(t.creditCostHd)}` : ""} credits ·{" "}
                   {configured ? engine?.label : "No method chosen"}
                 </p>
                 {configured && (

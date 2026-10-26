@@ -15,6 +15,8 @@ function toTemplate(t: DbTemplate): Template {
     categoryId: t.categoryId,
     type: t.type === "VIDEO" ? "video" : "image",
     creditCost: t.creditCost,
+    creditCostHd: t.creditCostHd,
+    durationSeconds: t.durationSeconds,
     aspectRatio: t.aspectRatio,
     requiredPhotoCount: t.requiredPhotoCount,
     photoLabels: t.photoLabels,
@@ -30,7 +32,14 @@ function toCategory(c: DbCategory): Category {
 }
 
 function toPackage(p: DbPackage): CreditPackage {
-  return { id: p.id, name: p.name, credits: p.credits, priceMnt: p.priceMnt };
+  return {
+    id: p.id,
+    name: p.name,
+    credits: p.credits,
+    priceMnt: p.priceMnt,
+    bonusCredits: p.bonusCredits,
+    highlighted: p.highlighted,
+  };
 }
 
 export async function getHomeSections() {

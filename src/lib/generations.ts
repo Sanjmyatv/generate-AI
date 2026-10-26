@@ -63,6 +63,7 @@ export async function failGeneration(id: string, error: string) {
           generationId: gen.id,
         },
       });
+      await tx.generation.update({ where: { id }, data: { refundedAt: new Date() } });
     }
     return true;
   });

@@ -26,6 +26,7 @@ enum GenerationStatus {
 
 enum LedgerReason {
   PURCHASE
+  BONUS
   GENERATION
   REFUND
   ADJUSTMENT
@@ -51,6 +52,8 @@ model User {
   isAdmin   Boolean  @default(false)
   /** Cached balance. The CreditLedger is the source of truth. */
   credits   Int      @default(0)
+  /// When the free signup credits were granted; null until then, so they are only given once.
+  signupBonusAt DateTime?
   createdAt DateTime @default(now())
 
   generations Generation[]
@@ -74,7 +77,12 @@ model Template {
   categoryId         String
   category           Category         @relation(fields: [categoryId], references: [id])
   type               OutputType
+  /// Credits for one generation. For video this is the 480p (default) price.
   creditCost         Int
+  /// Credits at 720p HD; null means the template is offered at 480p only.
+  creditCostHd       Int?
+  /// Length of the video this template produces, in seconds.
+  durationSeconds    Int?
   aspectRatio        String           @default("3:4")
   requiredPhotoCount Int              @default(1)
   /// One label per required photo, in order (e.g. "Dancer on the left"). Empty = "Photo N".
@@ -95,8 +103,12 @@ model Template {
 model CreditPackage {
   id       String    @id
   name     String
+  /// Total credits issued, bonus included.
   credits  Int
+  bonusCredits Int   @default(0)
   priceMnt Int
+  /// Shown as "Most Popular".
+  highlighted Boolean @default(false)
   active   Boolean   @default(true)
   sortOrder Int      @default(0)
   payments Payment[]
@@ -120,6 +132,10 @@ model Generation {
   /// Provider-hosted result URL. Served to clients only through our own proxy route.
   outputUrl    String?
   creditCost   Int
+  /// Resolution the user picked (480p / 720p for video; the render size for images).
+  resolution   String           @default("480p")
+  /// Set when the credits were handed back after a failure.
+  refundedAt   DateTime?
   error        String?
   createdAt    DateTime         @default(now())
   completedAt  DateTime?

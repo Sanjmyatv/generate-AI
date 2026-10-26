@@ -1,4 +1,5 @@
 import type { Template as DbTemplate } from "@/generated/prisma/client";
+import { VIDEO_CREDITS } from "@/config/pricing";
 import { parseGenjutsuConfig, parseMarketingImageConfig } from "@/lib/higgsfield";
 import { parseSeedanceConfig } from "@/lib/seedance";
 
@@ -40,6 +41,7 @@ export const VIDEO_RATIOS = ["9:16", "16:9", "1:1", "3:4", "4:3", "21:9"] as con
 export const CARD_SHAPES = ["9:16", "3:4", "1:1", "4:3", "16:9"] as const;
 
 export const MAX_PHOTOS = 5; // matches the cap in POST /api/generate
+const MAX_CREDITS = 1_000_000;
 
 /** Everything the admin form edits, as plain strings so it round-trips through FormData. */
 export interface TemplateFormValues {
@@ -50,7 +52,12 @@ export interface TemplateFormValues {
   type: "VIDEO" | "IMAGE";
   engine: Engine;
   prompt: string;
+  /** Credits at 480p (the only price for images). */
   creditCost: string;
+  /** Credits at 720p HD; empty means the template is offered at 480p only. */
+  creditCostHd: string;
+  /** Length of the video this template makes, in seconds. */
+  durationSeconds: string;
   aspectRatio: string;
   requiredPhotoCount: string;
   /** One label per line, in photo order. */
@@ -69,6 +76,8 @@ export interface TemplateFormValues {
   imageAspect: string;
   /** What one generation costs us, in USD. Used for margin math only; providers never see it. */
   costUsd: string;
+  /** The same, at 720p HD. */
+  costUsdHd: string;
 }
 
 export function defaultFormValues(): TemplateFormValues {
@@ -80,7 +89,9 @@ export function defaultFormValues(): TemplateFormValues {
     type: "VIDEO",
     engine: "genjutsu",
     prompt: "",
-    creditCost: "25",
+    creditCost: String(VIDEO_CREDITS[20]["480p"]),
+    creditCostHd: String(VIDEO_CREDITS[20]["720p"]),
+    durationSeconds: "15",
     aspectRatio: "9:16",
     requiredPhotoCount: "1",
     photoLabels: "",
@@ -97,6 +108,7 @@ export function defaultFormValues(): TemplateFormValues {
     imageQuality: "high",
     imageAspect: "auto",
     costUsd: "",
+    costUsdHd: "",
   };
 }
 
@@ -122,6 +134,8 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   v.engine = engine;
   v.prompt = str(config.prompt);
   v.creditCost = String(t.creditCost);
+  v.creditCostHd = t.creditCostHd === null ? "" : String(t.creditCostHd);
+  v.durationSeconds = t.durationSeconds === null ? "" : String(t.durationSeconds);
   v.aspectRatio = t.aspectRatio;
   v.requiredPhotoCount = String(t.requiredPhotoCount);
   v.photoLabels = t.photoLabels.join("\n");
@@ -131,6 +145,7 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   v.previewUrl = t.previewUrl ?? "";
   v.sourceVideoUrl = str(config.templateVideoUrl);
   if (typeof config.costUsd === "number") v.costUsd = String(config.costUsd);
+  if (typeof config.costUsdHd === "number") v.costUsdHd = String(config.costUsdHd);
   if (engine === "marketing-image") {
     v.imageResolution = str(config.resolution) || v.imageResolution;
     v.imageQuality = str(config.quality) || v.imageQuality;
@@ -162,6 +177,8 @@ export function readForm(form: FormData): TemplateFormValues {
     engine: ENGINES.some((e) => e.value === engine) ? engine : d.engine,
     prompt: text("prompt").trim(),
     creditCost: text("creditCost").trim(),
+    creditCostHd: text("creditCostHd").trim(),
+    durationSeconds: text("durationSeconds").trim(),
     aspectRatio: text("aspectRatio"),
     requiredPhotoCount: text("requiredPhotoCount").trim(),
     photoLabels: text("photoLabels"),
@@ -178,6 +195,7 @@ export function readForm(form: FormData): TemplateFormValues {
     imageQuality: text("imageQuality"),
     imageAspect: text("imageAspect"),
     costUsd: text("costUsd").trim(),
+    costUsdHd: text("costUsdHd").trim(),
   };
 }
 
@@ -190,6 +208,8 @@ export interface TemplateData {
   newCategory: string;
   type: "VIDEO" | "IMAGE";
   creditCost: number;
+  creditCostHd: number | null;
+  durationSeconds: number | null;
   aspectRatio: string;
   requiredPhotoCount: number;
   photoLabels: string[];
@@ -231,8 +251,25 @@ export function buildTemplateData(
   if (v.newCategory.length > 40) errors.newCategory = "Category names can be up to 40 characters.";
 
   const creditCost = Number(v.creditCost);
-  if (!Number.isInteger(creditCost) || creditCost < 1 || creditCost > 1000) {
-    errors.creditCost = "Enter a whole number of credits from 1 to 1000.";
+  if (!Number.isInteger(creditCost) || creditCost < 1 || creditCost > MAX_CREDITS) {
+    errors.creditCost = `Enter a whole number of credits from 1 to ${MAX_CREDITS.toLocaleString("en-US")}.`;
+  }
+  // 720p HD and the video length only apply to video; leaving HD empty offers 480p only.
+  let creditCostHd: number | null = null;
+  let durationSeconds: number | null = null;
+  if (v.type === "VIDEO") {
+    if (v.creditCostHd) {
+      creditCostHd = Number(v.creditCostHd);
+      if (!Number.isInteger(creditCostHd) || creditCostHd < 1 || creditCostHd > MAX_CREDITS) {
+        errors.creditCostHd = "Enter a whole number of credits, or leave it empty for 480p only.";
+      }
+    }
+    if (v.durationSeconds) {
+      durationSeconds = Number(v.durationSeconds);
+      if (!Number.isInteger(durationSeconds) || durationSeconds < 1 || durationSeconds > 120) {
+        errors.durationSeconds = "Enter the length in seconds (1 to 120), or leave it empty.";
+      }
+    }
   }
   const requiredPhotoCount = Number(v.requiredPhotoCount);
   if (!Number.isInteger(requiredPhotoCount) || requiredPhotoCount < 1 || requiredPhotoCount > MAX_PHOTOS) {
@@ -264,6 +301,11 @@ export function buildTemplateData(
     const costUsd = Number(v.costUsd);
     if (!Number.isFinite(costUsd) || costUsd < 0 || costUsd > 1000) errors.costUsd = "Enter the cost in USD, e.g. 2.39.";
     else config.costUsd = costUsd;
+  }
+  if (v.costUsdHd) {
+    const costUsdHd = Number(v.costUsdHd);
+    if (!Number.isFinite(costUsdHd) || costUsdHd < 0 || costUsdHd > 1000) errors.costUsdHd = "Enter the 720p cost in USD, e.g. 5.11.";
+    else config.costUsdHd = costUsdHd;
   }
   const prevVersion = (existingConfig as { version?: unknown } | null)?.version;
   if (typeof prevVersion === "number") config.version = prevVersion;
@@ -334,6 +376,8 @@ export function buildTemplateData(
       newCategory: v.newCategory,
       type: v.type,
       creditCost,
+      creditCostHd,
+      durationSeconds,
       aspectRatio: v.aspectRatio,
       requiredPhotoCount,
       photoLabels,
