@@ -47,9 +47,26 @@ export function normalizeBaseUrl(raw: string | undefined) {
   }
 }
 
-/** An environment value without stray spaces or the quotes people sometimes paste around it. */
-function cleanEnv(value: string | undefined) {
-  return value?.trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+/**
+ * An environment value without the extras that come along when it is copied out of a document:
+ * invisible characters (zero-width spaces, direction marks, a byte order mark, control
+ * characters), stray spaces, and straight or curly quotes around it.
+ */
+export function cleanEnv(value: string | undefined) {
+  return value
+    ?.replace(/[\p{Cc}\p{Cf}]/gu, "")
+    .trim()
+    .replace(/^["'“”‘’](.*)["'“”‘’]$/, "$1")
+    .trim();
+}
+
+/** Code points of the characters in a raw value that aren't plain printable ASCII, for the logs. */
+function oddCharacters(raw: string | undefined) {
+  const odd = [...(raw ?? "")]
+    .map((c) => c.codePointAt(0) ?? 0)
+    .filter((code) => code < 33 || code > 126)
+    .map((code) => `U+${code.toString(16).toUpperCase().padStart(4, "0")}`);
+  return odd.length ? odd.join(" ") : "none";
 }
 
 function config() {
@@ -110,7 +127,9 @@ async function login(): Promise<string> {
       status,
       errorKey(data) ?? "",
       `POST ${baseUrl}/auth/token`,
-      `(username ${username.length} chars, password ${password.length} chars)`,
+      `(username ${username.length} chars, password ${password.length} chars;`,
+      `non-ASCII or invisible characters in the raw variables: username ${oddCharacters(process.env.QPAY_USERNAME)},`,
+      `password ${oddCharacters(process.env.QPAY_PASSWORD)})`,
     );
     throw new QPayError(`QPay login failed (${status})`, status, errorKey(data));
   }
