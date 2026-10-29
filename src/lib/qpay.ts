@@ -31,17 +31,33 @@ export class QPayError extends Error {
   }
 }
 
+/**
+ * The API root, e.g. https://merchant.qpay.mn/v2. A full endpoint pasted by mistake (the token
+ * URL from QPay's welcome message) is trimmed back to the root: with a doubled path QPay answers
+ * 401 NO_CREDENDIALS, which looks exactly like a bad login.
+ */
+export function normalizeBaseUrl(raw: string | undefined) {
+  const trimmed = (raw || DEFAULT_BASE_URL).trim().replace(/\/+$/, "").replace(/\/auth\/token$/i, "");
+  try {
+    const url = new URL(trimmed);
+    const path = url.pathname.replace(/\/+$/, "");
+    return `${url.origin}${path || "/v2"}`;
+  } catch {
+    return DEFAULT_BASE_URL;
+  }
+}
+
+/** An environment value without stray spaces or the quotes people sometimes paste around it. */
+function cleanEnv(value: string | undefined) {
+  return value?.trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+}
+
 function config() {
-  const username = process.env.QPAY_USERNAME;
-  const password = process.env.QPAY_PASSWORD;
-  const invoiceCode = process.env.QPAY_INVOICE_CODE;
+  const username = cleanEnv(process.env.QPAY_USERNAME);
+  const password = cleanEnv(process.env.QPAY_PASSWORD);
+  const invoiceCode = cleanEnv(process.env.QPAY_INVOICE_CODE);
   if (!username || !password || !invoiceCode) throw new QPayError("QPay is not configured");
-  return {
-    username,
-    password,
-    invoiceCode,
-    baseUrl: (process.env.QPAY_BASE_URL || DEFAULT_BASE_URL).trim().replace(/\/+$/, ""),
-  };
+  return { username, password, invoiceCode, baseUrl: normalizeBaseUrl(process.env.QPAY_BASE_URL) };
 }
 
 /** True when the QPay credentials are set, so the UI can say payments aren't available yet. */
@@ -80,11 +96,22 @@ async function login(): Promise<string> {
   const { username, password, baseUrl } = config();
   const { status, data } = await fetchJson(`${baseUrl}/auth/token`, {
     method: "POST",
-    headers: { Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}` },
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
+      "Content-Type": "application/json",
+    },
   });
   const body = data as { access_token?: unknown; expires_in?: unknown } | null;
   if (status !== 200 || typeof body?.access_token !== "string") {
-    console.error("[qpay] login failed", status, errorKey(data) ?? "");
+    // The URL is logged (it holds no secret) because a wrong base URL looks like a bad login.
+    // Lengths, not values: an extra character (a quote, a space) shows up as a wrong length.
+    console.error(
+      "[qpay] login failed",
+      status,
+      errorKey(data) ?? "",
+      `POST ${baseUrl}/auth/token`,
+      `(username ${username.length} chars, password ${password.length} chars)`,
+    );
     throw new QPayError(`QPay login failed (${status})`, status, errorKey(data));
   }
   // `expires_in` is documented as a timestamp in seconds; accept a plain duration too.
