@@ -7,7 +7,7 @@ export type SocialProvider = "google" | "apple";
 interface AuthConfigValue {
   /** Social sign-in providers whose credentials are configured on the server. */
   providers: SocialProvider[];
-  /** Legacy email + password login (ENABLE_EMAIL_LOGIN=1); off by default. */
+  /** Email + password login: on unless ENABLE_EMAIL_LOGIN=0. */
   emailLogin: boolean;
 }
 

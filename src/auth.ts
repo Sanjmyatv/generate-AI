@@ -6,11 +6,11 @@ import type { Provider } from "next-auth/providers";
 import { findOrCreateUser, verifyPasswordLogin, type OAuthProvider } from "@/lib/users";
 
 /**
- * Sign-in is Google and Apple only. Email + password is the older method: it stays off unless
- * ENABLE_EMAIL_LOGIN=1, which keeps accounts created with a password reachable (their email
- * still links to the same account when they continue with Google or Apple).
+ * People can sign in with Google, Apple, or an email and password. Email login is on by
+ * default; set ENABLE_EMAIL_LOGIN=0 to turn it off. An account made with a password and one
+ * made with Google or Apple share a user when the (verified) email matches.
  */
-export const emailLoginEnabled = process.env.ENABLE_EMAIL_LOGIN === "1";
+export const emailLoginEnabled = process.env.ENABLE_EMAIL_LOGIN !== "0";
 
 // Google/Apple are only enabled when their credentials exist.
 const providers: Provider[] = [];

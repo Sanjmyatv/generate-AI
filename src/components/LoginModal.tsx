@@ -11,7 +11,7 @@ export function LoginModal({
   redirectTo,
   onClose,
   title = "Log in or sign up",
-  description = "Continue with your Google or Apple account. New accounts start with 1,000 free credits.",
+  description = "Continue with Google or Apple, or use your email. New Google and Apple accounts start with 1,000 free credits.",
 }: {
   redirectTo: string;
   onClose: () => void;
@@ -33,7 +33,7 @@ export function LoginModal({
       onClick={onClose}
     >
       <div
-        className="animate-pop-in relative w-full max-w-sm rounded-3xl border border-zinc-800/80 bg-zinc-950/90 p-7 shadow-[0_0_60px_rgba(168,85,247,0.18)] backdrop-blur-xl"
+        className="animate-pop-in relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-zinc-800/80 bg-zinc-950/90 p-7 shadow-[0_0_60px_rgba(168,85,247,0.18)] backdrop-blur-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button

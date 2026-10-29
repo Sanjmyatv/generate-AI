@@ -42,7 +42,8 @@ const BUTTONS: { id: SocialProvider; label: string; Icon: () => React.ReactEleme
 
 /**
  * Sign in with Google or Apple. Both buttons always show; one whose credentials aren't set on
- * the server is disabled and says so. Email + password only appears when ENABLE_EMAIL_LOGIN=1.
+ * the server is disabled and says so. Below them is the email + password form (log in, or
+ * create an account), unless ENABLE_EMAIL_LOGIN=0.
  */
 export function LoginButtons({ redirectTo }: { redirectTo: string }) {
   const { providers, emailLogin } = useAuthConfig();
@@ -70,7 +71,7 @@ export function LoginButtons({ redirectTo }: { redirectTo: string }) {
         <>
           <div className="flex items-center gap-3 pt-2 text-xs text-foreground/50">
             <span className="h-px flex-1 bg-foreground/15" />
-            email
+            or use your email
             <span className="h-px flex-1 bg-foreground/15" />
           </div>
           <EmailAuthForm redirectTo={redirectTo} />
