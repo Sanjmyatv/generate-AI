@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { FeaturedTemplate } from "@/components/home/FeaturedTemplate";
+import { Reveal } from "@/components/Reveal";
 import { TemplateCard } from "@/components/TemplateCard";
 import type { Category, Template } from "@/types";
 
@@ -27,7 +28,7 @@ function TemplateRow({
   }
 
   return (
-    <section id={id} className="flex flex-col gap-[22px] pb-3 pt-11">
+    <Reveal as="section" id={id} className="flex flex-col gap-[22px] pb-3 pt-11">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-[6px] leading-[1.5]">
           <h2 className="text-[22px] text-foreground md:text-[26px]">{title}</h2>
@@ -61,7 +62,7 @@ function TemplateRow({
           <TemplateCard key={template.id} template={template} />
         ))}
       </div>
-    </section>
+    </Reveal>
   );
 }
 

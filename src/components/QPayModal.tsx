@@ -72,7 +72,7 @@ export function QPayModal({
                   <span className="flex items-center gap-2 text-[15px] font-medium text-foreground">
                     {p.name}
                     {p.highlighted && (
-                      <span className="rounded-full bg-purple px-2 py-0.5 text-[10px] font-medium">Most Popular</span>
+                      <span className="rounded-full btn-primary px-2 py-0.5 text-[10px] font-medium">Most Popular</span>
                     )}
                   </span>
                   <span className="text-[12px] text-muted">
@@ -107,7 +107,7 @@ export function QPayModal({
           type="button"
           disabled={!selected}
           onClick={() => setShowQr(true)}
-          className="mt-5 w-full rounded-xl bg-purple py-3 text-[14px] font-medium text-foreground disabled:opacity-50"
+          className="mt-5 w-full rounded-xl btn-primary py-3 text-[14px] font-medium text-foreground disabled:opacity-50"
         >
           Pay with QPay{selected ? ` · ${formatCredits(selected.priceMnt)}₮` : ""}
         </button>

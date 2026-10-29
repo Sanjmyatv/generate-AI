@@ -5,17 +5,26 @@ import Google from "next-auth/providers/google";
 import type { Provider } from "next-auth/providers";
 import { findOrCreateUser, verifyPasswordLogin, type OAuthProvider } from "@/lib/users";
 
-// Email + password is always available. Google/Apple are only enabled when their credentials
-// exist, so the app still works before they are configured.
-const providers: Provider[] = [
-  Credentials({
-    credentials: { email: {}, password: {} },
-    async authorize(credentials) {
-      const user = await verifyPasswordLogin(credentials?.email, credentials?.password);
-      return user ? { id: user.id, name: user.name, email: user.email, publicId: user.publicId } : null;
-    },
-  }),
-];
+/**
+ * Sign-in is Google and Apple only. Email + password is the older method: it stays off unless
+ * ENABLE_EMAIL_LOGIN=1, which keeps accounts created with a password reachable (their email
+ * still links to the same account when they continue with Google or Apple).
+ */
+export const emailLoginEnabled = process.env.ENABLE_EMAIL_LOGIN === "1";
+
+// Google/Apple are only enabled when their credentials exist.
+const providers: Provider[] = [];
+if (emailLoginEnabled) {
+  providers.push(
+    Credentials({
+      credentials: { email: {}, password: {} },
+      async authorize(credentials) {
+        const user = await verifyPasswordLogin(credentials?.email, credentials?.password);
+        return user ? { id: user.id, name: user.name, email: user.email, publicId: user.publicId } : null;
+      },
+    }),
+  );
+}
 if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) providers.push(Google);
 if (process.env.AUTH_APPLE_ID && process.env.AUTH_APPLE_SECRET) providers.push(Apple);
 

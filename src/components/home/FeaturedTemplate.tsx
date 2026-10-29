@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Reveal } from "@/components/Reveal";
 import type { Template } from "@/types";
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
@@ -8,7 +9,7 @@ export function FeaturedTemplate({ template }: { template: Template }) {
   const src = template.previewUrl;
 
   return (
-    <section className="pb-5 pt-10 md:pt-16">
+    <Reveal as="section" className="pb-5 pt-10 md:pt-16">
       <div className="relative flex h-[470px] flex-col justify-end overflow-hidden rounded-3xl p-[26px] md:h-[430px] md:p-12">
         {src && VIDEO_EXT.test(src) ? (
           <video src={src} autoPlay muted loop playsInline className="absolute inset-0 size-full object-cover" />
@@ -30,7 +31,7 @@ export function FeaturedTemplate({ template }: { template: Template }) {
           <p className="text-[14px] leading-[1.5] text-[#d3d0db]">{template.description}</p>
           <Link
             href={`/templates/${template.id}`}
-            className="flex h-[54px] items-center justify-center gap-[10px] rounded-xl border border-line bg-purple px-6 text-[14px] text-foreground md:rounded-full md:shadow-[0_0_12px_1px_#4b0adc]"
+            className="flex h-[54px] items-center justify-center gap-[10px] rounded-xl btn-primary px-6 text-[14px] text-foreground md:rounded-full md:shadow-[0_0_12px_1px_#4b0adc]"
           >
             Try This Template
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -38,6 +39,6 @@ export function FeaturedTemplate({ template }: { template: Template }) {
           </Link>
         </div>
       </div>
-    </section>
+    </Reveal>
   );
 }

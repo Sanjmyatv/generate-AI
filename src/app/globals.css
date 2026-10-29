@@ -43,3 +43,33 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Purple glass buttons (Update design requirement): gradient, blur, a faint neon glow on hover and focus. */
+@utility btn-primary {
+  @apply border border-purple-500/30 bg-linear-to-r from-purple-600/80 to-indigo-600/80 text-foreground backdrop-blur-md transition-shadow duration-300 hover:shadow-[0_0_25px_rgba(168,85,247,0.4)] focus-visible:shadow-[0_0_25px_rgba(168,85,247,0.4)] focus-visible:outline-none;
+}
+
+/* The quieter sibling for secondary actions. */
+@utility btn-glass {
+  @apply border border-line bg-surface text-foreground backdrop-blur-md transition duration-300 hover:border-purple-500/40 hover:shadow-[0_0_25px_rgba(168,85,247,0.25)] focus-visible:border-purple-500/40 focus-visible:shadow-[0_0_25px_rgba(168,85,247,0.25)] focus-visible:outline-none;
+}
+
+/* Dialogs and dropdowns ease in. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-pop-in {
+  animation: pop-in 0.18s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop-in {
+    animation: none;
+  }
+}

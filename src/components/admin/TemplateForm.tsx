@@ -216,7 +216,7 @@ export function TemplateForm({
               <label
                 key={t}
                 className={`flex-1 cursor-pointer rounded-xl border px-3 py-2 text-center text-sm font-semibold ${
-                  v.type === t ? "border-purple bg-purple text-foreground" : "border-foreground/30"
+                  v.type === t ? "btn-primary text-foreground" : "border-foreground/30"
                 }`}
               >
                 <input
@@ -457,7 +457,7 @@ export function TemplateForm({
         <button
           type="submit"
           disabled={pending || previewUpload.busy || sourceUpload.busy}
-          className="flex-1 rounded-full bg-purple py-3 font-semibold text-foreground disabled:opacity-50"
+          className="flex-1 rounded-full btn-primary py-3 font-semibold text-foreground disabled:opacity-50"
         >
           {pending ? "Saving…" : templateId ? "Save changes" : "Create template"}
         </button>

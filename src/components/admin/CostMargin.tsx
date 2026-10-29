@@ -90,7 +90,7 @@ export function CostMargin({
               aria-pressed={view === r}
               onClick={() => setView(r)}
               className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                view === r ? "border-purple bg-purple text-foreground" : "border-foreground/30"
+                view === r ? "btn-primary text-foreground" : "border-foreground/30"
               }`}
             >
               {RESOLUTION_LABELS[r].label}

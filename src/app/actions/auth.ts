@@ -1,7 +1,7 @@
 "use server";
 
 import { AuthError } from "next-auth";
-import { signIn, signOut } from "@/auth";
+import { emailLoginEnabled, signIn, signOut } from "@/auth";
 import { MIN_PASSWORD_LENGTH, createPasswordUser, normalizeEmail } from "@/lib/users";
 
 // Only allow same-site relative paths to avoid open redirects.
@@ -25,6 +25,7 @@ const SIGN_UP_ERRORS = {
 
 /** Log in or sign up (form field `mode`) with email + password, then continue to `redirectTo`. */
 export async function emailAuthAction(_prev: EmailAuthState, form: FormData): Promise<EmailAuthState> {
+  if (!emailLoginEnabled) return { error: "Email login is turned off. Continue with Google or Apple." };
   const mode = form.get("mode") === "signup" ? "signup" : "login";
   const email = normalizeEmail(form.get("email"));
   const password = form.get("password");

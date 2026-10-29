@@ -103,8 +103,8 @@ export function TemplateCard({ template }: { template: Template }) {
             {isVideo ? "AI video" : "AI image"} · {photos} {photos === 1 ? "photo" : "photos"}
           </p>
           <span
-            className={`flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-line px-[9px] text-[10px] font-medium leading-[1.5] text-foreground ${
-              hover ? "bg-purple" : "bg-surface"
+            className={`flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-[9px] text-[10px] font-medium leading-[1.5] text-foreground ${
+              hover ? "btn-primary" : "border border-line bg-surface"
             }`}
           >
             Use Template

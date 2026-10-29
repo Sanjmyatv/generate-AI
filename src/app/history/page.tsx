@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { auth, enabledProviders } from "@/auth";
+import { auth } from "@/auth";
 import { LoginButtons } from "@/components/LoginButtons";
 import { getActor } from "@/lib/actor";
 import { prisma } from "@/lib/db";
+import { Reveal } from "@/components/Reveal";
 import { claimGuestGenerations } from "@/lib/generations";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export default async function HistoryPage() {
         <p className="mt-2 mb-6 text-foreground/70">
           Log in to see your previous creations.
         </p>
-        <LoginButtons providers={enabledProviders} redirectTo="/history" />
+        <LoginButtons redirectTo="/history" />
       </div>
     );
   }
@@ -65,8 +66,9 @@ export default async function HistoryPage() {
     <div className="py-10">
       <h1 className="text-3xl font-bold">History</h1>
       <ul className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {generations.map((g) => (
+        {generations.map((g, index) => (
           <li key={g.id}>
+            <Reveal delay={Math.min(index, 7) * 60}>
             <div
               className="overflow-hidden rounded-xl bg-foreground/10"
               style={{ aspectRatio: aspectCss(g.template.aspectRatio) }}
@@ -98,7 +100,7 @@ export default async function HistoryPage() {
             {g.status === "COMPLETED" ? (
               <a
                 href={`/api/generations/${g.id}/video?download=1`}
-                className="mt-2 block rounded-full bg-purple py-2 text-center text-sm font-semibold text-foreground"
+                className="mt-2 block rounded-full btn-primary py-2 text-center text-sm font-semibold text-foreground"
               >
                 Download
               </a>
@@ -117,6 +119,7 @@ export default async function HistoryPage() {
                 View Progress
               </Link>
             )}
+            </Reveal>
           </li>
         ))}
       </ul>

@@ -1,4 +1,5 @@
 import { PricingPlans } from "@/components/PricingPlans";
+import { Reveal } from "@/components/Reveal";
 import {
   IMAGE_CREDITS,
   SIGNUP_BONUS_CREDITS,
@@ -22,7 +23,7 @@ export default async function PricingPage() {
 
       <PricingPlans packages={creditPackages} />
 
-      <div className="mt-12 rounded-3xl border border-line bg-surface p-6">
+      <Reveal className="mt-12 rounded-3xl border border-line bg-surface p-6">
         <h2 className="text-lg font-semibold">What a creation costs</h2>
         <div className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
           <div>
@@ -45,7 +46,7 @@ export default async function PricingPage() {
           Videos default to 480p (fast and eco); switch to 720p HD before you generate. If a generation fails, the
           credits are returned automatically.
         </p>
-      </div>
+      </Reveal>
     </div>
   );
 }

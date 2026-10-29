@@ -63,6 +63,53 @@ export const PACKAGES: PackageDefinition[] = [
   { id: "pro", name: "Pro Agency Pack", priceMnt: 90_000, credits: 115_000, bonusCredits: 25_000, highlighted: false },
 ];
 
+/**
+ * What a pack buys, as the bullet list on its pricing card. The counts are worked out from the
+ * credits and the price list above, so the card can never promise more than the credits cover
+ * (10,000 credits buy two 10 s videos at 480p, not three).
+ */
+export function packageHighlights(pack: Pick<PackageDefinition, "id" | "credits">): string[] {
+  const n = (credits: number, each: number) => Math.floor(credits / each);
+  const images = n(pack.credits, IMAGE_CREDITS);
+  const v10 = n(pack.credits, VIDEO_CREDITS[10]["480p"]);
+  const v20 = n(pack.credits, VIDEO_CREDITS[20]["480p"]);
+  const hd10 = n(pack.credits, VIDEO_CREDITS[10]["720p"]);
+  const hd20 = n(pack.credits, VIDEO_CREDITS[20]["720p"]);
+  const imagesLine = `Up to ${formatCredits(images)} AI images`;
+  const expiry = "Credits never expire";
+
+  switch (pack.id) {
+    case "starter": {
+      // One 20 s video, then the images the rest of the credits cover.
+      const left = n(pack.credits - VIDEO_CREDITS[20]["480p"], IMAGE_CREDITS);
+      return [
+        imagesLine,
+        `${v10}x 10-second videos (480p) OR 1x 20-second video + ${left} images`,
+        expiry,
+        "Automatic refund on failed generations",
+      ];
+    }
+    case "creator":
+      return [
+        imagesLine,
+        `${v10}x 10-second videos (480p) OR ${v20}x 20-second videos (480p)`,
+        `${hd10}x 10-second HD videos (720p)`,
+        expiry,
+        "Priority rendering queue",
+      ];
+    case "pro":
+      return [
+        imagesLine,
+        `${v10}x 10-second videos (480p) OR ${v20}x 20-second videos (480p)`,
+        `${hd20}x 20-second HD videos (720p)`,
+        expiry,
+        "Maximum queue priority",
+      ];
+    default:
+      return [imagesLine, `${v10}x 10-second videos (480p)`, expiry];
+  }
+}
+
 export function formatCredits(n: number) {
   return n.toLocaleString("en-US");
 }

@@ -40,7 +40,7 @@ export function EmailAuthForm({ redirectTo }: { redirectTo: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-full bg-purple py-3 font-semibold text-foreground disabled:opacity-50"
+        className="w-full rounded-full btn-primary py-3 font-semibold text-foreground disabled:opacity-50"
       >
         {pending ? "Please wait..." : signup ? "Create Account" : "Log In"}
       </button>

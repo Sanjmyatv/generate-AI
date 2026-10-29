@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { auth, enabledProviders } from "@/auth";
+import { auth } from "@/auth";
 import { GenerateFlow } from "@/components/GenerateFlow";
 import { getCreditPackages, getTemplate } from "@/lib/queries";
 import { getUserById } from "@/lib/users";
@@ -22,7 +22,6 @@ export default async function TemplatePage({
     <GenerateFlow
       template={template}
       isAuthenticated={Boolean(session?.user?.id)}
-      providers={enabledProviders}
       resumeId={g}
       credits={user ? user.credits : null}
       packages={packages}

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Geologica } from "next/font/google";
-import { auth } from "@/auth";
+import { auth, emailLoginEnabled, enabledProviders } from "@/auth";
+import { AuthConfigProvider } from "@/components/AuthConfig";
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
+import { getUserById } from "@/lib/users";
 import "./globals.css";
 
 // Geologica is the zyro.ai typeface; Cyrillic is included for Mongolian text.
@@ -24,6 +26,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const session = await auth();
+  const user = session?.user?.id ? await getUserById(session.user.id) : null;
 
   return (
     <html
@@ -31,9 +34,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geologica.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Nav signedIn={Boolean(session?.user?.id)} />
-        <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 md:px-8 lg:px-16">{children}</main>
-        <Footer />
+        <AuthConfigProvider value={{ providers: enabledProviders, emailLogin: emailLoginEnabled }}>
+          <Nav user={user ? { name: user.name, email: user.email, credits: user.credits } : null} />
+          <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 md:px-8 lg:px-16">{children}</main>
+          <Footer />
+        </AuthConfigProvider>
       </body>
     </html>
   );

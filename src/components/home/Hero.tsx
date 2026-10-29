@@ -29,7 +29,7 @@ export function Hero() {
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row md:pt-2">
             <Link
               href="#discover"
-              className="flex h-[54px] items-center justify-center gap-[10px] rounded-xl border border-line bg-purple px-6 text-[14px] text-foreground"
+              className="flex h-[54px] items-center justify-center gap-[10px] rounded-xl btn-primary px-6 text-[14px] text-foreground"
             >
               Explore Templates
               {/* eslint-disable-next-line @next/next/no-img-element */}

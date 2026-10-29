@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { auth, enabledProviders } from "@/auth";
+import { auth } from "@/auth";
 import { signOutAction } from "@/app/actions/auth";
 import { LoginButtons } from "@/components/LoginButtons";
+import { Reveal } from "@/components/Reveal";
 import { formatCredits } from "@/config/pricing";
 import { getUserById } from "@/lib/users";
 
@@ -18,49 +19,61 @@ export default async function ProfilePage() {
         <p className="mt-2 mb-6 text-foreground/70">
           Log in to see your credits and creations.
         </p>
-        <LoginButtons providers={enabledProviders} redirectTo="/profile" />
+        <LoginButtons redirectTo="/profile" />
       </div>
     );
   }
 
+  const methods = [user.googleId && "Google", user.appleId && "Apple", user.passwordHash && "Email and password"].filter(
+    Boolean,
+  );
+
   return (
-    <div className="mx-auto max-w-md py-10">
-      <h1 className="text-3xl font-bold">Profile</h1>
-      <dl className="mt-6 divide-y divide-foreground/10 rounded-2xl border border-foreground/15">
-        <div className="flex justify-between p-4">
-          <dt className="text-foreground/60">Name</dt>
-          <dd className="font-semibold">{user.name ?? user.email}</dd>
-        </div>
-        <div className="flex justify-between p-4">
-          <dt className="text-foreground/60">User ID</dt>
-          <dd className="font-mono">{user.publicId}</dd>
-        </div>
-        <div className="flex items-center justify-between p-4">
-          <dt className="text-foreground/60">Credits</dt>
-          <dd className="flex items-center gap-3">
-            <span className="font-semibold">{formatCredits(user.credits)}</span>
-            <Link
-              href="/pricing"
-              className="rounded-full bg-purple px-3 py-1 text-xs font-semibold text-foreground"
-            >
-              Buy Credits
-            </Link>
-          </dd>
-        </div>
-      </dl>
-      {user.isAdmin && (
-        <Link
-          href="/admin"
-          className="mt-6 block rounded-full bg-purple py-3 text-center font-semibold text-foreground"
-        >
-          Admin panel
-        </Link>
-      )}
-      <form action={signOutAction}>
-        <button className="mt-6 w-full rounded-full border border-foreground/30 py-3 font-semibold">
-          Log Out
-        </button>
-      </form>
+    <div className="mx-auto max-w-md space-y-10 py-10">
+      <Reveal as="section" id="profile">
+        <h1 className="text-3xl font-bold">Profile</h1>
+        <dl className="mt-6 divide-y divide-foreground/10 rounded-2xl border border-foreground/15">
+          <div className="flex justify-between p-4">
+            <dt className="text-foreground/60">Name</dt>
+            <dd className="font-semibold">{user.name ?? user.email}</dd>
+          </div>
+          <div className="flex justify-between p-4">
+            <dt className="text-foreground/60">User ID</dt>
+            <dd className="font-mono">{user.publicId}</dd>
+          </div>
+          <div className="flex items-center justify-between p-4">
+            <dt className="text-foreground/60">Credits</dt>
+            <dd className="flex items-center gap-3">
+              <span className="font-semibold">{formatCredits(user.credits)}</span>
+              <Link href="/pricing" className="btn-primary rounded-full px-3 py-1 text-xs font-medium">
+                Buy Credits
+              </Link>
+            </dd>
+          </div>
+        </dl>
+        {user.isAdmin && (
+          <Link href="/admin" className="btn-primary mt-6 block rounded-full py-3 text-center font-medium">
+            Admin panel
+          </Link>
+        )}
+      </Reveal>
+
+      <Reveal as="section" id="settings" delay={80}>
+        <h2 className="text-xl font-semibold">Account settings</h2>
+        <dl className="mt-4 divide-y divide-foreground/10 rounded-2xl border border-foreground/15">
+          <div className="flex justify-between gap-4 p-4">
+            <dt className="text-foreground/60">Email</dt>
+            <dd className="truncate">{user.email ?? "Not shared by your sign-in provider"}</dd>
+          </div>
+          <div className="flex justify-between gap-4 p-4">
+            <dt className="text-foreground/60">Signed in with</dt>
+            <dd>{methods.length > 0 ? methods.join(", ") : "—"}</dd>
+          </div>
+        </dl>
+        <form action={signOutAction}>
+          <button className="btn-glass mt-6 w-full rounded-full py-3 font-medium text-red-300">Log Out</button>
+        </form>
+      </Reveal>
     </div>
   );
 }
