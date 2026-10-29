@@ -497,6 +497,7 @@ export function GenerateFlow({
           packages={packages}
           required={cost}
           balance={balance ?? 0}
+          onPaid={setBalance}
           onClose={() => setShowPay(false)}
         />
       )}

@@ -205,8 +205,14 @@ model Payment {
   amountMnt   Int
   credits     Int
   status      PaymentStatus @default(PENDING)
-  /** Provider's transaction/invoice reference, used to verify webhooks. */
+  /** QPay invoice id (the object id payments are checked against). */
   providerRef String?       @unique
+  /// QPay's reply to the invoice: QR text and image, short link and bank app links.
+  invoice     Json?
+  /// QPay's payment id once the payment came in, kept for reference and refunds.
+  qpayPaymentId String?
+  /// When QPay was last asked about this payment, to rate-limit manual checks.
+  lastCheckAt DateTime?
   createdAt   DateTime      @default(now())
   paidAt      DateTime?
 
