@@ -17,7 +17,7 @@ export default async function PricingPage() {
     <div className="py-10 md:py-16">
       <h1 className="text-center text-3xl font-semibold tracking-tight md:text-5xl">Pricing</h1>
       <p className="mt-3 text-center text-muted">
-        Buy credits once and spend them on any video or image. 1 credit = 1₮. New Google and Apple accounts get{" "}
+        Buy credits once and spend them on any video or image. 1 credit = 1₮. New Google accounts get{" "}
         {formatCredits(SIGNUP_BONUS_CREDITS)} free credits.
       </p>
 

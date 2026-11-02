@@ -323,7 +323,7 @@ export function QPayModal({
         <LoginModal
           redirectTo={typeof window === "undefined" ? "/pricing" : window.location.pathname + window.location.search}
           title="Log in to buy credits"
-          description="Credits belong to your account. Continue with Google or Apple, then choose your pack again."
+          description="Credits belong to your account. Log in with Google or your email, then choose your pack again."
           onClose={() => setShowLogin(false)}
         />
       )}

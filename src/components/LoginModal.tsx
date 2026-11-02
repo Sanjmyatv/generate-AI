@@ -4,14 +4,14 @@ import { useEffect } from "react";
 import { LoginButtons } from "@/components/LoginButtons";
 
 /**
- * The log in / sign up dialog: dark glass, Google and Apple only. A new account is created
- * the first time someone continues with a provider.
+ * The log in / sign up dialog: dark glass, Google or email. A new account is created
+ * the first time someone continues with Google or signs up with an email.
  */
 export function LoginModal({
   redirectTo,
   onClose,
   title = "Log in or sign up",
-  description = "Continue with Google or Apple, or use your email. New Google and Apple accounts start with 1,000 free credits.",
+  description = "Continue with Google, or use your email. New Google accounts start with 1,000 free credits.",
 }: {
   redirectTo: string;
   onClose: () => void;

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
-export type SocialProvider = "google" | "apple";
+export type SocialProvider = "google";
 
 interface AuthConfigValue {
   /** Social sign-in providers whose credentials are configured on the server. */

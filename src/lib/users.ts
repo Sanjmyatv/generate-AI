@@ -4,7 +4,7 @@ import { Prisma, type User } from "@/generated/prisma/client";
 import { SIGNUP_BONUS_CREDITS } from "@/config/pricing";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
-export type OAuthProvider = "google" | "apple";
+export type OAuthProvider = "google";
 
 interface OAuthIdentity {
   provider: OAuthProvider;
@@ -14,8 +14,8 @@ interface OAuthIdentity {
   name?: string | null;
 }
 
-function providerIdentity(provider: OAuthProvider, id: string) {
-  return provider === "google" ? { googleId: id } : { appleId: id };
+function providerIdentity(_provider: OAuthProvider, id: string) {
+  return { googleId: id };
 }
 
 function newPublicId() {
@@ -23,7 +23,7 @@ function newPublicId() {
 }
 
 /**
- * Gives a Google/Apple account its free signup credits, once. Run on every OAuth sign-in so
+ * Gives a Google account its free signup credits, once. Run on every OAuth sign-in so
  * an account that missed the grant (an earlier failure, or an account from before the bonus
  * existed) gets it next time. Email + password accounts are not eligible: their email isn't
  * verified, so anyone could mint free credits with throwaway addresses.
@@ -46,10 +46,9 @@ async function grantSignupBonus(user: User): Promise<User> {
 }
 
 /**
- * Resolves an OAuth identity to our internal user, so the same person signing in
- * with Google and Apple does not end up with two accounts when the email matches.
- * Apple "Hide My Email" relay addresses will not match a Google email; that case
- * creates a separate account unless the user later links them.
+ * Resolves an OAuth identity to our internal user, so someone who first signed up with
+ * email + password does not end up with two accounts when they continue with Google
+ * and the (verified) email matches.
  */
 export async function findOrCreateUser(identity: OAuthIdentity) {
   const providerId = providerIdentity(identity.provider, identity.providerAccountId);
@@ -113,7 +112,7 @@ export type SignUpResult =
 
 /**
  * Creates an email + password account. An address that already has any account (including
- * a Google/Apple one) is refused, never given a password, so nobody can take over an
+ * a Google one) is refused, never given a password, so nobody can take over an
  * existing account by signing up with its email.
  */
 export async function createPasswordUser(emailInput: unknown, password: unknown): Promise<SignUpResult> {

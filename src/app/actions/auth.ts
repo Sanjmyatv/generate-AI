@@ -9,7 +9,7 @@ function safePath(path: string) {
   return path.startsWith("/") && !path.startsWith("//") ? path : "/";
 }
 
-export async function signInWithProvider(provider: "google" | "apple", redirectTo: string) {
+export async function signInWithProvider(provider: "google", redirectTo: string) {
   await signIn(provider, { redirectTo: safePath(redirectTo) });
 }
 
@@ -25,7 +25,7 @@ const SIGN_UP_ERRORS = {
 
 /** Log in or sign up (form field `mode`) with email + password, then continue to `redirectTo`. */
 export async function emailAuthAction(_prev: EmailAuthState, form: FormData): Promise<EmailAuthState> {
-  if (!emailLoginEnabled) return { error: "Email login is turned off. Continue with Google or Apple." };
+  if (!emailLoginEnabled) return { error: "Email login is turned off. Continue with Google." };
   const mode = form.get("mode") === "signup" ? "signup" : "login";
   const email = normalizeEmail(form.get("email"));
   const password = form.get("password");

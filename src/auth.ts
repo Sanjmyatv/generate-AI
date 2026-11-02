@@ -1,18 +1,17 @@
 import NextAuth from "next-auth";
-import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import type { Provider } from "next-auth/providers";
 import { findOrCreateUser, verifyPasswordLogin, type OAuthProvider } from "@/lib/users";
 
 /**
- * People can sign in with Google, Apple, or an email and password. Email login is on by
+ * People can sign in with Google or an email and password. Email login is on by
  * default; set ENABLE_EMAIL_LOGIN=0 to turn it off. An account made with a password and one
- * made with Google or Apple share a user when the (verified) email matches.
+ * made with Google share a user when the (verified) email matches.
  */
 export const emailLoginEnabled = process.env.ENABLE_EMAIL_LOGIN !== "0";
 
-// Google/Apple are only enabled when their credentials exist.
+// Google is only enabled when its credentials exist.
 const providers: Provider[] = [];
 if (emailLoginEnabled) {
   providers.push(
@@ -26,11 +25,9 @@ if (emailLoginEnabled) {
   );
 }
 if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) providers.push(Google);
-if (process.env.AUTH_APPLE_ID && process.env.AUTH_APPLE_SECRET) providers.push(Apple);
 
 export const enabledProviders: OAuthProvider[] = [
   ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET ? (["google"] as const) : []),
-  ...(process.env.AUTH_APPLE_ID && process.env.AUTH_APPLE_SECRET ? (["apple"] as const) : []),
 ];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -41,12 +38,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, account, profile, user }) {
       // `account` is only present on the sign-in request itself.
-      if (account && profile && (account.provider === "google" || account.provider === "apple")) {
+      if (account && profile && account.provider === "google") {
         const dbUser = await findOrCreateUser({
           provider: account.provider,
           providerAccountId: account.providerAccountId,
           email: profile.email,
-          // Google sends a boolean, Apple sends the string "true".
           emailVerified: String(profile.email_verified) === "true",
           name: user?.name ?? profile.name,
         });

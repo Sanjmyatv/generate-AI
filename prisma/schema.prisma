@@ -46,7 +46,7 @@ model User {
   email     String?  @unique
   googleId  String?  @unique
   appleId   String?  @unique
-  /// scrypt hash for email + password sign-in; null for Google/Apple-only accounts.
+  /// scrypt hash for email + password sign-in; null for Google-only accounts.
   passwordHash String?
   /// Can open /admin. Set by hand in the database, never from the app.
   isAdmin   Boolean  @default(false)

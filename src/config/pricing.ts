@@ -43,7 +43,7 @@ export function standardPrice(type: "VIDEO" | "IMAGE", durationSeconds: number |
   return { credits: tier["480p"], creditsHd: tier["720p"] };
 }
 
-/** Credits a new Google/Apple account starts with. */
+/** Credits a new Google account starts with. */
 export const SIGNUP_BONUS_CREDITS = 1_000;
 
 export interface PackageDefinition {
