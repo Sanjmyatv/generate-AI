@@ -19,11 +19,18 @@ const motionModelPath = (light?: boolean) => (light ? LIGHT_MODEL_PATH : MODEL_P
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export class HiggsfieldError extends Error {
-  constructor(message: string, readonly status?: number) {
+  /** `detail` is Higgsfield's own explanation; only the admin panel shows it. */
+  constructor(message: string, readonly status?: number, readonly detail?: string) {
     super(message);
     this.name = "HiggsfieldError";
   }
 }
+
+/** List price per second (USD, before any account discount): Genjutsu per second of source video. */
+export const GENJUTSU_LIST_USD_PER_SECOND = { "480p": 0.318, "720p": 0.681, "1080p": 1.632 } as const;
+/** Genjutsu Light per billable second (output plus source video, source trimmed to 15 s). */
+export const GENJUTSU_LIGHT_LIST_USD_PER_SECOND = { "480p": 0.05, "720p": 0.1, "1080p": 0.2 } as const;
+export const GENJUTSU_LIGHT_MAX_SECONDS = 15;
 
 /** Per-template settings stored in `Template.generationConfig`. */
 export interface GenjutsuTemplateConfig {
@@ -98,7 +105,7 @@ async function request(path: string, init: RequestInit): Promise<unknown> {
     // Provider detail is logged server-side only; callers surface a generic error.
     const detail = await res.text().catch(() => "");
     console.error(`[higgsfield] ${res.status} ${path}`, detail.slice(0, 800));
-    throw new HiggsfieldError(`Higgsfield responded with ${res.status}`, res.status);
+    throw new HiggsfieldError(`Higgsfield responded with ${res.status}`, res.status, detail.replace(/\s+/g, " ").slice(0, 240));
   }
   return res.json();
 }

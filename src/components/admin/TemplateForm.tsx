@@ -206,7 +206,7 @@ export function TemplateForm({
         error: false,
         note: `About ${result.targetPct}% margin on the ${result.reference}. Packs: ${result.margins
           .map((m) => `${m.name} ${m.pct.toFixed(0)}%`)
-          .join(", ")}.`,
+          .join(", ")}.${result.note ? ` ${result.note}` : ""}`,
       });
     }, 700);
     return () => {

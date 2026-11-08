@@ -69,7 +69,7 @@ export function CostMargin({
       });
       if (result.ok) {
         onChange(costKey, String(result.usd));
-        setNote("Priced by Higgsfield for your account.");
+        setNote(result.note ?? "Priced by Higgsfield for your account.");
       } else {
         setNote(result.error);
       }

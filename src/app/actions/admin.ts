@@ -8,7 +8,14 @@ import { requireAdmin } from "@/lib/admin";
 import { baseUrlFromHeaders } from "@/lib/actor";
 import { prisma } from "@/lib/db";
 import { assetIdFromUrl } from "@/lib/media";
-import { estimateImageEditUsd, estimateMotionTransferUsd, HiggsfieldError } from "@/lib/higgsfield";
+import {
+  GENJUTSU_LIGHT_LIST_USD_PER_SECOND,
+  GENJUTSU_LIGHT_MAX_SECONDS,
+  GENJUTSU_LIST_USD_PER_SECOND,
+  HiggsfieldError,
+  estimateImageEditUsd,
+  estimateMotionTransferUsd,
+} from "@/lib/higgsfield";
 import { creditsForMargin, marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
 import {
   IMAGE_ASPECTS,
@@ -120,7 +127,7 @@ export interface CostEstimateInput {
   imageAspect: string;
 }
 
-export type CostEstimateResult = { ok: true; usd: number } | { ok: false; error: string };
+export type CostEstimateResult = { ok: true; usd: number; note?: string } | { ok: false; error: string };
 
 const oneOf = <T extends string>(list: readonly T[], value: string): value is T => (list as readonly string[]).includes(value);
 
@@ -133,6 +140,25 @@ export async function estimateCostAction(input: CostEstimateInput): Promise<Cost
   return estimateUsd(input);
 }
 
+/**
+ * Genjutsu's cost worked out from its published per-second price and the source video's length.
+ * No discount is assumed, so if your account is discounted the real cost is lower than this.
+ */
+async function listPriceEstimate(input: CostEstimateInput, light: boolean, cause: unknown): Promise<CostEstimateResult | null> {
+  const assetId = assetIdFromUrl(input.sourceVideoUrl);
+  const asset = assetId ? await prisma.asset.findUnique({ where: { id: assetId }, select: { duration: true } }) : null;
+  if (!asset?.duration) return null;
+  const resolution = input.videoResolution as keyof typeof GENJUTSU_LIST_USD_PER_SECOND;
+  const seconds = light ? Math.ceil(Math.min(asset.duration, GENJUTSU_LIGHT_MAX_SECONDS)) * 2 : Math.ceil(asset.duration);
+  const perSecond = (light ? GENJUTSU_LIGHT_LIST_USD_PER_SECOND : GENJUTSU_LIST_USD_PER_SECOND)[resolution];
+  const why = cause instanceof HiggsfieldError ? cause.message : "lookup unavailable";
+  return {
+    ok: true,
+    usd: Math.round(seconds * perSecond * 1000) / 1000,
+    note: `Higgsfield's price lookup was unavailable (${why}), so this is the list price. Any discount on your account is not included, so the real cost may be lower.`,
+  };
+}
+
 async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult> {
   const baseUrl = baseUrlFromHeaders(await headers());
   // Estimates need the same fields as a real request; this stands in for the user's photo.
@@ -143,14 +169,23 @@ async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult
       const templateVideoUrl = resolveUrl(input.sourceVideoUrl, baseUrl);
       if (!templateVideoUrl) return { ok: false, error: "Upload the source video first." };
       if (!oneOf(VIDEO_RESOLUTIONS, input.videoResolution)) return { ok: false, error: "Choose a resolution first." };
-      const usd = await estimateMotionTransferUsd({
-        templateVideoUrl,
-        imageUrls,
-        prompt: input.prompt,
-        resolution: input.videoResolution,
-        light: input.engine === "genjutsu-light",
-      });
-      return { ok: true, usd };
+      const light = input.engine === "genjutsu-light";
+      try {
+        const usd = await estimateMotionTransferUsd({
+          templateVideoUrl,
+          imageUrls,
+          prompt: input.prompt,
+          resolution: input.videoResolution,
+          light,
+        });
+        return { ok: true, usd };
+      } catch (e) {
+        // The price lookup is a convenience: without it, work from the published list price.
+        console.error("[admin] Higgsfield price lookup failed, using the list price", e);
+        const fallback = await listPriceEstimate(input, light, e);
+        if (fallback) return fallback;
+        throw e;
+      }
     }
     if (input.engine === "marketing-image") {
       if (!input.prompt) return { ok: false, error: "Write the prompt first." };
@@ -175,7 +210,10 @@ async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult
     console.error("[admin] cost estimate failed", e);
     return {
       ok: false,
-      error: e instanceof HiggsfieldError ? "Higgsfield could not price this request. Enter the cost by hand." : "Could not get the price.",
+      error:
+        e instanceof HiggsfieldError
+          ? `Higgsfield could not price this request (${e.message}${e.detail ? `: ${e.detail}` : ""}). Turn off the automatic price to enter it by hand.`
+          : "Could not get the price.",
     };
   }
 }
@@ -198,6 +236,8 @@ export interface PriceSuggestion {
   /** The pack the price was worked out against, and the margin each pack ends up with. */
   reference: string;
   margins: { name: string; pct: number }[];
+  /** Set when the cost is an estimate rather than Higgsfield's own price. */
+  note?: string;
 }
 
 export type PriceSuggestionResult = ({ ok: true } & PriceSuggestion) | { ok: false; error: string };
@@ -251,6 +291,7 @@ export async function suggestPriceAction(
     costUsdHd: hd?.ok ? hd.usd : null,
     targetPct: TARGET_MARGIN_PCT,
     reference: reference.name,
+    note: standard.note,
     margins: packs.map((p) => ({
       name: p.name,
       pct: marginFor({ costUsd: standard.usd, creditCost: credits, perCredit: perCreditMnt(p), usdMnt }).marginPct,
