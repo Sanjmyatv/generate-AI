@@ -32,6 +32,12 @@ export function EmailAuthForm({ redirectTo }: { redirectTo: string }) {
         placeholder={signup ? "Password (at least 8 characters)" : "Password"}
         className="w-full rounded-full border border-foreground/30 bg-transparent px-4 py-3"
       />
+      {!signup && (
+        // A plain link (full page load) so the login dialog closes with the navigation.
+        <a href="/forgot-password" className="block text-right text-sm text-foreground/60 hover:text-foreground">
+          Forgot password?
+        </a>
+      )}
       {state.error && (
         <p role="alert" className="text-sm text-red-500">
           {state.error}

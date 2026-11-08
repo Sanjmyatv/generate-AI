@@ -1,7 +1,10 @@
 "use server";
 
+import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import { emailLoginEnabled, signIn, signOut } from "@/auth";
+import { baseUrlFromHeaders } from "@/lib/actor";
+import { requestPasswordReset, resetPassword } from "@/lib/password-reset";
 import { MIN_PASSWORD_LENGTH, createPasswordUser, normalizeEmail } from "@/lib/users";
 
 // Only allow same-site relative paths to avoid open redirects.
@@ -42,6 +45,49 @@ export async function emailAuthAction(_prev: EmailAuthState, form: FormData): Pr
     await signIn("credentials", { email, password, redirectTo });
   } catch (e) {
     if (e instanceof AuthError) return { error: "Incorrect email or password." };
+    throw e;
+  }
+  return { error: null };
+}
+
+export interface ForgotPasswordState {
+  sent: boolean;
+  error: string | null;
+}
+
+/** Emails a reset link. The answer is the same whether or not the address has an account. */
+export async function forgotPasswordAction(_prev: ForgotPasswordState, form: FormData): Promise<ForgotPasswordState> {
+  if (!emailLoginEnabled) return { sent: false, error: "Email login is turned off." };
+  const email = normalizeEmail(form.get("email"));
+  if (!email) return { sent: false, error: "Please enter your email address." };
+  await requestPasswordReset(email, baseUrlFromHeaders(await headers()));
+  return { sent: true, error: null };
+}
+
+export interface ResetPasswordState {
+  error: string | null;
+}
+
+/** Sets a new password from a reset link, then logs the person in. */
+export async function resetPasswordAction(_prev: ResetPasswordState, form: FormData): Promise<ResetPasswordState> {
+  if (!emailLoginEnabled) return { error: "Email login is turned off." };
+  const token = String(form.get("token") ?? "");
+  const password = form.get("password");
+  if (password !== form.get("confirm")) return { error: "The two passwords don't match." };
+
+  const result = await resetPassword(token, password);
+  if (!result.ok) {
+    return {
+      error:
+        result.error === "weak_password"
+          ? `Your password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+          : "This link has expired or was already used. Ask for a new one.",
+    };
+  }
+  try {
+    await signIn("credentials", { email: result.email, password, redirectTo: "/" });
+  } catch (e) {
+    if (e instanceof AuthError) return { error: "Your password was changed. Please log in." };
     throw e;
   }
   return { error: null };

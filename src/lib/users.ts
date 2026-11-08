@@ -99,8 +99,8 @@ export async function findOrCreateUser(identity: OAuthIdentity) {
 }
 
 export const MIN_PASSWORD_LENGTH = 8;
-const MAX_PASSWORD_LENGTH = 128;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const MAX_PASSWORD_LENGTH = 128;
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normalizeEmail(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
