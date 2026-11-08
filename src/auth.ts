@@ -11,6 +11,13 @@ import { findOrCreateUser, verifyPasswordLogin, type OAuthProvider } from "@/lib
  */
 export const emailLoginEnabled = process.env.ENABLE_EMAIL_LOGIN !== "0";
 
+// Behind Railway's proxy the request URL's host is the container's own (localhost:8080), and
+// Auth.js would send Google that as the redirect_uri. Pin it to the public address instead.
+const publicUrl = process.env.APP_URL?.trim();
+if (!process.env.AUTH_URL && publicUrl && /^https?:\/\/[^/\s]+/i.test(publicUrl)) {
+  process.env.AUTH_URL = publicUrl.replace(/\/+$/, "");
+}
+
 // Google is only enabled when its credentials exist.
 const providers: Provider[] = [];
 if (emailLoginEnabled) {
