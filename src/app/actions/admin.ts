@@ -164,7 +164,13 @@ export async function estimateCostAction(input: CostEstimateInput): Promise<Cost
       });
       return { ok: true, usd };
     }
-    return { ok: false, error: "Seedance has no price lookup: enter your cost from the BytePlus console." };
+    return {
+      ok: false,
+      error:
+        input.engine === "gemini-image"
+          ? "Gemini has no price lookup: enter your cost from the Google AI Studio billing page."
+          : "Seedance has no price lookup: enter your cost from the BytePlus console.",
+    };
   } catch (e) {
     console.error("[admin] cost estimate failed", e);
     return {

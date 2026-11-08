@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { getActor, getBaseUrl } from "@/lib/actor";
 import { DEFAULT_RESOLUTION, type Resolution } from "@/config/pricing";
 import { failGeneration, refreshGeneration } from "@/lib/generations";
+import { geminiConfigured, parseGeminiImageConfig } from "@/lib/gemini";
+import { runGeminiImageJob } from "@/lib/gemini-job";
 import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
 import {
   parseGenjutsuConfig,
@@ -61,7 +63,13 @@ export async function POST(req: Request) {
   const genjutsu = template && !config ? parseGenjutsuConfig(template.generationConfig) : null;
   const imageEdit =
     template && !config && !genjutsu ? parseMarketingImageConfig(template.generationConfig) : null;
-  if (!template || (!config && !genjutsu && !imageEdit)) return Response.json({ error: "template_unavailable" }, { status: 400 });
+  const gemini =
+    template && !config && !genjutsu && !imageEdit ? parseGeminiImageConfig(template.generationConfig) : null;
+  if (!template || (!config && !genjutsu && !imageEdit && !gemini)) {
+    return Response.json({ error: "template_unavailable" }, { status: 400 });
+  }
+  // Checked before any credits are taken: a template whose provider key is missing is our problem.
+  if (gemini && !geminiConfigured()) return Response.json({ error: "template_unavailable" }, { status: 503 });
   if (uploadIds.length !== template.requiredPhotoCount) {
     return Response.json({ error: "invalid_photo_count" }, { status: 400 });
   }
@@ -78,7 +86,8 @@ export async function POST(req: Request) {
     resolution = requested;
     if (requested === "720p") cost = template.creditCostHd!;
   } else {
-    resolution = imageEdit?.resolution ?? "image"; // images have one price and a fixed render size
+    // Images have one price and a fixed render size.
+    resolution = imageEdit?.resolution ?? gemini?.imageSize?.toLowerCase() ?? "image";
   }
   const videoResolution = resolution as Resolution;
 
@@ -154,6 +163,14 @@ export async function POST(req: Request) {
       return Response.json({ error: e.code, ...e.extra }, { status: e.status });
     }
     throw e;
+  }
+
+  if (gemini) {
+    // Gemini answers in one call instead of a task to poll, so it runs in the background and
+    // the client polls /api/status like for every other provider.
+    await prisma.generation.update({ where: { id: generation.id }, data: { status: "PROCESSING" } });
+    void runGeminiImageJob(generation.id, uploadIds as string[], gemini);
+    return Response.json({ id: generation.id }, { status: 202 });
   }
 
   try {

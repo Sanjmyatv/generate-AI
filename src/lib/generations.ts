@@ -100,26 +100,34 @@ export async function archiveVideo(id: string, url: string) {
     if (!res.ok) return false;
     if (Number(res.headers.get("content-length")) > MAX_VIDEO_BYTES) return false;
     const data = new Uint8Array(await res.arrayBuffer());
-    if (data.byteLength === 0 || data.byteLength > MAX_VIDEO_BYTES) return false;
-    await prisma.generationVideo.upsert({
-      where: { generationId: id },
-      update: {},
-      create: {
-        generationId: id,
-        contentType: resultContentType(res.headers.get("content-type"), data),
-        size: data.byteLength,
-        data,
-      },
-    });
-    return true;
+    return await archiveBytes(id, data, res.headers.get("content-type"));
   } catch (e) {
     console.error("[generations] archive failed", id, e);
     return false;
   }
 }
 
-/** Records a finished video. Returns false if another request already did. */
-export async function completeGeneration(id: string, outputUrl: string) {
+/** Stores a finished result we already hold (a provider that returns the file itself, not a URL). */
+export async function archiveBytes(id: string, data: Uint8Array<ArrayBuffer>, contentType: string | null) {
+  if (data.byteLength === 0 || data.byteLength > MAX_VIDEO_BYTES) return false;
+  await prisma.generationVideo.upsert({
+    where: { generationId: id },
+    update: {},
+    create: {
+      generationId: id,
+      contentType: resultContentType(contentType, data),
+      size: data.byteLength,
+      data,
+    },
+  });
+  return true;
+}
+
+/**
+ * Records a finished video or image. `outputUrl` is the provider's URL, or null when the result
+ * is already stored (see archiveBytes). Returns false if another request already completed it.
+ */
+export async function completeGeneration(id: string, outputUrl: string | null) {
   const res = await prisma.generation.updateMany({
     where: { id, status: { in: ["QUEUED", "PROCESSING"] } },
     data: { status: "COMPLETED", outputUrl, completedAt: new Date() },

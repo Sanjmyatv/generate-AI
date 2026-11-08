@@ -4,6 +4,7 @@ import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 import { saveTemplateAction, type TemplateFormState } from "@/app/actions/admin";
 import { CostMargin } from "@/components/admin/CostMargin";
+import { VideoAnalysis } from "@/components/admin/VideoAnalysis";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import {
   IMAGE_CREDITS,
@@ -45,6 +46,8 @@ const PROMPT_HELP: Record<Engine, string> = {
   "seedance-reference": 'Describe the scene, the action and the look. Refer to the photos as "Image 1", "Image 2"…',
   "marketing-image":
     "Describe the edit you want. The user's photo is sent as the reference image, so say what to keep (faces, composition) and what to change.",
+  "gemini-image":
+    "Describe the edit you want in plain sentences, e.g. \"Restore this old photo: remove scratches and creases, sharpen the faces and colorize it naturally. Keep the people's faces and the composition unchanged.\" Several photos are sent in order; refer to them as the first, second image.",
 };
 
 const inputClass = "w-full rounded-xl border border-foreground/30 bg-transparent px-3 py-2";
@@ -307,6 +310,20 @@ export function TemplateForm({
                 </div>
               </div>
             )}
+            {v.sourceVideoUrl && (
+              <VideoAnalysis
+                sourceVideoUrl={v.sourceVideoUrl}
+                engine={v.engine}
+                onApply={({ prompt, photoCount, labels }) =>
+                  setV((prev) => ({
+                    ...prev,
+                    prompt,
+                    requiredPhotoCount: String(photoCount),
+                    photoLabels: labels.join("\n"),
+                  }))
+                }
+              />
+            )}
           </Field>
         )}
 
@@ -334,7 +351,7 @@ export function TemplateForm({
 
       <Section title="Quality">
         {v.type === "IMAGE" ? (
-          <div className="grid grid-cols-3 gap-4">
+          <div className={`grid gap-4 ${v.engine === "gemini-image" ? "grid-cols-2" : "grid-cols-3"}`}>
             <Field label="Resolution" error={err.imageResolution}>
               <select {...text("imageResolution")} className={inputClass}>
                 {IMAGE_RESOLUTIONS.map((r) => (
@@ -342,13 +359,16 @@ export function TemplateForm({
                 ))}
               </select>
             </Field>
-            <Field label="Quality" error={err.imageQuality}>
-              <select {...text("imageQuality")} className={inputClass}>
-                {IMAGE_QUALITIES.map((q) => (
-                  <option key={q}>{q}</option>
-                ))}
-              </select>
-            </Field>
+            {/* Gemini has no quality setting. */}
+            {v.engine !== "gemini-image" && (
+              <Field label="Quality" error={err.imageQuality}>
+                <select {...text("imageQuality")} className={inputClass}>
+                  {IMAGE_QUALITIES.map((q) => (
+                    <option key={q}>{q}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
             <Field label="Aspect ratio" error={err.imageAspect} hint="auto keeps the photo's shape.">
               <select {...text("imageAspect")} className={inputClass}>
                 {IMAGE_ASPECTS.map((a) => (
