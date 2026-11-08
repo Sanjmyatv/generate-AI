@@ -1,12 +1,16 @@
+import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { HeroScene } from "@/components/home/HeroScene";
 
-/** Figma: zyro.ai · Desktop / Tablet / Mobile homepage → Hero. */
+/** Figma: zyro.ai · Desktop / Tablet / Mobile homepage → Hero, over an animated backdrop. */
 export function Hero() {
   return (
-    <section className="pb-0 pt-12 md:pt-14 lg:pt-[94px]">
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-10">
-        <div className="flex w-full flex-col items-start gap-6 lg:w-[730px] lg:shrink-0">
+    <section className="relative isolate pb-0 pt-12 md:pt-14 lg:pt-[94px]">
+      <HeroScene />
+
+      <div className="flex flex-col gap-8 xl:flex-row xl:items-center xl:gap-10">
+        <div className="flex w-full flex-col items-start gap-6 xl:w-[730px] xl:shrink-0">
           <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/dot-available.svg" alt="" className="size-[5px]" />
@@ -15,10 +19,12 @@ export function Hero() {
             </p>
           </div>
 
-          <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-1.8px] text-foreground md:text-[68px] md:tracking-[-3.5px] lg:text-[76px]">
+          <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-1.8px] text-foreground md:text-[68px] md:tracking-[-3.5px] xl:text-[76px]">
             Your imagination.
             <br />
-            Without limits.
+            <span className="bg-linear-to-r from-violet-300 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
+              Without limits.
+            </span>
           </h1>
 
           <p className="text-[15px] leading-[1.5] text-muted md:text-[17px] lg:w-[580px]">
@@ -29,7 +35,7 @@ export function Hero() {
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row md:pt-2">
             <Link
               href="#discover"
-              className="flex h-[54px] items-center justify-center gap-[10px] rounded-xl btn-primary px-6 text-[14px] text-foreground"
+              className="btn-primary flex h-[54px] items-center justify-center gap-[10px] px-7 text-[14px] font-medium"
             >
               Explore Templates
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -37,7 +43,7 @@ export function Hero() {
             </Link>
             <Link
               href="#trending"
-              className="flex h-[54px] items-center justify-center gap-[10px] rounded-xl border border-line bg-surface px-6 text-[14px] text-foreground"
+              className="btn-glass flex h-[54px] items-center justify-center gap-[10px] px-7 text-[14px] font-medium"
             >
               See What’s Possible
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -48,48 +54,32 @@ export function Hero() {
           <p className="text-[11px] leading-[1.5] text-muted">No complicated prompts. Just you, reimagined.</p>
         </div>
 
-        {/* Imagination preview: laid out at 530x460 and scaled down on phones. */}
-        <div className="relative h-[300px] w-[350px] shrink-0 sm:h-[460px] sm:w-[530px] md:w-[620px] lg:w-[530px]">
+        {/* Two example results, framed in glass and floating over the backdrop. Laid out at 530x460 and scaled down on phones. */}
+        <div className="relative h-[300px] w-[350px] shrink-0 sm:h-[460px] sm:w-[530px] md:w-[620px] xl:w-[530px]">
           <div className="absolute left-0 top-0 h-[460px] w-[530px] origin-top-left scale-[0.66] sm:scale-100">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/hero-atmosphere.svg" alt="" className="absolute inset-0 size-full" />
-
-            <div className="absolute left-3 top-[27.22px] flex h-[334.967px] w-[230.229px] items-center justify-center">
-              <div className="relative h-[310px] w-[184px] shrink-0 rotate-[-9deg] overflow-hidden rounded-2xl">
-                <Image
-                  src="/brand/hero-cinematic.jpg"
-                  alt=""
-                  fill
-                  sizes="184px"
-                  priority
-                  className="object-cover"
-                />
+            <div className="hs-layer left-[40px] top-[56px]" style={{ "--d": 30 } as CSSProperties}>
+              <div className="hs-float" style={{ "--dur": "9s", "--delay": "-2s" } as CSSProperties}>
+                <div className="relative h-[310px] w-[184px] -rotate-[8deg] overflow-hidden rounded-3xl border border-white/25 shadow-[0_0_46px_rgba(99,102,241,0.45)]">
+                  <Image
+                    src="/brand/hero-cinematic.jpg"
+                    alt=""
+                    fill
+                    sizes="184px"
+                    priority
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-linear-to-tr from-indigo-500/10 via-transparent to-cyan-300/15" />
+                </div>
               </div>
             </div>
 
-            <div className="absolute left-[312.39px] top-3 flex h-[288.067px] w-[201.617px] items-center justify-center">
-              <div className="relative h-[266px] w-[162px] shrink-0 rotate-[9deg] overflow-hidden rounded-2xl">
-                <Image src="/brand/hero-fashion.jpg" alt="" fill sizes="162px" priority className="object-cover" />
+            <div className="hs-layer left-[290px] top-[24px]" style={{ "--d": 46 } as CSSProperties}>
+              <div className="hs-float" style={{ "--dur": "11s", "--delay": "-6s" } as CSSProperties}>
+                <div className="relative h-[266px] w-[162px] rotate-[8deg] overflow-hidden rounded-3xl border border-white/25 shadow-[0_0_46px_rgba(59,130,246,0.45)]">
+                  <Image src="/brand/hero-fashion.jpg" alt="" fill sizes="162px" priority className="object-cover" />
+                  <div className="absolute inset-0 bg-linear-to-tl from-violet-500/15 via-transparent to-cyan-300/10" />
+                </div>
               </div>
-            </div>
-
-            <div className="absolute left-[164px] top-[100px] h-[264.063px] w-[260px]">
-              <Image
-                src="/brand/z-emblem.png"
-                alt=""
-                width={520}
-                height={528}
-                priority
-                className="size-full object-cover"
-              />
-            </div>
-
-            <div className="absolute left-[187px] top-[390px] flex items-center gap-[7px] rounded-full border border-line bg-[rgba(18,18,37,0.8)] px-3 py-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/icon-sparkles-sm.svg" alt="" className="size-[13px]" />
-              <p className="whitespace-nowrap text-[10px] leading-[1.5] text-foreground">
-                One photo. Infinite possibilities.
-              </p>
             </div>
           </div>
         </div>

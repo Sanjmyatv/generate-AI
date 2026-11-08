@@ -181,7 +181,7 @@ export function QPayModal({
               {formatCredits(payment.credits)} credits were added to your account.
               {newBalance !== null && ` You now have ${formatCredits(newBalance)} credits.`}
             </p>
-            <button type="button" onClick={onClose} className="btn-primary mt-6 w-full rounded-xl py-3 text-[14px] font-medium">
+            <button type="button" onClick={onClose} className="btn-primary mt-6 w-full py-3 text-[14px] font-medium">
               Done
             </button>
           </div>
@@ -244,7 +244,7 @@ export function QPayModal({
               type="button"
               onClick={() => void checkNow()}
               disabled={checking}
-              className="btn-primary mt-5 w-full rounded-xl py-3 text-[14px] font-medium disabled:opacity-50"
+              className="btn-primary mt-5 w-full py-3 text-[14px] font-medium disabled:opacity-50"
             >
               {checking ? "Checking…" : "I have paid"}
             </button>
@@ -306,7 +306,7 @@ export function QPayModal({
               type="button"
               disabled={!selected || phase === "creating"}
               onClick={() => void start()}
-              className="btn-primary mt-5 w-full rounded-xl py-3 text-[14px] font-medium disabled:opacity-50"
+              className="btn-primary mt-5 w-full py-3 text-[14px] font-medium disabled:opacity-50"
             >
               {phase === "creating"
                 ? "Creating your QPay invoice…"

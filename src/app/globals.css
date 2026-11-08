@@ -30,6 +30,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geologica), Arial, Helvetica, sans-serif;
+  /* The hero backdrop is as wide as the window; this keeps it from adding a sideways scrollbar. */
+  overflow-x: clip;
 }
 
 /* Anchored sections stop below the sticky navigation. */
@@ -44,14 +46,185 @@ body {
   display: none;
 }
 
-/* Purple glass buttons (Update design requirement): gradient, blur, a faint neon glow on hover and focus. */
+/*
+ * Buttons: every button on the site is a pill. Primary is a purple-to-blue gradient with a
+ * soft glow; glass is the translucent dark sibling for secondary actions. Both glow, lift and
+ * scale up a touch on hover, and settle back when pressed. Reduced-motion users get the glow
+ * but no movement.
+ */
 @utility btn-primary {
-  @apply border border-purple-500/30 bg-linear-to-r from-purple-600/80 to-indigo-600/80 text-foreground backdrop-blur-md transition-shadow duration-300 hover:shadow-[0_0_25px_rgba(168,85,247,0.4)] focus-visible:shadow-[0_0_25px_rgba(168,85,247,0.4)] focus-visible:outline-none;
+  @apply rounded-full border border-white/20 bg-linear-to-r from-violet-600 via-indigo-500 to-blue-500 text-foreground shadow-[0_0_22px_rgba(99,102,241,0.35)] transition duration-300 ease-out hover:scale-[1.03] hover:shadow-[0_0_36px_rgba(99,102,241,0.65)] active:scale-[0.98] focus-visible:shadow-[0_0_36px_rgba(99,102,241,0.65)] focus-visible:outline-none disabled:hover:scale-100 disabled:hover:shadow-[0_0_22px_rgba(99,102,241,0.35)] motion-reduce:transition-shadow motion-reduce:hover:scale-100 motion-reduce:active:scale-100;
 }
 
 /* The quieter sibling for secondary actions. */
 @utility btn-glass {
-  @apply border border-line bg-surface text-foreground backdrop-blur-md transition duration-300 hover:border-purple-500/40 hover:shadow-[0_0_25px_rgba(168,85,247,0.25)] focus-visible:border-purple-500/40 focus-visible:shadow-[0_0_25px_rgba(168,85,247,0.25)] focus-visible:outline-none;
+  @apply rounded-full border border-white/15 bg-white/5 text-foreground backdrop-blur-md transition duration-300 ease-out hover:scale-[1.03] hover:border-violet-400/50 hover:bg-white/10 hover:shadow-[0_0_28px_rgba(99,102,241,0.3)] active:scale-[0.98] focus-visible:border-violet-400/50 focus-visible:shadow-[0_0_28px_rgba(99,102,241,0.3)] focus-visible:outline-none disabled:hover:scale-100 motion-reduce:transition-shadow motion-reduce:hover:scale-100 motion-reduce:active:scale-100;
+}
+
+/* Hero backdrop (see HeroScene): colour fields, glass objects, particles and waves. */
+.hs-field {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 70% at 78% 18%, rgba(37, 99, 235, 0.22), transparent 70%),
+    radial-gradient(ellipse 55% 65% at 12% 88%, rgba(124, 58, 237, 0.22), transparent 70%),
+    radial-gradient(ellipse 40% 45% at 52% 52%, rgba(14, 165, 233, 0.09), transparent 70%),
+    linear-gradient(180deg, #060a1c 0%, #0a0820 55%, var(--background) 100%);
+}
+.hs-glow {
+  position: absolute;
+  border-radius: 9999px;
+}
+/* Parallax: the section's --mx/--my (set from the mouse) shift each layer by its own depth. */
+.hs-layer {
+  position: absolute;
+  transform: translate3d(calc(var(--mx, 0) * var(--d, 10) * -1px), calc(var(--my, 0) * var(--d, 10) * -1px), 0);
+  transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+.hs-float {
+  animation: hs-float var(--dur, 10s) ease-in-out var(--delay, 0s) infinite alternate;
+  will-change: transform, opacity;
+}
+@keyframes hs-float {
+  from {
+    transform: translate3d(0, -12px, 0) scale(0.97);
+    opacity: 0.78;
+  }
+  to {
+    transform: translate3d(0, 16px, 0) scale(1.03);
+    opacity: 1;
+  }
+}
+.hs-pulse {
+  animation: hs-pulse 9s ease-in-out infinite alternate;
+}
+@keyframes hs-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+.hs-twinkle {
+  opacity: 0.2;
+  animation: hs-twinkle 4s ease-in-out infinite alternate;
+}
+@keyframes hs-twinkle {
+  from {
+    opacity: 0.15;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0.95;
+    transform: scale(1.25);
+  }
+}
+.hs-wave {
+  animation: hs-wave 16s ease-in-out infinite alternate;
+  opacity: 0.8;
+}
+@keyframes hs-wave {
+  from {
+    transform: translate3d(-3%, 0, 0);
+  }
+  to {
+    transform: translate3d(3%, -10px, 0);
+  }
+}
+.hs-spin {
+  animation: hs-spin 40s linear infinite;
+}
+.hs-spin-slow {
+  animation: hs-spin 26s linear infinite;
+}
+@keyframes hs-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+.hs-tumble {
+  animation: hs-tumble 24s linear infinite;
+}
+@keyframes hs-tumble {
+  from {
+    transform: rotateX(20deg) rotateY(0deg) rotateZ(10deg);
+  }
+  to {
+    transform: rotateX(20deg) rotateY(360deg) rotateZ(10deg);
+  }
+}
+
+/* Glass sphere: a bright highlight, a cool rim and an inner glow. */
+.hs-sphere {
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.07) 28%, transparent 46%),
+    radial-gradient(circle at 70% 78%, rgba(34, 211, 238, 0.4), transparent 52%),
+    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.32), rgba(30, 27, 75, 0.35) 70%);
+  box-shadow:
+    inset -10px -14px 28px rgba(56, 189, 248, 0.22),
+    inset 8px 10px 22px rgba(255, 255, 255, 0.14),
+    0 0 56px rgba(99, 102, 241, 0.4);
+}
+@media (min-width: 768px) {
+  .hs-sphere {
+    backdrop-filter: blur(6px);
+  }
+}
+/* Orbit ring: a thin gradient band, tilted back so it reads as 3D. */
+.hs-orbit {
+  perspective: 700px;
+  transform: rotateX(68deg) rotateZ(-18deg);
+}
+.hs-ring {
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, #8b5cf6, #22d3ee, #3b82f6, #a78bfa, #8b5cf6);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  opacity: 0.7;
+}
+/* Glass cube face. */
+.hs-cube {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(99, 102, 241, 0.14) 45%, rgba(34, 211, 238, 0.2));
+  box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.12), 0 0 40px rgba(99, 102, 241, 0.4);
+}
+/* Faceted crystal and prism. */
+.hs-gem-glow {
+  filter: drop-shadow(0 0 18px rgba(99, 102, 241, 0.6));
+}
+.hs-gem {
+  clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%);
+  background: linear-gradient(145deg, rgba(196, 181, 253, 0.85), rgba(79, 70, 229, 0.55) 55%, rgba(34, 211, 238, 0.7));
+}
+.hs-prism {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background: linear-gradient(160deg, rgba(103, 232, 249, 0.85), rgba(99, 102, 241, 0.55) 60%, rgba(139, 92, 246, 0.7));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hs-float,
+  .hs-pulse,
+  .hs-twinkle,
+  .hs-wave,
+  .hs-spin,
+  .hs-spin-slow,
+  .hs-tumble {
+    animation: none;
+  }
+  .hs-twinkle {
+    opacity: 0.6;
+  }
+  .hs-layer {
+    transform: none;
+    transition: none;
+  }
 }
 
 /* Dialogs and dropdowns ease in. */

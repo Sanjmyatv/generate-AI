@@ -31,7 +31,7 @@ export function FeaturedTemplate({ template }: { template: Template }) {
           <p className="text-[14px] leading-[1.5] text-[#d3d0db]">{template.description}</p>
           <Link
             href={`/templates/${template.id}`}
-            className="flex h-[54px] items-center justify-center gap-[10px] rounded-xl btn-primary px-6 text-[14px] text-foreground md:rounded-full md:shadow-[0_0_12px_1px_#4b0adc]"
+            className="flex h-[54px] items-center justify-center gap-[10px] btn-primary px-7 text-[14px] font-medium"
           >
             Try This Template
             {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -48,7 +48,7 @@ export function LoginButtons({ redirectTo }: { redirectTo: string }) {
             <button
               type="submit"
               disabled={!available}
-              className="btn-glass flex w-full items-center justify-center gap-3 rounded-2xl py-3.5 text-[15px] font-medium disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+              className="btn-glass flex w-full items-center justify-center gap-3 py-3.5 text-[15px] font-medium disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               <Icon />
               {label}

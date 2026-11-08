@@ -117,7 +117,7 @@ export function Discovery({
             <div
               role="group"
               aria-label="Template type"
-              className="inline-flex gap-1 rounded-2xl border border-line bg-surface p-[5px]"
+              className="inline-flex gap-1 rounded-full border border-line bg-surface p-[5px]"
             >
               {MEDIA_OPTIONS.map((option) => {
                 const on = media === option.value;
@@ -127,7 +127,7 @@ export function Discovery({
                     type="button"
                     aria-pressed={on}
                     onClick={() => setMedia(option.value)}
-                    className={`flex h-[46px] w-[145px] items-center justify-center gap-[9px] rounded-[11px] border text-[14px] font-medium ${
+                    className={`flex h-[46px] w-[145px] items-center justify-center gap-[9px] rounded-full border text-[14px] font-medium ${
                       on ? "border-line bg-[rgba(255,255,255,0.07)] text-foreground" : "border-transparent text-muted"
                     }`}
                   >

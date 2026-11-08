@@ -59,7 +59,7 @@ export function PricingPlans({ packages }: { packages: CreditPackage[] }) {
               <button
                 type="button"
                 onClick={() => setBuying(pkg.id)}
-                className={`mt-6 w-full rounded-xl py-3 text-[14px] font-medium text-foreground ${
+                className={`mt-6 w-full py-3 text-[14px] font-medium text-foreground ${
                   pkg.highlighted ? "btn-primary" : "btn-glass"
                 }`}
               >

@@ -215,7 +215,7 @@ export function Nav({ user }: { user: NavUser | null }) {
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="flex h-11 w-9 items-center justify-center md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-full md:hidden"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={open ? "/brand/icon-x.svg" : "/brand/icon-menu.svg"} alt="" className="size-5" />

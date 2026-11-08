@@ -48,7 +48,7 @@ export function HowItWorks() {
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
             <Link
               href="/#discover"
-              className="flex h-[54px] items-center justify-center gap-[10px] rounded-xl btn-primary px-6 text-[14px] text-foreground"
+              className="flex h-[54px] items-center justify-center gap-[10px] btn-primary px-7 text-[14px] font-medium"
             >
               Start Creating
               {/* eslint-disable-next-line @next/next/no-img-element */}
