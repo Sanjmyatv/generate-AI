@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/components/I18nProvider";
 import { RESOLUTION_LABELS, formatCredits, type Resolution } from "@/config/pricing";
 
 /**
@@ -15,10 +16,11 @@ export function ResolutionSelector({
   onChange: (resolution: Resolution) => void;
   options: { resolution: Resolution; credits: number }[];
 }) {
+  const t = useT();
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-foreground">Quality</p>
-      <div role="radiogroup" aria-label="Video resolution" className="grid grid-cols-2 gap-3">
+      <p className="mb-2 text-sm font-medium text-foreground">{t("res.quality")}</p>
+      <div role="radiogroup" aria-label={t("res.groupLabel")} className="grid grid-cols-2 gap-3">
         {options.map((option) => {
           const on = option.resolution === value;
           const label = RESOLUTION_LABELS[option.resolution];
@@ -38,8 +40,8 @@ export function ResolutionSelector({
               <span className={`text-[15px] font-medium ${on ? "text-purple-soft" : "text-foreground"}`}>
                 {label.label}
               </span>
-              <span className="text-[11px] text-muted">{label.tagline}</span>
-              <span className="mt-2 text-[12px] text-foreground">{formatCredits(option.credits)} credits</span>
+              <span className="text-[11px] text-muted">{t(`res.tagline.${option.resolution}`)}</span>
+              <span className="mt-2 text-[12px] text-foreground">{t("res.credits", { amount: formatCredits(option.credits) })}</span>
             </button>
           );
         })}

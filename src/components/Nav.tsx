@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOutAction } from "@/app/actions/auth";
+import { useT } from "@/components/I18nProvider";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { LoginModal } from "@/components/LoginModal";
 import { Logo } from "@/components/Logo";
 import { QPayModal } from "@/components/QPayModal";
@@ -18,12 +20,12 @@ export interface NavUser {
 
 // Figma: zyro.ai / Navigation. The profile lives in the user menu, not in this row.
 const links = [
-  { href: "/", label: "Explore" },
-  { href: "/?media=videos#discover", label: "Videos" },
-  { href: "/?media=images#discover", label: "Images" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/history", label: "History" },
-];
+  { href: "/", label: "nav.explore" },
+  { href: "/?media=videos#discover", label: "nav.videos" },
+  { href: "/?media=images#discover", label: "nav.images" },
+  { href: "/pricing", label: "nav.pricing" },
+  { href: "/history", label: "nav.history" },
+] as const;
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -42,6 +44,7 @@ const menuItemClass =
   "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/5";
 
 export function Nav({ user }: { user: NavUser | null }) {
+  const t = useT();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -105,11 +108,11 @@ export function Nav({ user }: { user: NavUser | null }) {
       }`}
     >
       <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between px-5 md:h-[88px] md:px-8 lg:px-16">
-        <Link href="/" aria-label="zyro.ai home" onClick={() => setOpen(false)}>
+        <Link href="/" aria-label={t("nav.homeLabel")} onClick={() => setOpen(false)}>
           <Logo />
         </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-9 text-[13px] md:flex">
+        <nav aria-label={t("nav.mainLabel")} className="hidden items-center gap-9 text-[13px] md:flex">
           {links.map((item) => (
             <Link
               key={item.label}
@@ -118,12 +121,13 @@ export function Nav({ user }: { user: NavUser | null }) {
                 isActive(pathname, item.href) ? "text-foreground" : "text-muted hover:text-foreground"
               }`}
             >
-              {item.label}
+              {t(item.label)}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <LanguageSwitcher />
           {user ? (
             <div ref={profileRef} className="relative">
               <button
@@ -162,21 +166,21 @@ export function Nav({ user }: { user: NavUser | null }) {
                   </div>
 
                   <div className="mx-1 mb-2 flex items-center justify-between rounded-xl border border-purple-500/20 bg-purple-500/10 px-3 py-2.5">
-                    <span className="text-sm text-foreground">⚡ {formatCredits(user.credits)} Credits</span>
+                    <span className="text-sm text-foreground">⚡ {t("nav.creditsLine", { amount: formatCredits(user.credits) })}</span>
                     <button
                       type="button"
                       onClick={() => void openTopUp()}
                       className="text-xs font-medium text-purple-300 underline-offset-2 hover:text-purple-200 hover:underline"
                     >
-                      Top Up
+                      {t("nav.topUp")}
                     </button>
                   </div>
 
                   <Link href="/profile" role="menuitem" onClick={() => setProfileOpen(false)} className={menuItemClass}>
-                    <span aria-hidden="true">👤</span> My Profile
+                    <span aria-hidden="true">👤</span> {t("nav.profile")}
                   </Link>
                   <Link href="/history" role="menuitem" onClick={() => setProfileOpen(false)} className={menuItemClass}>
-                    <span aria-hidden="true">🎬</span> Generation History
+                    <span aria-hidden="true">🎬</span> {t("nav.generationHistory")}
                   </Link>
                   <Link
                     href="/profile#settings"
@@ -184,7 +188,7 @@ export function Nav({ user }: { user: NavUser | null }) {
                     onClick={() => setProfileOpen(false)}
                     className={menuItemClass}
                   >
-                    <span aria-hidden="true">⚙️</span> Account Settings
+                    <span aria-hidden="true">⚙️</span> {t("nav.settings")}
                   </Link>
 
                   <div className="mx-1 my-2 border-t border-zinc-800/80" />
@@ -194,7 +198,7 @@ export function Nav({ user }: { user: NavUser | null }) {
                       role="menuitem"
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-red-400 transition hover:bg-red-500/10"
                     >
-                      <span aria-hidden="true">↩</span> Log Out
+                      <span aria-hidden="true">↩</span> {t("nav.logOut")}
                     </button>
                   </form>
                 </div>
@@ -204,18 +208,18 @@ export function Nav({ user }: { user: NavUser | null }) {
             <button
               type="button"
               onClick={openLogin}
-              className="btn-primary flex h-[42px] items-center justify-center rounded-full px-5 text-[13px] font-medium"
+              className="btn-primary flex h-9 items-center justify-center rounded-full px-4 text-[12px] font-medium sm:h-[42px] sm:px-5 sm:text-[13px]"
             >
-              Log In
+              {t("nav.logIn")}
             </button>
           )}
 
           <button
             type="button"
-            aria-label={open ? "Close menu" : "Open menu"}
+            aria-label={open ? t("nav.closeMenu") : t("nav.openMenu")}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="flex h-11 w-11 items-center justify-center rounded-full md:hidden"
+            className="flex size-10 items-center justify-center rounded-full md:hidden"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={open ? "/brand/icon-x.svg" : "/brand/icon-menu.svg"} alt="" className="size-5" />
@@ -224,7 +228,7 @@ export function Nav({ user }: { user: NavUser | null }) {
       </div>
 
       {open && (
-        <nav aria-label="Mobile" className="flex flex-col gap-2 px-5 pb-8 pt-5 md:hidden">
+        <nav aria-label={t("nav.mobileLabel")} className="flex flex-col gap-2 px-5 pb-8 pt-5 md:hidden">
           {links.map((item) => (
             <Link
               key={item.label}
@@ -232,7 +236,7 @@ export function Nav({ user }: { user: NavUser | null }) {
               onClick={() => setOpen(false)}
               className="flex h-[52px] items-center justify-between text-[18px] text-foreground"
             >
-              {item.label}
+              {t(item.label)}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/icon-arrow-up-right-lg.svg" alt="" className="size-[18px]" />
             </Link>

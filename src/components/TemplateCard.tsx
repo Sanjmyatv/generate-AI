@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { useLocale, useT } from "@/components/I18nProvider";
 import { formatCredits } from "@/config/pricing";
+import { templateName } from "@/lib/i18n/content";
 import type { Template } from "@/types";
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
@@ -13,6 +15,8 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
  * preview also starts playing.
  */
 export function TemplateCard({ template }: { template: Template }) {
+  const t = useT();
+  const name = templateName(template, useLocale());
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hover, setHover] = useState(false);
 
@@ -20,7 +24,7 @@ export function TemplateCard({ template }: { template: Template }) {
   const src = template.previewUrl;
   const previewIsVideo = Boolean(src && VIDEO_EXT.test(src));
   const photos = template.requiredPhotoCount;
-  const credits = `${formatCredits(template.creditCost)} ${template.creditCost === 1 ? "credit" : "credits"}`;
+  const credits = t("card.credit", { count: template.creditCost, amount: formatCredits(template.creditCost) });
 
   function setHovering(next: boolean) {
     setHover(next);
@@ -54,7 +58,7 @@ export function TemplateCard({ template }: { template: Template }) {
               ref={videoRef}
               // "#t=0.1" makes browsers paint a real frame instead of a black box before play.
               src={`${src}#t=0.1`}
-              aria-label={template.name}
+              aria-label={name}
               muted
               loop
               playsInline
@@ -63,12 +67,12 @@ export function TemplateCard({ template }: { template: Template }) {
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={template.name} loading="lazy" className="absolute inset-0 size-full object-cover" />
+            <img src={src} alt={name} loading="lazy" className="absolute inset-0 size-full object-cover" />
           )
         ) : (
           <div
             role="img"
-            aria-label={template.name}
+            aria-label={name}
             className="absolute inset-0 bg-[linear-gradient(135deg,rgba(139,92,246,0.3),rgba(59,130,246,0.2))]"
           />
         )}
@@ -78,7 +82,7 @@ export function TemplateCard({ template }: { template: Template }) {
           <div className="absolute left-[11px] top-[11px] flex items-start gap-[5px] rounded-lg border border-line bg-[rgba(7,7,17,0.53)] px-[10px] py-[6px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/icon-flame.svg" alt="" className="size-[13px]" />
-            <span className="text-[10px] font-medium leading-[1.5] text-foreground">TRENDING</span>
+            <span className="text-[10px] font-medium leading-[1.5] text-foreground">{t("card.trending")}</span>
           </div>
         )}
 
@@ -97,17 +101,17 @@ export function TemplateCard({ template }: { template: Template }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-[15px] font-medium leading-[1.5] text-foreground">{template.name}</p>
+        <p className="text-[15px] font-medium leading-[1.5] text-foreground">{name}</p>
         <div className="flex items-center justify-between gap-2">
           <p className="text-[11px] leading-[1.5] text-muted">
-            {isVideo ? "AI video" : "AI image"} · {photos} {photos === 1 ? "photo" : "photos"}
+            {isVideo ? t("card.aiVideo") : t("card.aiImage")} · {t("card.photo", { count: photos })}
           </p>
           <span
             className={`flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-[10px] font-medium leading-[1.5] text-foreground ${
               hover ? "btn-primary" : "border border-line bg-surface"
             }`}
           >
-            Use Template
+            {t("card.use")}
           </span>
         </div>
       </div>

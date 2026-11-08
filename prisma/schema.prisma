@@ -88,6 +88,9 @@ model Template {
   id                 String           @id
   name               String
   description        String
+  /// Mongolian name and description, shown to visitors browsing in Mongolian; empty falls back to the English ones.
+  nameMn             String?
+  descriptionMn      String?
   previewUrl         String?
   categoryId         String
   category           Category         @relation(fields: [categoryId], references: [id])

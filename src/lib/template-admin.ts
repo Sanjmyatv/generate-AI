@@ -72,6 +72,9 @@ const MAX_CREDITS = 1_000_000;
 export interface TemplateFormValues {
   name: string;
   description: string;
+  /** Optional Mongolian versions, shown when the visitor browses in Mongolian. */
+  nameMn: string;
+  descriptionMn: string;
   categoryId: string;
   newCategory: string;
   type: "VIDEO" | "IMAGE";
@@ -109,6 +112,8 @@ export function defaultFormValues(): TemplateFormValues {
   return {
     name: "",
     description: "",
+    nameMn: "",
+    descriptionMn: "",
     categoryId: "",
     newCategory: "",
     type: "VIDEO",
@@ -156,6 +161,8 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
 
   v.name = t.name;
   v.description = t.description;
+  v.nameMn = t.nameMn ?? "";
+  v.descriptionMn = t.descriptionMn ?? "";
   v.categoryId = t.categoryId;
   v.type = t.type;
   v.engine = engine;
@@ -199,6 +206,8 @@ export function readForm(form: FormData): TemplateFormValues {
   return {
     name: text("name").trim(),
     description: text("description").trim(),
+    nameMn: text("nameMn").trim(),
+    descriptionMn: text("descriptionMn").trim(),
     categoryId: text("categoryId"),
     newCategory: text("newCategory").trim(),
     type,
@@ -232,6 +241,8 @@ export type FieldErrors = Partial<Record<keyof TemplateFormValues, string>>;
 export interface TemplateData {
   name: string;
   description: string;
+  nameMn: string | null;
+  descriptionMn: string | null;
   categoryId: string;
   newCategory: string;
   type: "VIDEO" | "IMAGE";
@@ -275,6 +286,8 @@ export function buildTemplateData(
 
   if (!v.name || v.name.length > 80) errors.name = "Enter a name (up to 80 characters).";
   if (!v.description || v.description.length > 500) errors.description = "Enter a description (up to 500 characters).";
+  if (v.nameMn.length > 80) errors.nameMn = "The Mongolian name can be up to 80 characters.";
+  if (v.descriptionMn.length > 500) errors.descriptionMn = "The Mongolian description can be up to 500 characters.";
   if (!v.categoryId && !v.newCategory) errors.categoryId = "Choose a category or enter a new one.";
   if (v.newCategory.length > 40) errors.newCategory = "Category names can be up to 40 characters.";
 
@@ -411,6 +424,8 @@ export function buildTemplateData(
     data: {
       name: v.name,
       description: v.description,
+      nameMn: v.nameMn || null,
+      descriptionMn: v.descriptionMn || null,
       categoryId: v.categoryId,
       newCategory: v.newCategory,
       type: v.type,

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/components/I18nProvider";
 import { QPayModal } from "@/components/QPayModal";
 import { Reveal } from "@/components/Reveal";
 import { formatCredits, packageHighlights } from "@/config/pricing";
+import { packName } from "@/lib/i18n/helpers";
 import type { CreditPackage } from "@/types";
 
 /** Heroicons "CheckIcon" (20 solid). */
@@ -21,6 +23,7 @@ function CheckIcon({ className = "" }: { className?: string }) {
 
 /** The credit packs. "Most Popular" is highlighted; Buy Now opens the QPay step. */
 export function PricingPlans({ packages }: { packages: CreditPackage[] }) {
+  const t = useT();
   const [buying, setBuying] = useState<string | null>(null);
 
   return (
@@ -37,18 +40,18 @@ export function PricingPlans({ packages }: { packages: CreditPackage[] }) {
             >
               {pkg.highlighted && (
                 <span className="btn-primary absolute -top-3 left-6 rounded-full px-3 py-1 text-[11px] font-medium">
-                  Most Popular
+                  {t("plans.popular")}
                 </span>
               )}
-              <h2 className="text-lg font-semibold">{pkg.name}</h2>
+              <h2 className="text-lg font-semibold">{packName(t, pkg)}</h2>
               <p className="mt-3 text-4xl font-semibold tracking-tight">{formatCredits(pkg.priceMnt)}₮</p>
-              <p className="mt-3 text-[15px] text-foreground">{formatCredits(pkg.credits)} credits</p>
+              <p className="mt-3 text-[15px] text-foreground">{t("plans.credits", { amount: formatCredits(pkg.credits) })}</p>
               <p className="mt-1 text-sm text-muted">
-                {pkg.bonusCredits > 0 ? `Includes ${formatCredits(pkg.bonusCredits)} bonus credits` : "No bonus"}
+                {pkg.bonusCredits > 0 ? t("plans.bonus", { amount: formatCredits(pkg.bonusCredits) }) : t("plans.noBonus")}
               </p>
 
               <ul className="mt-5 flex-1 space-y-3 border-t border-line pt-5">
-                {packageHighlights(pkg).map((line) => (
+                {packageHighlights(pkg, t).map((line) => (
                   <li key={line} className="flex items-start gap-2.5 text-sm text-zinc-300">
                     <CheckIcon className="mt-0.5 size-4 shrink-0 text-purple-400" />
                     <span>{line}</span>
@@ -63,7 +66,7 @@ export function PricingPlans({ packages }: { packages: CreditPackage[] }) {
                   pkg.highlighted ? "btn-primary" : "btn-glass"
                 }`}
               >
-                Buy Now
+                {t("plans.buy")}
               </button>
             </div>
           </Reveal>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { useT } from "@/components/I18nProvider";
 import { LoginButtons } from "@/components/LoginButtons";
+import { SIGNUP_BONUS_CREDITS, formatCredits } from "@/config/pricing";
 
 /**
  * The log in / sign up dialog: dark glass, Google or email. A new account is created
@@ -10,14 +12,15 @@ import { LoginButtons } from "@/components/LoginButtons";
 export function LoginModal({
   redirectTo,
   onClose,
-  title = "Log in or sign up",
-  description = "Continue with Google, or use your email. New Google accounts start with 1,000 free credits.",
+  title,
+  description,
 }: {
   redirectTo: string;
   onClose: () => void;
   title?: string;
   description?: string;
 }) {
+  const t = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -38,7 +41,7 @@ export function LoginModal({
       >
         <button
           type="button"
-          aria-label="Close"
+          aria-label={t("login.close")}
           onClick={onClose}
           className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-800 hover:text-foreground"
         >
@@ -46,16 +49,19 @@ export function LoginModal({
           <img src="/brand/icon-x.svg" alt="" className="size-4" />
         </button>
         <h2 id="login-title" className="pr-8 text-2xl font-semibold tracking-tight text-foreground">
-          {title}
+          {title ?? t("login.title")}
         </h2>
-        <p className="mb-6 mt-2 text-sm leading-relaxed text-zinc-400">{description}</p>
+        <p className="mb-6 mt-2 text-sm leading-relaxed text-zinc-400">{description ?? t("login.desc", { bonus: formatCredits(SIGNUP_BONUS_CREDITS) })}</p>
         <LoginButtons redirectTo={redirectTo} />
         <p className="mt-6 text-center text-xs leading-relaxed text-zinc-500">
-          By continuing, you agree to our <span className="text-zinc-300 underline underline-offset-2">Terms of Service</span> and{" "}
-          <span className="text-zinc-300 underline underline-offset-2">Privacy Policy</span>.
+          {t("login.termsPre")}
+          <span className="text-zinc-300 underline underline-offset-2">{t("login.terms")}</span>
+          {t("login.termsAnd")}
+          <span className="text-zinc-300 underline underline-offset-2">{t("login.privacy")}</span>
+          {t("login.termsPost")}
         </p>
         <button type="button" onClick={onClose} className="mt-4 w-full text-sm text-zinc-400 hover:text-foreground">
-          Not now
+          {t("login.notNow")}
         </button>
       </div>
     </div>

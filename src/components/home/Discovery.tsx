@@ -2,8 +2,10 @@
 
 import { useRef, useState } from "react";
 import { FeaturedTemplate } from "@/components/home/FeaturedTemplate";
+import { useT } from "@/components/I18nProvider";
 import { Reveal } from "@/components/Reveal";
 import { TemplateCard } from "@/components/TemplateCard";
+import { categoryName } from "@/lib/i18n/content";
 import type { Category, Template } from "@/types";
 
 export type Media = "video" | "image";
@@ -20,6 +22,7 @@ function TemplateRow({
   subtitle: string;
   templates: Template[];
 }) {
+  const t = useT();
   const scroller = useRef<HTMLDivElement>(null);
 
   function scrollBy(direction: -1 | 1) {
@@ -39,7 +42,7 @@ function TemplateRow({
             <button
               key={direction}
               type="button"
-              aria-label={direction === -1 ? `Scroll ${title} left` : `Scroll ${title} right`}
+              aria-label={direction === -1 ? t("disc.scrollLeft", { title }) : t("disc.scrollRight", { title })}
               onClick={() => scrollBy(direction)}
               className="flex size-[38px] items-center justify-center rounded-full border border-line bg-surface"
             >
@@ -66,10 +69,10 @@ function TemplateRow({
   );
 }
 
-const MEDIA_OPTIONS: { value: Media; label: string; icon: string }[] = [
-  { value: "video", label: "Videos", icon: "/brand/icon-clapperboard.svg" },
-  { value: "image", label: "Images", icon: "/brand/icon-image.svg" },
-];
+const MEDIA_OPTIONS = [
+  { value: "video", label: "disc.videos", icon: "/brand/icon-clapperboard.svg" },
+  { value: "image", label: "disc.images", icon: "/brand/icon-image.svg" },
+] as const;
 
 /**
  * Figma: Video template discovery. Videos/Images switch, category chips, a "Trending Now"
@@ -85,6 +88,7 @@ export function Discovery({
   categories: Category[];
   initialMedia: Media;
 }) {
+  const t = useT();
   const [media, setMedia] = useState<Media>(initialMedia);
   const [selected, setSelected] = useState("trending");
 
@@ -108,15 +112,15 @@ export function Discovery({
       <div className="flex flex-col gap-[26px] pb-3 pt-16">
         <div className="flex flex-col gap-3">
           <h2 className="text-[30px] leading-[1.15] tracking-[-1.4px] text-foreground md:text-[40px]">
-            Create something incredible.
+            {t("disc.title")}
           </h2>
           <p className="text-[14px] leading-[1.5] text-muted md:text-[16px]">
-            Pick a template. Upload your photo. Get a result worth sharing.
+            {t("disc.subtitle")}
           </p>
           <div className="pt-[10px]">
             <div
               role="group"
-              aria-label="Template type"
+              aria-label={t("disc.typeLabel")}
               className="inline-flex gap-1 rounded-full border border-line bg-surface p-[5px]"
             >
               {MEDIA_OPTIONS.map((option) => {
@@ -133,7 +137,7 @@ export function Discovery({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={option.icon} alt="" className="size-[18px]" />
-                    {option.label}
+                    {t(option.label)}
                   </button>
                 );
               })}
@@ -143,10 +147,10 @@ export function Discovery({
 
         <div
           role="group"
-          aria-label="Categories"
+          aria-label={t("disc.categories")}
           className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 md:-mx-8 md:px-8 lg:-mx-16 lg:px-16"
         >
-          {[{ id: "trending", name: "Trending" }, ...rows.map((r) => r.category)].map((chip) => {
+          {[{ id: "trending", name: t("disc.trendingChip") }, ...rows.map((r) => r.category)].map((chip) => {
             const on = chip.id === active;
             return (
               <button
@@ -160,7 +164,7 @@ export function Discovery({
                     : "border-line bg-surface text-muted"
                 }`}
               >
-                {chip.name}
+                {categoryName(t, chip)}
               </button>
             );
           })}
@@ -169,7 +173,7 @@ export function Discovery({
 
       {inMedia.length === 0 ? (
         <p className="py-20 text-center text-[14px] text-muted">
-          No {media === "video" ? "video" : "image"} templates yet. Check back soon.
+          {media === "video" ? t("disc.emptyVideo") : t("disc.emptyImage")}
         </p>
       ) : (
         <>
@@ -177,8 +181,8 @@ export function Discovery({
             <>
               <TemplateRow
                 id="trending"
-                title="Trending Now"
-                subtitle="The templates everyone’s making their own."
+                title={t("disc.trendingTitle")}
+                subtitle={t("disc.trendingSub")}
                 templates={trending}
               />
               {featured && <FeaturedTemplate template={featured} />}
@@ -187,8 +191,8 @@ export function Discovery({
           {visibleRows.map(({ category, templates: items }) => (
             <TemplateRow
               key={category.id}
-              title={category.name}
-              subtitle={`${items.length} ${items.length === 1 ? "template" : "templates"}`}
+              title={categoryName(t, category)}
+              subtitle={t("disc.count", { count: items.length })}
               templates={items}
             />
           ))}

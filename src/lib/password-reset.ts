@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/mailer";
 import { hashPassword } from "@/lib/password";
+import type { T } from "@/lib/i18n/translate";
 import { EMAIL_PATTERN, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, normalizeEmail } from "@/lib/users";
 
 const TOKEN_TTL_MS = 60 * 60 * 1000;
@@ -15,7 +16,7 @@ const hashToken = (token: string) => createHash("sha256").update(token).digest("
  * has an account: the caller shows the same message either way. Google-only accounts have no
  * password to reset, so they get no email.
  */
-export async function requestPasswordReset(emailInput: unknown, baseUrl: string): Promise<void> {
+export async function requestPasswordReset(emailInput: unknown, baseUrl: string, t: T): Promise<void> {
   const email = normalizeEmail(emailInput);
   if (!EMAIL_PATTERN.test(email) || email.length > 254) return;
 
@@ -40,9 +41,9 @@ export async function requestPasswordReset(emailInput: unknown, baseUrl: string)
   const link = `${baseUrl}/reset-password?token=${token}`;
   const sent = await sendEmail({
     to: email,
-    subject: "Reset your zyro.ai password",
-    text: `Someone asked to reset the password for your zyro.ai account.\n\nChoose a new password here (the link works once and expires in 1 hour):\n${link}\n\nIf this wasn't you, you can ignore this email: your password stays the same.`,
-    html: `<p>Someone asked to reset the password for your zyro.ai account.</p><p><a href="${link}">Choose a new password</a><br>The link works once and expires in 1 hour.</p><p>If this wasn't you, you can ignore this email: your password stays the same.</p>`,
+    subject: t("mail.reset.subject"),
+    text: `${t("mail.reset.intro")}\n\n${t("mail.reset.action")}: ${link}\n${t("mail.reset.expiry")}\n\n${t("mail.reset.ignore")}`,
+    html: `<p>${t("mail.reset.intro")}</p><p><a href="${link}">${t("mail.reset.action")}</a><br>${t("mail.reset.expiry")}</p><p>${t("mail.reset.ignore")}</p>`,
   });
   if (!sent && process.env.NODE_ENV !== "production") console.log(`[dev] password reset link for ${email}: ${link}`);
 }

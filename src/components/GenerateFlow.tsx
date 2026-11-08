@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useT } from "@/components/I18nProvider";
 import { LoginModal } from "@/components/LoginModal";
 import { QPayModal } from "@/components/QPayModal";
 import { ResolutionSelector } from "@/components/ResolutionSelector";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { DEFAULT_RESOLUTION, formatCredits, type Resolution } from "@/config/pricing";
 import { prepareImage } from "@/lib/image-client";
+import { templateDescription, templateName } from "@/lib/i18n/content";
+import type { T, TKey } from "@/lib/i18n/translate";
 import type { CreditPackage, Template } from "@/types";
 
 type Step = "detail" | "upload" | "processing" | "result" | "error";
@@ -33,18 +36,9 @@ interface FlowError {
 const POLL_INTERVAL_MS = 3000;
 const MAX_NETWORK_FAILURES = 5;
 
-const PROGRESS_MESSAGES = [
-  "Creating your masterpiece...",
-  "Teaching the dancers your face...",
-  "Adding the final touches...",
-  "Almost there, this may take a little while.",
-];
+const PROGRESS_MESSAGES: TKey[] = ["gen.progress1", "gen.progress2", "gen.progress3", "gen.progress4"];
 
-const IMAGE_PROGRESS_MESSAGES = [
-  "Working on your photo...",
-  "Adding the finishing touches...",
-  "Almost there, this may take a little while.",
-];
+const IMAGE_PROGRESS_MESSAGES: TKey[] = ["gen.imgProgress1", "gen.imgProgress2", "gen.imgProgress3"];
 
 /** "9:16" -> "9 / 16" for the CSS aspect-ratio property; falls back to 3/4. */
 function aspectCss(ratio: string) {
@@ -87,41 +81,32 @@ async function uploadPhoto(file: File, forPhoto: boolean): Promise<string> {
   return data.id as string;
 }
 
-function toFlowError(e: unknown): FlowError {
+function toFlowError(e: unknown, t: T): FlowError {
   const code = e instanceof ApiError ? e.code : "network";
   switch (code) {
     case "invalid_image":
-      return {
-        title: "Invalid image",
-        message: "This photo doesn't meet the requirements. Please upload a clearer photo.",
-      };
+      return { title: t("gen.err.invalidImageTitle"), message: t("gen.err.invalidImage") };
     case "upload_failed":
-      return { title: "Upload error", message: "We couldn't upload your photo. Please try another image." };
+      return { title: t("gen.err.uploadTitle"), message: t("gen.err.upload") };
     case "insufficient_credits": {
       const required = e instanceof ApiError ? e.extra?.required : undefined;
       return {
-        title: "Not enough credits",
-        message: `You need ${required ?? "more"} credits to generate this template.`,
+        title: t("gen.err.creditsTitle"),
+        message: t("gen.err.credits", { required: String(required ?? t("gen.err.creditsMore")) }),
         buyCredits: true,
       };
     }
     case "too_many_active":
     case "rate_limited":
-      return { title: "Slow down", message: "You have a generation in progress. Please wait for it to finish." };
+      return { title: t("gen.err.slowTitle"), message: t("gen.err.slow") };
     case "template_unavailable":
-      return { title: "Template unavailable", message: "This template isn't ready yet. Please try another one." };
+      return { title: t("gen.err.unavailableTitle"), message: t("gen.err.unavailable") };
     case "generation_failed":
-      return {
-        title: "Something went wrong",
-        message: "Something went wrong while creating your content. Any credits were refunded.",
-      };
+      return { title: t("gen.err.failedTitle"), message: t("gen.err.failed") };
     case "network":
-      return {
-        title: "Network error",
-        message: "Connection lost. Please check your internet connection and try again.",
-      };
+      return { title: t("gen.err.networkTitle"), message: t("gen.err.network") };
     default:
-      return { title: "Something went wrong", message: "Please try again in a moment." };
+      return { title: t("gen.err.failedTitle"), message: t("gen.err.default") };
   }
 }
 
@@ -135,6 +120,7 @@ function PhotoSlot({
   file: File | null;
   onSelect: (file: File) => void;
 }) {
+  const t = useT();
   const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
 
@@ -145,7 +131,7 @@ function PhotoSlot({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={label} className="h-full w-full object-cover" />
         ) : (
-          <span className="px-2">+ Upload</span>
+          <span className="px-2">{t("gen.slotUpload")}</span>
         )}
         <input
           type="file"
@@ -159,7 +145,7 @@ function PhotoSlot({
         />
       </div>
       <span className="mt-1 block text-xs font-medium">{label}</span>
-      {file && <span className="text-[11px] text-foreground/50">Tap to replace</span>}
+      {file && <span className="text-[11px] text-foreground/50">{t("gen.slotReplace")}</span>}
     </label>
   );
 }
@@ -180,6 +166,9 @@ export function GenerateFlow({
   /** A generation id from `?g=` — lets a guest return here after logging in. */
   resumeId?: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
+  const name = templateName(template, locale);
   const [step, setStep] = useState<Step>(resumeId ? "processing" : "detail");
   // One entry per required photo; null until the user picks that photo.
   const [photos, setPhotos] = useState<(File | null)[]>(() =>
@@ -206,13 +195,12 @@ export function GenerateFlow({
   const cost = activeResolution === "720p" && hdPrice !== null ? hdPrice : template.creditCost;
   const seconds = template.durationSeconds;
   const generateLabel = isVideo
-    ? `Generate ${seconds ? `${seconds}s ` : ""}Video (${formatCredits(cost)} Credits)`
-    : `Generate (${formatCredits(cost)} Credits)`;
+    ? seconds
+      ? t("gen.generateVideoSeconds", { seconds, amount: formatCredits(cost) })
+      : t("gen.generateVideo", { amount: formatCredits(cost) })
+    : t("gen.generateImage", { amount: formatCredits(cost) });
   const allPhotosSelected = photos.every((p): p is File => p !== null);
-  const hint =
-    template.photoRequirement === "full-body"
-      ? "Use a full-body photo."
-      : "Use a clear photo with your face visible.";
+  const hint = template.photoRequirement === "full-body" ? t("gen.hintFull") : t("gen.hintFace");
 
   const fail = useCallback((flowError: FlowError) => {
     setError(flowError);
@@ -267,7 +255,7 @@ export function GenerateFlow({
         setShowPay(true);
         return;
       }
-      fail(toFlowError(e));
+      fail(toFlowError(e, t));
     }
   }
 
@@ -293,24 +281,24 @@ export function GenerateFlow({
           setVideoUrl(data.videoUrl);
           setStep("result");
         } else if (data.status === "FAILED") {
-          const refund = data.refunded ? " Your credits have been refunded." : "";
+          const refund = data.refunded ? t("gen.err.refunded") : "";
           if (data.refunded) setBalance((b) => (b === null ? b : b + charged.current));
           charged.current = 0;
           if (data.error && REJECTED_INPUT.test(data.error)) {
             fail({
-              title: "Invalid image",
-              message: `This photo doesn't meet the requirements. Please upload a clearer photo.${refund}`,
+              title: t("gen.err.invalidImageTitle"),
+              message: `${t("gen.err.invalidImage")}${refund}`,
             });
           } else {
             fail({
-              title: "Something went wrong",
-              message: `Something went wrong while creating your content.${refund || " Please try again."}`,
+              title: t("gen.err.failedTitle"),
+              message: `${t("gen.err.creating")}${refund || t("gen.err.tryAgain")}`,
             });
           }
         }
       } catch {
         if (cancelled) return;
-        if (++failures >= MAX_NETWORK_FAILURES) fail(toFlowError(new Error("network")));
+        if (++failures >= MAX_NETWORK_FAILURES) fail(toFlowError(new Error("network"), t));
       }
     };
 
@@ -325,10 +313,10 @@ export function GenerateFlow({
       clearInterval(poll);
       clearInterval(clock);
     };
-  }, [step, generationId, fail, reset]);
+  }, [step, generationId, fail, reset, t]);
 
   const messages = template.type === "video" ? PROGRESS_MESSAGES : IMAGE_PROGRESS_MESSAGES;
-  const message = messages[Math.min(Math.floor(elapsed / 20), messages.length - 1)];
+  const message = t(messages[Math.min(Math.floor(elapsed / 20), messages.length - 1)]);
 
   return (
     <div className="mx-auto max-w-md py-8">
@@ -340,18 +328,19 @@ export function GenerateFlow({
         >
           <TemplatePreview
             src={template.previewUrl}
-            alt={template.name}
+            alt={name}
             mode="detail"
             className="h-full w-full"
           />
         </div>
       )}
-      <h1 className="mt-4 text-2xl font-bold">{template.name}</h1>
-      <p className="mt-1 text-foreground/70">{template.description}</p>
+      <h1 className="mt-4 text-2xl font-bold">{name}</h1>
+      <p className="mt-1 text-foreground/70">{templateDescription(template, locale)}</p>
       <p className="mt-2 text-sm text-foreground/60">
-        {isVideo ? "Video" : "Image"}
-        {isVideo && seconds ? ` · ${seconds}s` : ""} · Cost: {formatCredits(cost)} {cost === 1 ? "credit" : "credits"}
-        {balance !== null && ` · You have ${formatCredits(balance)}`}
+        {isVideo ? t("gen.video") : t("gen.image")}
+        {isVideo && seconds ? ` · ${t("gen.secondsShort", { n: seconds })}` : ""} ·{" "}
+        {t("gen.cost", { count: cost, amount: formatCredits(cost) })}
+        {balance !== null && ` · ${t("gen.youHave", { amount: formatCredits(balance) })}`}
       </p>
 
       {step === "detail" && (
@@ -359,7 +348,7 @@ export function GenerateFlow({
           onClick={() => setStep("upload")}
           className="mt-6 w-full rounded-full btn-primary py-3 font-semibold text-foreground"
         >
-          Use This Template
+          {t("gen.use")}
         </button>
       )}
 
@@ -370,14 +359,14 @@ export function GenerateFlow({
             {photos.map((file, i) => (
               <PhotoSlot
                 key={i}
-                label={template.photoLabels[i] || (needed > 1 ? `Photo ${i + 1}` : "Your photo")}
+                label={template.photoLabels[i] || (needed > 1 ? t("gen.slotPhoto", { n: i + 1 }) : t("gen.slotYourPhoto"))}
                 file={file}
                 onSelect={(f) => setPhotos((prev) => prev.map((p, j) => (j === i ? f : p)))}
               />
             ))}
           </div>
           <p className="text-xs text-foreground/60">
-            {needed > 1 ? `Add ${needed} photos, one per person. ` : ""}
+            {needed > 1 ? t("gen.addPhotos", { count: needed }) : ""}
             {hint}
           </p>
           {hdPrice !== null && (
@@ -407,7 +396,7 @@ export function GenerateFlow({
           </div>
           <p className="mt-4 font-semibold">{message}</p>
           <p className="text-sm text-foreground/60">
-            This may take a few minutes · {Math.floor(elapsed / 60)}:
+            {t("gen.mayTake")} · {Math.floor(elapsed / 60)}:
             {String(elapsed % 60).padStart(2, "0")}
           </p>
         </div>
@@ -422,30 +411,30 @@ export function GenerateFlow({
               href="/pricing"
               className="block rounded-full btn-primary py-3 font-semibold text-foreground"
             >
-              Buy Credits
+              {t("gen.buy")}
             </Link>
           ) : (
             <button
               onClick={() => setStep("upload")}
               className="w-full rounded-full btn-primary py-3 font-semibold text-foreground"
             >
-              Try Again
+              {t("gen.tryAgain")}
             </button>
           )}
           <button onClick={reset} className="w-full text-sm text-foreground/60">
-            Cancel
+            {t("gen.cancel")}
           </button>
         </div>
       )}
 
       {step === "result" && videoUrl && (
         <div className="space-y-3">
-          <p className="text-center font-semibold">Your creation is ready.</p>
+          <p className="text-center font-semibold">{t("gen.ready")}</p>
           {template.type === "image" ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={videoUrl}
-              alt={template.name}
+              alt={name}
               className="mx-auto max-h-[70vh] w-full rounded-2xl bg-black object-contain"
             />
           ) : (
@@ -464,14 +453,14 @@ export function GenerateFlow({
                 href={`${videoUrl}?download=1`}
                 className="block rounded-full btn-primary py-3 text-center font-semibold text-foreground"
               >
-                Download
+                {t("gen.download")}
               </a>
               <p className="text-center text-xs text-foreground/60">
-                Saved to your{" "}
+                {t("gen.savedPre")}
                 <Link href="/history" className="underline">
-                  History
+                  {t("gen.savedHistory")}
                 </Link>
-                .
+                {t("gen.savedPost")}
               </p>
             </>
           ) : (
@@ -480,14 +469,14 @@ export function GenerateFlow({
               onClick={() => setShowLogin(true)}
               className="w-full rounded-full btn-primary py-3 font-semibold text-foreground"
             >
-              Download
+              {t("gen.download")}
             </button>
           )}
           <button
             onClick={reset}
             className="w-full rounded-full border border-foreground/30 py-3 font-semibold"
           >
-            Create Another
+            {t("gen.another")}
           </button>
         </div>
       )}

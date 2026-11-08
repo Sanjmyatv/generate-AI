@@ -325,6 +325,22 @@ async function main() {
   if (genjutsuVideoUrl) {
     await prisma.template.upsert({ where: { id: characterSwap.id }, update: {}, create: characterSwap });
   }
+  // Mongolian names for the built-in templates. Only filled where nobody has written one, so an
+  // admin's own Mongolian wording is never overwritten.
+  const mongolian: Record<string, [string, string]> = {
+    "dance-transformation": ["Бүжгийн хувирал", "Зургаа оруулаад AI бүжгийн видео үүсгээрэй."],
+    "street-dance": ["Гудамжны бүжиг", "Зургаа гудамжны бүжгийн клип болгоорой."],
+    "zodiac-portrait": ["Орд тэмдгийн хөрөг", "Таны орд тэмдгээр чимэглэсэн ид шидийн хөрөг."],
+    "celestial-couple": ["Тэнгэрийн хос", "Одод дор хоёр хүний сансрын хөрөг."],
+    "three-guys-dancing": ["3 залуугийн бүжиг", "Өөрийгөө болон хоёр найзаа энэ вирал видеонд оруулаарай. Тус бүрдээ өөрийн дүр зурагтай."],
+    "golden-hour-selfie": ["Алтан цагийн селфи", "Нэг зургаас хүн бүрийн нийтэлж буй нар жаргах үеийн шатахуун түгээх станцын селфи хийгээрэй."],
+    "character-swap": ["Дүр солих", "Энэ видеонд тоглоорой. Таны зураг дүрийг орлох бөгөөд хөдөлгөөн нь хэвээр үлдэнэ."],
+    shine: ["Shine", "Энэ вирал шөнийн бүжигт орцгооё. Таны зураг, яг ижил хөдөлгөөнтэйгээр."],
+    "colorize-old-photo": ["Зураг сэргээх, өнгөлөх", "Хуучин зургийг өнгөт болгож, гэмтлийг нь засаад, өндөр нягтралтай тод зураг болгоорой."],
+  };
+  for (const [id, [nameMn, descriptionMn]] of Object.entries(mongolian)) {
+    await prisma.template.updateMany({ where: { id, nameMn: null }, data: { nameMn, descriptionMn } });
+  }
   // Credit packs follow src/config/pricing.ts and are re-applied on every deploy (nothing edits
   // them elsewhere). Packs that are no longer in the list are hidden, not deleted, because
   // payments may point at them.

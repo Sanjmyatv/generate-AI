@@ -1,3 +1,5 @@
+import type { T } from "@/lib/i18n/translate";
+
 /**
  * Credit pricing (Credit Pricing Requirement). One place for the numbers the seed, the
  * admin "standard price" button and the pricing UI share. Prices are stored per template in
@@ -68,45 +70,28 @@ export const PACKAGES: PackageDefinition[] = [
  * credits and the price list above, so the card can never promise more than the credits cover
  * (10,000 credits buy two 10 s videos at 480p, not three).
  */
-export function packageHighlights(pack: Pick<PackageDefinition, "id" | "credits">): string[] {
+export function packageHighlights(pack: Pick<PackageDefinition, "id" | "credits">, t: T): string[] {
   const n = (credits: number, each: number) => Math.floor(credits / each);
   const images = n(pack.credits, IMAGE_CREDITS);
   const v10 = n(pack.credits, VIDEO_CREDITS[10]["480p"]);
   const v20 = n(pack.credits, VIDEO_CREDITS[20]["480p"]);
   const hd10 = n(pack.credits, VIDEO_CREDITS[10]["720p"]);
   const hd20 = n(pack.credits, VIDEO_CREDITS[20]["720p"]);
-  const imagesLine = `Up to ${formatCredits(images)} AI images`;
-  const expiry = "Credits never expire";
+  const imagesLine = t("hl.images", { n: formatCredits(images) });
+  const expiry = t("hl.expiry");
 
   switch (pack.id) {
     case "starter": {
       // One 20 s video, then the images the rest of the credits cover.
       const left = n(pack.credits - VIDEO_CREDITS[20]["480p"], IMAGE_CREDITS);
-      return [
-        imagesLine,
-        `${v10}x 10-second videos (480p) OR 1x 20-second video + ${left} images`,
-        expiry,
-        "Automatic refund on failed generations",
-      ];
+      return [imagesLine, t("hl.starterVideos", { v10, left }), expiry, t("hl.refund")];
     }
     case "creator":
-      return [
-        imagesLine,
-        `${v10}x 10-second videos (480p) OR ${v20}x 20-second videos (480p)`,
-        `${hd10}x 10-second HD videos (720p)`,
-        expiry,
-        "Priority rendering queue",
-      ];
+      return [imagesLine, t("hl.videos", { v10, v20 }), t("hl.hd10", { n: hd10 }), expiry, t("hl.priority")];
     case "pro":
-      return [
-        imagesLine,
-        `${v10}x 10-second videos (480p) OR ${v20}x 20-second videos (480p)`,
-        `${hd20}x 20-second HD videos (720p)`,
-        expiry,
-        "Maximum queue priority",
-      ];
+      return [imagesLine, t("hl.videos", { v10, v20 }), t("hl.hd20", { n: hd20 }), expiry, t("hl.maxPriority")];
     default:
-      return [imagesLine, `${v10}x 10-second videos (480p)`, expiry];
+      return [imagesLine, t("hl.videosOnly", { v10 }), expiry];
   }
 }
 

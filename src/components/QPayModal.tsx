@@ -2,8 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useT } from "@/components/I18nProvider";
 import { LoginModal } from "@/components/LoginModal";
 import { formatCredits } from "@/config/pricing";
+import { packName } from "@/lib/i18n/helpers";
+import type { TKey } from "@/lib/i18n/translate";
 import type { CreditPackage } from "@/types";
 
 interface Payment {
@@ -21,11 +24,11 @@ type Phase = "select" | "creating" | "waiting" | "paid";
 /** How often the open dialog asks our own server (never QPay) whether the payment arrived. */
 const POLL_MS = 3000;
 
-const ERRORS: Record<string, string> = {
-  not_configured: "Online payment isn't available yet. Please try again later.",
-  provider_error: "QPay didn't respond. Please try again in a moment.",
-  too_many: "Too many payment attempts. Please wait a while and try again.",
-  package_unavailable: "That pack is no longer available.",
+const ERROR_KEYS: Record<string, TKey> = {
+  not_configured: "qpay.err.notConfigured",
+  provider_error: "qpay.err.provider",
+  too_many: "qpay.err.tooMany",
+  package_unavailable: "qpay.err.unavailable",
 };
 
 /**
@@ -50,6 +53,7 @@ export function QPayModal({
   /** Called with the new balance once a payment goes through. */
   onPaid?: (balance: number) => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(
     initialPackageId ?? packages.find((p) => p.highlighted)?.id ?? packages[0]?.id,
@@ -123,14 +127,14 @@ export function QPayModal({
       }
       if (!res.ok) {
         setPhase("select");
-        setMessage(ERRORS[data.error] ?? "Something went wrong. Please try again.");
+        setMessage(t(ERROR_KEYS[data.error] ?? "qpay.err.generic"));
         return;
       }
       setPayment(data.payment as Payment);
       setPhase("waiting");
     } catch {
       setPhase("select");
-      setMessage("Connection lost. Please check your internet and try again.");
+      setMessage(t("qpay.err.connection"));
     }
   }
 
@@ -144,14 +148,14 @@ export function QPayModal({
       if (res.ok && data.payment?.status === "SUCCEEDED") {
         markPaid(data.balance);
       } else if (res.status === 429) {
-        setMessage("Please wait a few seconds before checking again.");
+        setMessage(t("qpay.wait.later"));
       } else if (res.status === 502) {
-        setMessage("QPay didn't answer. Try again in a moment.");
+        setMessage(t("qpay.wait.noAnswer"));
       } else {
-        setMessage("Not received yet. Banks can take up to a minute; your credits are added as soon as QPay confirms.");
+        setMessage(t("qpay.wait.notYet"));
       }
     } catch {
-      setMessage("Connection lost. Please try again.");
+      setMessage(t("qpay.wait.connection"));
     } finally {
       setChecking(false);
     }
@@ -175,24 +179,23 @@ export function QPayModal({
               ✓
             </div>
             <h2 id="qpay-title" className="mt-4 text-xl font-semibold text-foreground">
-              Payment received
+              {t("qpay.paid.title")}
             </h2>
             <p className="mt-2 text-sm text-muted">
-              {formatCredits(payment.credits)} credits were added to your account.
-              {newBalance !== null && ` You now have ${formatCredits(newBalance)} credits.`}
+              {t("qpay.paid.added", { amount: formatCredits(payment.credits) })}
+              {newBalance !== null && t("qpay.paid.balance", { amount: formatCredits(newBalance) })}
             </p>
             <button type="button" onClick={onClose} className="btn-primary mt-6 w-full py-3 text-[14px] font-medium">
-              Done
+              {t("qpay.paid.done")}
             </button>
           </div>
         ) : phase === "waiting" && payment ? (
           <div>
             <h2 id="qpay-title" className="text-xl font-semibold text-foreground">
-              Pay {formatCredits(payment.amountMnt)}₮ with QPay
+              {t("qpay.pay.title", { amount: formatCredits(payment.amountMnt) })}
             </h2>
             <p className="mt-2 text-sm text-muted">
-              Scan the code with your bank app, or open a bank below. {formatCredits(payment.credits)} credits are added
-              as soon as the payment is confirmed.
+              {t("qpay.pay.desc", { credits: formatCredits(payment.credits) })}
             </p>
 
             {payment.qrImage && (
@@ -200,7 +203,7 @@ export function QPayModal({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`data:image/png;base64,${payment.qrImage}`}
-                  alt="QPay QR code"
+                  alt={t("qpay.pay.qrAlt")}
                   className="size-52 rounded-2xl bg-white p-2"
                 />
               </div>
@@ -208,7 +211,7 @@ export function QPayModal({
 
             {payment.deeplinks && payment.deeplinks.length > 0 && (
               <div className="mt-5">
-                <p className="mb-2 text-xs font-medium text-muted">Open in your bank app</p>
+                <p className="mb-2 text-xs font-medium text-muted">{t("qpay.pay.openBank")}</p>
                 <div className="grid grid-cols-4 gap-2">
                   {payment.deeplinks.map((bank) => (
                     <a
@@ -235,7 +238,7 @@ export function QPayModal({
                 rel="noreferrer"
                 className="mt-4 block text-center text-xs text-purple-300 underline underline-offset-2"
               >
-                Open the QPay page
+                {t("qpay.pay.page")}
               </a>
             )}
 
@@ -246,30 +249,30 @@ export function QPayModal({
               disabled={checking}
               className="btn-primary mt-5 w-full py-3 text-[14px] font-medium disabled:opacity-50"
             >
-              {checking ? "Checking…" : "I have paid"}
+              {checking ? t("qpay.pay.checking") : t("qpay.pay.paid")}
             </button>
             <div className="mt-3 flex justify-between text-sm text-muted">
               <button type="button" onClick={() => setPhase("select")} className="hover:text-foreground">
-                ← Other packs
+                {t("qpay.pay.other")}
               </button>
               <button type="button" onClick={onClose} className="hover:text-foreground">
-                Close
+                {t("qpay.pay.close")}
               </button>
             </div>
           </div>
         ) : (
           <div>
             <h2 id="qpay-title" className="text-xl font-semibold text-foreground">
-              {required !== undefined ? "Not enough credits" : "Buy credits"}
+              {required !== undefined ? t("qpay.select.short") : t("qpay.select.buy")}
             </h2>
             {required !== undefined && balance !== undefined && (
               <p className="mt-2 text-sm text-muted">
-                This needs {formatCredits(required)} credits and you have {formatCredits(balance)}
-                {short && short > 0 ? ` — ${formatCredits(short)} more to go.` : "."}
+                {t("qpay.select.needs", { required: formatCredits(required), balance: formatCredits(balance) })}
+                {short && short > 0 ? t("qpay.select.more", { amount: formatCredits(short) }) : "."}
               </p>
             )}
 
-            <div role="radiogroup" aria-label="Credit pack" className="mt-5 space-y-3">
+            <div role="radiogroup" aria-label={t("qpay.select.packLabel")} className="mt-5 space-y-3">
               {packages.map((p) => {
                 const on = p.id === selectedId;
                 return (
@@ -285,14 +288,14 @@ export function QPayModal({
                   >
                     <span>
                       <span className="flex items-center gap-2 text-[15px] font-medium text-foreground">
-                        {p.name}
+                        {packName(t, p)}
                         {p.highlighted && (
-                          <span className="btn-primary rounded-full px-2 py-0.5 text-[10px] font-medium">Most Popular</span>
+                          <span className="btn-primary rounded-full px-2 py-0.5 text-[10px] font-medium">{t("qpay.select.popular")}</span>
                         )}
                       </span>
                       <span className="text-[12px] text-muted">
-                        {formatCredits(p.credits)} credits
-                        {p.bonusCredits > 0 ? ` (includes ${formatCredits(p.bonusCredits)} bonus)` : ""}
+                        {t("qpay.select.credits", { amount: formatCredits(p.credits) })}
+                        {p.bonusCredits > 0 ? t("qpay.select.bonus", { amount: formatCredits(p.bonusCredits) }) : ""}
                       </span>
                     </span>
                     <span className="text-[16px] font-semibold text-foreground">{formatCredits(p.priceMnt)}₮</span>
@@ -309,11 +312,11 @@ export function QPayModal({
               className="btn-primary mt-5 w-full py-3 text-[14px] font-medium disabled:opacity-50"
             >
               {phase === "creating"
-                ? "Creating your QPay invoice…"
-                : `Pay with QPay${selected ? ` · ${formatCredits(selected.priceMnt)}₮` : ""}`}
+                ? t("qpay.select.creating")
+                : `${t("qpay.select.pay")}${selected ? ` · ${formatCredits(selected.priceMnt)}₮` : ""}`}
             </button>
             <button type="button" onClick={onClose} className="mt-3 w-full text-sm text-muted hover:text-foreground">
-              Not now
+              {t("qpay.select.notNow")}
             </button>
           </div>
         )}
@@ -322,8 +325,8 @@ export function QPayModal({
       {showLogin && (
         <LoginModal
           redirectTo={typeof window === "undefined" ? "/pricing" : window.location.pathname + window.location.search}
-          title="Log in to buy credits"
-          description="Credits belong to your account. Log in with Google or your email, then choose your pack again."
+          title={t("qpay.login.title")}
+          description={t("qpay.login.desc")}
           onClose={() => setShowLogin(false)}
         />
       )}

@@ -187,6 +187,18 @@ export function TemplateForm({
         <Field label="Description" error={err.description} hint="Shown under the template name.">
           <textarea {...text("description")} rows={2} maxLength={500} className={inputClass} />
         </Field>
+        <div className="grid gap-4 rounded-xl border border-foreground/15 p-3">
+          <p className="text-xs text-foreground/60">
+            Mongolian version (optional). Visitors browsing in Mongolian see these; if left empty they see the English name
+            and description above.
+          </p>
+          <Field label="Name (Монгол)" error={err.nameMn}>
+            <input {...text("nameMn")} maxLength={80} className={inputClass} />
+          </Field>
+          <Field label="Description (Монгол)" error={err.descriptionMn}>
+            <textarea {...text("descriptionMn")} rows={2} maxLength={500} className={inputClass} />
+          </Field>
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Category" error={err.categoryId}>
             <select {...text("categoryId")} className={inputClass}>

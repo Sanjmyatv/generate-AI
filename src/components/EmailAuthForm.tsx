@@ -2,11 +2,13 @@
 
 import { useActionState, useState } from "react";
 import { emailAuthAction, type EmailAuthState } from "@/app/actions/auth";
+import { useT } from "@/components/I18nProvider";
 
 const initialState: EmailAuthState = { error: null };
 
 /** Email + password log in / sign up, switchable in place. */
 export function EmailAuthForm({ redirectTo }: { redirectTo: string }) {
+  const t = useT();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [state, formAction, pending] = useActionState(emailAuthAction, initialState);
   const signup = mode === "signup";
@@ -20,7 +22,7 @@ export function EmailAuthForm({ redirectTo }: { redirectTo: string }) {
         name="email"
         required
         autoComplete="email"
-        placeholder="Email"
+        placeholder={t("email.email")}
         className="w-full rounded-full border border-foreground/30 bg-transparent px-4 py-3"
       />
       <input
@@ -29,13 +31,13 @@ export function EmailAuthForm({ redirectTo }: { redirectTo: string }) {
         required
         minLength={signup ? 8 : undefined}
         autoComplete={signup ? "new-password" : "current-password"}
-        placeholder={signup ? "Password (at least 8 characters)" : "Password"}
+        placeholder={signup ? t("email.passwordNew") : t("email.password")}
         className="w-full rounded-full border border-foreground/30 bg-transparent px-4 py-3"
       />
       {!signup && (
         // A plain link (full page load) so the login dialog closes with the navigation.
         <a href="/forgot-password" className="block text-right text-sm text-foreground/60 hover:text-foreground">
-          Forgot password?
+          {t("email.forgot")}
         </a>
       )}
       {state.error && (
@@ -48,14 +50,14 @@ export function EmailAuthForm({ redirectTo }: { redirectTo: string }) {
         disabled={pending}
         className="w-full rounded-full btn-primary py-3 font-semibold text-foreground disabled:opacity-50"
       >
-        {pending ? "Please wait..." : signup ? "Create Account" : "Log In"}
+        {pending ? t("email.wait") : signup ? t("email.create") : t("email.login")}
       </button>
       <button
         type="button"
         onClick={() => setMode(signup ? "login" : "signup")}
         className="w-full text-sm text-foreground/60 hover:text-foreground"
       >
-        {signup ? "Already have an account? Log in" : "New here? Create an account"}
+        {signup ? t("email.haveAccount") : t("email.new")}
       </button>
     </form>
   );

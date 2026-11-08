@@ -10,9 +10,9 @@ export function Logo() {
         width={72}
         height={73}
         priority
-        className="h-[36.56px] w-9 object-cover"
+        className="h-[30px] w-[29.6px] object-cover sm:h-[36.56px] sm:w-9"
       />
-      <span className="text-[25px] leading-none tracking-[-1px] text-foreground">zyro.ai</span>
+      <span className="text-[20px] leading-none tracking-[-1px] text-foreground sm:text-[25px]">zyro.ai</span>
     </span>
   );
 }

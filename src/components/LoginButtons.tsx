@@ -3,6 +3,7 @@
 import { signInWithProvider } from "@/app/actions/auth";
 import { useAuthConfig, type SocialProvider } from "@/components/AuthConfig";
 import { EmailAuthForm } from "@/components/EmailAuthForm";
+import { useT } from "@/components/I18nProvider";
 
 function GoogleIcon() {
   return (
@@ -27,9 +28,7 @@ function GoogleIcon() {
   );
 }
 
-const BUTTONS: { id: SocialProvider; label: string; Icon: () => React.ReactElement }[] = [
-  { id: "google", label: "Continue with Google", Icon: GoogleIcon },
-];
+const BUTTONS: { id: SocialProvider; Icon: () => React.ReactElement }[] = [{ id: "google", Icon: GoogleIcon }];
 
 /**
  * Sign in with Google. The button always shows; if its credentials aren't set on the server
@@ -37,11 +36,12 @@ const BUTTONS: { id: SocialProvider; label: string; Icon: () => React.ReactEleme
  * account), unless ENABLE_EMAIL_LOGIN=0.
  */
 export function LoginButtons({ redirectTo }: { redirectTo: string }) {
+  const t = useT();
   const { providers, emailLogin } = useAuthConfig();
 
   return (
     <div className="space-y-3">
-      {BUTTONS.map(({ id, label, Icon }) => {
+      {BUTTONS.map(({ id, Icon }) => {
         const available = providers.includes(id);
         return (
           <form key={id} action={() => signInWithProvider(id, redirectTo)}>
@@ -51,8 +51,8 @@ export function LoginButtons({ redirectTo }: { redirectTo: string }) {
               className="btn-glass flex w-full items-center justify-center gap-3 py-3.5 text-[15px] font-medium disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               <Icon />
-              {label}
-              {!available && <span className="text-xs font-normal text-muted">(not set up yet)</span>}
+              {t("login.google")}
+              {!available && <span className="text-xs font-normal text-muted">{t("login.notSetUp")}</span>}
             </button>
           </form>
         );
@@ -62,7 +62,7 @@ export function LoginButtons({ redirectTo }: { redirectTo: string }) {
         <>
           <div className="flex items-center gap-3 pt-2 text-xs text-foreground/50">
             <span className="h-px flex-1 bg-foreground/15" />
-            or use your email
+            {t("login.orEmail")}
             <span className="h-px flex-1 bg-foreground/15" />
           </div>
           <EmailAuthForm redirectTo={redirectTo} />

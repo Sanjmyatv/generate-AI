@@ -11,6 +11,8 @@ function toTemplate(t: DbTemplate): Template {
     id: t.id,
     name: t.name,
     description: t.description,
+    nameMn: t.nameMn,
+    descriptionMn: t.descriptionMn,
     previewUrl: t.previewUrl,
     categoryId: t.categoryId,
     type: t.type === "VIDEO" ? "video" : "image",

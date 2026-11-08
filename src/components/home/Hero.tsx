@@ -2,9 +2,11 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { HeroScene } from "@/components/home/HeroScene";
+import { getT } from "@/lib/i18n/server";
 
 /** Figma: zyro.ai · Desktop / Tablet / Mobile homepage → Hero, over an animated backdrop. */
-export function Hero() {
+export async function Hero() {
+  const { t } = await getT();
   return (
     <section className="relative isolate pb-0 pt-12 md:pt-14 lg:pt-[94px]">
       <HeroScene />
@@ -15,21 +17,20 @@ export function Hero() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/dot-available.svg" alt="" className="size-[5px]" />
             <p className="text-[9px] leading-[1.5] text-muted md:text-[10px]">
-              AI VIDEO &amp; IMAGE GENERATION · READY-TO-USE TEMPLATES
+              {t("hero.eyebrow")}
             </p>
           </div>
 
           <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-1.8px] text-foreground md:text-[68px] md:tracking-[-3.5px] xl:text-[76px]">
-            Your imagination.
+            {t("hero.title1")}
             <br />
             <span className="bg-linear-to-r from-violet-300 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
-              Without limits.
+              {t("hero.title2")}
             </span>
           </h1>
 
           <p className="text-[15px] leading-[1.5] text-muted md:text-[17px] lg:w-[580px]">
-            Turn your photos into incredible AI videos and images. Choose a template, upload your photo, and let
-            zyro.ai do the magic.
+            {t("hero.desc")}
           </p>
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row md:pt-2">
@@ -37,7 +38,7 @@ export function Hero() {
               href="#discover"
               className="btn-primary flex h-[54px] items-center justify-center gap-[10px] px-7 text-[14px] font-medium"
             >
-              Explore Templates
+              {t("hero.explore")}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/icon-arrow-up-right.svg" alt="" className="size-4" />
             </Link>
@@ -45,13 +46,13 @@ export function Hero() {
               href="#trending"
               className="btn-glass flex h-[54px] items-center justify-center gap-[10px] px-7 text-[14px] font-medium"
             >
-              See What’s Possible
+              {t("hero.possible")}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/icon-play.svg" alt="" className="size-4" />
             </Link>
           </div>
 
-          <p className="text-[11px] leading-[1.5] text-muted">No complicated prompts. Just you, reimagined.</p>
+          <p className="text-[11px] leading-[1.5] text-muted">{t("hero.note")}</p>
         </div>
 
         {/* Two example results, framed in glass and floating over the backdrop. Laid out at 530x460 and scaled down on phones. */}
@@ -86,8 +87,8 @@ export function Hero() {
       </div>
 
       <div className="mt-7 flex justify-between whitespace-nowrap border-b border-line text-[10px] leading-[1.5] text-muted md:mt-[60px]">
-        <p>MADE FROM YOUR IMAGINATION</p>
-        <p>SCROLL TO EXPLORE ↓</p>
+        <p>{t("hero.bottomLeft")}</p>
+        <p>{t("hero.bottomRight")}</p>
       </div>
     </section>
   );

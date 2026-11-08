@@ -13,6 +13,9 @@ export interface Template {
   id: string;
   name: string;
   description: string;
+  /** Mongolian versions; null until an admin writes them (the English ones are shown instead). */
+  nameMn: string | null;
+  descriptionMn: string | null;
   previewUrl: string | null;
   categoryId: string;
   type: OutputType;

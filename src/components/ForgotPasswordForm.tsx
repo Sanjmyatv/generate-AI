@@ -3,22 +3,23 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { forgotPasswordAction, type ForgotPasswordState } from "@/app/actions/auth";
+import { useT } from "@/components/I18nProvider";
 
 const initialState: ForgotPasswordState = { sent: false, error: null };
 
 export function ForgotPasswordForm() {
+  const t = useT();
   const [state, formAction, pending] = useActionState(forgotPasswordAction, initialState);
 
   if (state.sent) {
     return (
       <div className="space-y-4 text-center">
         <p className="text-foreground/80">
-          If an account with that email uses a password, we have sent a link to reset it. It works once and expires in 1
-          hour.
+          {t("forgot.sent")}
         </p>
-        <p className="text-sm text-foreground/60">Nothing in your inbox? Check your spam folder.</p>
+        <p className="text-sm text-foreground/60">{t("forgot.spam")}</p>
         <Link href="/" className="inline-block text-sm text-foreground/60 hover:text-foreground">
-          Back to home
+          {t("forgot.back")}
         </Link>
       </div>
     );
@@ -27,14 +28,14 @@ export function ForgotPasswordForm() {
   return (
     <form action={formAction} className="space-y-3">
       <p className="mb-3 text-center text-foreground/70">
-        Enter your email and we will send you a link to choose a new one.
+        {t("forgot.intro")}
       </p>
       <input
         type="email"
         name="email"
         required
         autoComplete="email"
-        placeholder="Email"
+        placeholder={t("email.email")}
         className="w-full rounded-full border border-foreground/30 bg-transparent px-4 py-3"
       />
       {state.error && (
@@ -47,10 +48,10 @@ export function ForgotPasswordForm() {
         disabled={pending}
         className="w-full rounded-full btn-primary py-3 font-semibold text-foreground disabled:opacity-50"
       >
-        {pending ? "Please wait..." : "Send reset link"}
+        {pending ? t("email.wait") : t("forgot.send")}
       </button>
       <Link href="/" className="block text-center text-sm text-foreground/60 hover:text-foreground">
-        Back to home
+        {t("forgot.back")}
       </Link>
     </form>
   );
