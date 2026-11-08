@@ -8,7 +8,9 @@ import { requireAdmin } from "@/lib/admin";
 import { baseUrlFromHeaders } from "@/lib/actor";
 import { prisma } from "@/lib/db";
 import { assetIdFromUrl } from "@/lib/media";
+import { GEMINI_IMAGE_LIST_USD, GEMINI_IMAGE_SIZES } from "@/lib/gemini";
 import { estimateImageEditUsd, estimateMotionTransferUsd, HiggsfieldError } from "@/lib/higgsfield";
+import { creditsForMargin, marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
 import {
   IMAGE_ASPECTS,
   IMAGE_QUALITIES,
@@ -124,10 +126,15 @@ const oneOf = <T extends string>(list: readonly T[], value: string): value is T 
 
 /**
  * Asks Higgsfield what one generation with these settings costs this account (discount
- * included), so the admin can price the template. Seedance has no estimate API.
+ * included), so the admin can price the template. Gemini images use Google's list price.
+ * Seedance has no estimate API.
  */
 export async function estimateCostAction(input: CostEstimateInput): Promise<CostEstimateResult> {
   await requireAdmin();
+  return estimateUsd(input);
+}
+
+async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult> {
   const baseUrl = baseUrlFromHeaders(await headers());
   // Estimates need the same fields as a real request; this stands in for the user's photo.
   const imageUrls = [`${baseUrl}/brand/z-emblem.png`];
@@ -164,13 +171,12 @@ export async function estimateCostAction(input: CostEstimateInput): Promise<Cost
       });
       return { ok: true, usd };
     }
-    return {
-      ok: false,
-      error:
-        input.engine === "gemini-image"
-          ? "Gemini has no price lookup: enter your cost from the Google AI Studio billing page."
-          : "Seedance has no price lookup: enter your cost from the BytePlus console.",
-    };
+    if (input.engine === "gemini-image") {
+      const size = input.imageResolution.toUpperCase();
+      if (!oneOf(GEMINI_IMAGE_SIZES, size)) return { ok: false, error: "Choose the quality settings first." };
+      return { ok: true, usd: GEMINI_IMAGE_LIST_USD[size] };
+    }
+    return { ok: false, error: "Seedance has no price lookup: enter your cost from the BytePlus console." };
   } catch (e) {
     console.error("[admin] cost estimate failed", e);
     return {
@@ -178,4 +184,63 @@ export async function estimateCostAction(input: CostEstimateInput): Promise<Cost
       error: e instanceof HiggsfieldError ? "Higgsfield could not price this request. Enter the cost by hand." : "Could not get the price.",
     };
   }
+}
+
+/** The profit share the suggested price aims for. */
+const TARGET_MARGIN_PCT = 55;
+
+/** Rounds a credit price up to a tidy number: to 100 above 1,000, to 50 above 200, else to 10. */
+function niceCredits(credits: number) {
+  const step = credits >= 1000 ? 100 : credits >= 200 ? 50 : 10;
+  return Math.ceil(credits / step) * step;
+}
+
+export interface PriceSuggestion {
+  credits: number;
+  creditsHd: number | null;
+  costUsd: number;
+  costUsdHd: number | null;
+  targetPct: number;
+  /** The pack the price was worked out against, and the margin each pack ends up with. */
+  reference: string;
+  margins: { name: string; pct: number }[];
+}
+
+export type PriceSuggestionResult = ({ ok: true } & PriceSuggestion) | { ok: false; error: string };
+
+/**
+ * Suggests credit prices that leave about 55% of what users pay after the provider's cost.
+ * It looks up the real cost (Higgsfield for this account, Google's list price for Gemini
+ * images) and does the arithmetic here, because credit packs have different prices per credit:
+ * the price is worked out against the most popular pack, so the cheaper-per-credit packs land
+ * a little below 55% and the dearer ones a little above, roughly 50% to 60% overall.
+ */
+export async function suggestPriceAction(input: CostEstimateInput & { type: "VIDEO" | "IMAGE" }): Promise<PriceSuggestionResult> {
+  await requireAdmin();
+  const packs = await prisma.creditPackage.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } });
+  if (packs.length === 0) return { ok: false, error: "There are no credit packs to price against." };
+  const reference = packs.find((p) => p.highlighted) ?? packs[Math.floor(packs.length / 2)];
+  const usdMnt = usdMntRate();
+  const isVideo = input.type === "VIDEO";
+
+  const standard = await estimateUsd({ ...input, videoResolution: "480p" });
+  if (!standard.ok) return standard;
+  const hd = isVideo ? await estimateUsd({ ...input, videoResolution: "720p" }) : null;
+
+  const creditsFor = (costUsd: number) =>
+    niceCredits(creditsForMargin({ costUsd, perCredit: perCreditMnt(reference), usdMnt, targetPct: TARGET_MARGIN_PCT }));
+  const credits = creditsFor(standard.usd);
+  return {
+    ok: true,
+    credits,
+    creditsHd: hd?.ok ? creditsFor(hd.usd) : null,
+    costUsd: standard.usd,
+    costUsdHd: hd?.ok ? hd.usd : null,
+    targetPct: TARGET_MARGIN_PCT,
+    reference: reference.name,
+    margins: packs.map((p) => ({
+      name: p.name,
+      pct: marginFor({ costUsd: standard.usd, creditCost: credits, perCredit: perCreditMnt(p), usdMnt }).marginPct,
+    })),
+  };
 }

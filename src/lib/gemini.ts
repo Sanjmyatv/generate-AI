@@ -67,6 +67,9 @@ export function geminiConfigured() {
   return Boolean(geminiApiKey());
 }
 
+/** Google's list price for one edited image (output plus a typical photo and prompt as input), in USD. */
+export const GEMINI_IMAGE_LIST_USD: Record<GeminiImageSize, number> = { "1K": 0.036, "2K": 0.053, "4K": 0.116 };
+
 export interface GeminiImageInput {
   /** The user's photo(s). */
   images: { contentType: string; data: Uint8Array }[];

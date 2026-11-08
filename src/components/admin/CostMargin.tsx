@@ -41,7 +41,8 @@ export function CostMargin({
   const otherCostKey = hd ? "costUsd" : "costUsdHd";
   const creditKey = hd ? "creditCostHd" : "creditCost";
 
-  const higgsfield = isGenjutsuEngine(values.engine) || values.engine === "marketing-image";
+  const gemini = values.engine === "gemini-image";
+  const hasLookup = isGenjutsuEngine(values.engine) || values.engine === "marketing-image" || gemini;
   const costValue = values[costKey];
   const costUsd = Number(costValue);
   const rate = Number(usdMnt);
@@ -66,7 +67,11 @@ export function CostMargin({
       });
       if (result.ok) {
         onChange(costKey, String(result.usd));
-        setNote("Priced by Higgsfield for your account.");
+        setNote(
+          gemini
+            ? "Google’s list price for one edited image, including a typical photo and prompt."
+            : "Priced by Higgsfield for your account.",
+        );
       } else {
         setNote(result.error);
       }
@@ -120,14 +125,14 @@ export function CostMargin({
         </div>
       </div>
 
-      {higgsfield ? (
+      {hasLookup ? (
         <button
           type="button"
           onClick={() => void check()}
           disabled={checking}
           className="rounded-full border border-foreground/30 px-4 py-1.5 text-sm font-semibold disabled:opacity-50"
         >
-          {checking ? "Checking…" : "Get price from Higgsfield"}
+          {checking ? "Checking…" : gemini ? "Use Google’s list price" : "Get price from Higgsfield"}
         </button>
       ) : (
         <p className="text-xs text-foreground/60">

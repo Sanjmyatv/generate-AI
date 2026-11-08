@@ -19,7 +19,17 @@ const FILE_READY_TIMEOUT_MS = 120_000;
 /** Longest label the template form allows per photo. */
 export const MAX_LABEL_LENGTH = 60;
 
+/** Longest title and description the suggestions may have (descriptions are meant to be very short). */
+export const MAX_TITLE_LENGTH = 40;
+export const MAX_SHORT_DESCRIPTION_LENGTH = 90;
+
 export interface VideoAnalysis {
+  /** What the template is called, in Mongolian and English. */
+  titleMn: string;
+  titleEn: string;
+  /** One very short sentence for the template card, in Mongolian and English. */
+  descriptionMn: string;
+  descriptionEn: string;
   peopleCount: number;
   generatedPrompt: string;
   requiredUploads: { personIndex: number; description: string }[];
@@ -40,6 +50,8 @@ function instruction(style: PromptStyle, maxPeople: number) {
   return [
     "You are setting up a template for an app where a user uploads their own photo(s) and an AI model puts them into this video.",
     "Watch the video and answer in the requested JSON.",
+    "- titleMn / titleEn: a catchy name for this template, 2 to 4 words, at most 30 characters, no quotes, no emoji. titleMn is natural Mongolian (Cyrillic); titleEn is English.",
+    "- descriptionMn / descriptionEn: ONE very short sentence (at most 70 characters, no emoji, no hashtags) telling the user what they get, e.g. \"Нэг зургаар вирал бүжгийн видео\". descriptionMn is natural Mongolian (Cyrillic); descriptionEn is English.",
     `- peopleCount: how many distinct main people appear (people whose face or body is clearly the subject). Count at most ${maxPeople}; ignore background crowds and passers-by.`,
     "- requiredUploads: one entry per counted person, personIndex starting at 0, ordered from left to right (or by prominence when they move around). description is the short label shown under that person's upload box, written to the user in English, at most " +
       MAX_LABEL_LENGTH +
@@ -53,6 +65,10 @@ function instruction(style: PromptStyle, maxPeople: number) {
 const SCHEMA = {
   type: "object",
   properties: {
+    titleMn: { type: "string" },
+    titleEn: { type: "string" },
+    descriptionMn: { type: "string" },
+    descriptionEn: { type: "string" },
     peopleCount: { type: "integer" },
     generatedPrompt: { type: "string" },
     requiredUploads: {
@@ -64,7 +80,7 @@ const SCHEMA = {
       },
     },
   },
-  required: ["peopleCount", "generatedPrompt", "requiredUploads"],
+  required: ["titleMn", "titleEn", "descriptionMn", "descriptionEn", "peopleCount", "generatedPrompt", "requiredUploads"],
 };
 
 async function call(path: string, key: string, init: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS) {
@@ -152,7 +168,22 @@ function answerText(node: unknown, depth = 0): string | null {
 /** Turns whatever the model returned into values the template form can safely take. */
 export function normalizeAnalysis(raw: unknown, maxPeople: number): VideoAnalysis | null {
   if (!raw || typeof raw !== "object") return null;
-  const r = raw as { peopleCount?: unknown; generatedPrompt?: unknown; requiredUploads?: unknown };
+  const r = raw as {
+    titleMn?: unknown;
+    titleEn?: unknown;
+    descriptionMn?: unknown;
+    descriptionEn?: unknown;
+    peopleCount?: unknown;
+    generatedPrompt?: unknown;
+    requiredUploads?: unknown;
+  };
+  // Short text for the card: no surrounding quotes, cut at a word boundary if the model ran long.
+  const short = (value: unknown, max: number) => {
+    const text = typeof value === "string" ? value.trim().replace(/^["'«“]+|["'»”]+$/g, "").trim() : "";
+    if (text.length <= max) return text;
+    const cut = text.slice(0, max);
+    return (cut.includes(" ") ? cut.slice(0, cut.lastIndexOf(" ")) : cut).trim();
+  };
   const uploads = (Array.isArray(r.requiredUploads) ? r.requiredUploads : [])
     .map((u) => ({
       personIndex: Number((u as { personIndex?: unknown })?.personIndex),
@@ -167,7 +198,15 @@ export function normalizeAnalysis(raw: unknown, maxPeople: number): VideoAnalysi
   const peopleCount = Math.min(Math.max(Number.isFinite(counted) ? counted : uploads.length, uploads.length, 1), maxPeople);
   const generatedPrompt = typeof r.generatedPrompt === "string" ? r.generatedPrompt.trim().slice(0, 5000) : "";
   if (!generatedPrompt) return null;
-  return { peopleCount, generatedPrompt, requiredUploads: uploads };
+  return {
+    titleMn: short(r.titleMn, MAX_TITLE_LENGTH),
+    titleEn: short(r.titleEn, MAX_TITLE_LENGTH),
+    descriptionMn: short(r.descriptionMn, MAX_SHORT_DESCRIPTION_LENGTH),
+    descriptionEn: short(r.descriptionEn, MAX_SHORT_DESCRIPTION_LENGTH),
+    peopleCount,
+    generatedPrompt,
+    requiredUploads: uploads,
+  };
 }
 
 export async function analyzeTemplateVideo(

@@ -9,7 +9,9 @@
  */
 import type { TaskState } from "@/lib/seedance";
 
-const BASE_URL = "https://api.higgsfield.ai";
+const DEFAULT_BASE_URL = "https://api.higgsfield.ai";
+/** HIGGSFIELD_BASE_URL points the client at a stand-in server when testing. */
+const baseUrl = () => process.env.HIGGSFIELD_BASE_URL?.trim().replace(/\/+$/, "") || DEFAULT_BASE_URL;
 const MODEL_PATH = "higgsfield/genjutsu/motion-transfer/v1.0";
 /** The cheaper variant: uses the first 15 s of the source video and keeps its audio. */
 const LIGHT_MODEL_PATH = "higgsfield/genjutsu-light/motion-transfer/v1.0";
@@ -83,7 +85,7 @@ function authHeader() {
 async function request(path: string, init: RequestInit): Promise<unknown> {
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}/${path}`, {
+    res = await fetch(`${baseUrl()}/${path}`, {
       ...init,
       headers: { "Content-Type": "application/json", ...authHeader() },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),

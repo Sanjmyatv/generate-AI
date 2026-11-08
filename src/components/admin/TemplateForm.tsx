@@ -180,6 +180,67 @@ export function TemplateForm({
       <input type="hidden" name="previewUrl" value={v.previewUrl} />
       <input type="hidden" name="sourceVideoUrl" value={v.sourceVideoUrl} />
 
+      {needsVideo && (
+        <Section title="Source video">
+            <Field label="Template video" error={err.sourceVideoUrl || sourceUpload.error || undefined} hint={
+                v.sourceVideoUrl
+                  ? "Choose a new file to replace this video."
+                  : "Upload an MP4 or MOV, at least 4 seconds long (up to 30 seconds is used)."
+              }>
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime"
+                disabled={sourceUpload.busy}
+                onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0], "source")}
+                className="block w-full text-sm"
+              />
+              {sourceUpload.busy && <p className="mt-1 text-xs">Uploading…</p>}
+              {v.sourceVideoUrl && (
+                <div className="mt-2 flex items-start gap-3">
+                  <video src={v.sourceVideoUrl} controls muted playsInline className="h-40 rounded-lg bg-black" />
+                  <div className="text-xs text-foreground/70">
+                    {sourceSeconds !== null && <p>Length: {sourceSeconds.toFixed(1)} s</p>}
+                    {estimates && (
+                      <p>
+                        {v.engine === "genjutsu-light" ? "Genjutsu Light" : "Genjutsu"} list price per generation:{" "}
+                        {estimates.map((e) => `${e.r} ≈ ${e.usd.toFixed(2)}`).join(", ")} (your account discount
+                        applies on top). Check the real cost under Photos and price.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </Field>
+          {v.sourceVideoUrl && (
+            <VideoAnalysis
+              sourceVideoUrl={v.sourceVideoUrl}
+              engine={v.engine}
+              priceContext={{ type: v.type, imageResolution: v.imageResolution, imageQuality: v.imageQuality, imageAspect: v.imageAspect }}
+              onApply={(setup) =>
+                setV((prev) => ({
+                  ...prev,
+                  name: setup.name || prev.name,
+                  description: setup.description || prev.description,
+                  nameMn: setup.nameMn || prev.nameMn,
+                  descriptionMn: setup.descriptionMn || prev.descriptionMn,
+                  prompt: setup.prompt,
+                  requiredPhotoCount: String(setup.photoCount),
+                  photoLabels: setup.labels.join("\n"),
+                  ...(setup.price
+                    ? {
+                        creditCost: String(setup.price.credits),
+                        creditCostHd: setup.price.creditsHd === null ? prev.creditCostHd : String(setup.price.creditsHd),
+                        costUsd: String(setup.price.costUsd),
+                        costUsdHd: setup.price.costUsdHd === null ? prev.costUsdHd : String(setup.price.costUsdHd),
+                      }
+                    : {}),
+                }))
+              }
+            />
+          )}
+        </Section>
+      )}
+
       <Section title="Basics">
         <Field label="Name" error={err.name}>
           <input {...text("name")} maxLength={80} className={inputClass} />
@@ -292,52 +353,6 @@ export function TemplateForm({
           <textarea {...text("prompt")} rows={7} maxLength={5000} className={`${inputClass} font-mono text-sm`} />
           <p className="mt-1 text-xs text-foreground/50">Users never see this prompt.</p>
         </Field>
-
-        {needsVideo && (
-          <Field label="Source video" error={err.sourceVideoUrl || sourceUpload.error || undefined} hint={
-              v.sourceVideoUrl
-                ? "Choose a new file to replace this video."
-                : "Upload an MP4 or MOV, at least 4 seconds long (up to 30 seconds is used)."
-            }>
-            <input
-              type="file"
-              accept="video/mp4,video/quicktime"
-              disabled={sourceUpload.busy}
-              onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0], "source")}
-              className="block w-full text-sm"
-            />
-            {sourceUpload.busy && <p className="mt-1 text-xs">Uploading…</p>}
-            {v.sourceVideoUrl && (
-              <div className="mt-2 flex items-start gap-3">
-                <video src={v.sourceVideoUrl} controls muted playsInline className="h-40 rounded-lg bg-black" />
-                <div className="text-xs text-foreground/70">
-                  {sourceSeconds !== null && <p>Length: {sourceSeconds.toFixed(1)} s</p>}
-                  {estimates && (
-                    <p>
-                      {v.engine === "genjutsu-light" ? "Genjutsu Light" : "Genjutsu"} list price per generation:{" "}
-                      {estimates.map((e) => `${e.r} ≈ ${e.usd.toFixed(2)}`).join(", ")} (your account discount
-                      applies on top). Check the real cost under Photos and price.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-            {v.sourceVideoUrl && (
-              <VideoAnalysis
-                sourceVideoUrl={v.sourceVideoUrl}
-                engine={v.engine}
-                onApply={({ prompt, photoCount, labels }) =>
-                  setV((prev) => ({
-                    ...prev,
-                    prompt,
-                    requiredPhotoCount: String(photoCount),
-                    photoLabels: labels.join("\n"),
-                  }))
-                }
-              />
-            )}
-          </Field>
-        )}
 
         <Field label="Preview" error={err.previewUrl || previewUpload.error || undefined} hint="Shown on the template card and page. A short video or an image.">
           <input
