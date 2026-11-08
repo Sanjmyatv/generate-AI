@@ -1,6 +1,5 @@
 import type { Template as DbTemplate } from "@/generated/prisma/client";
 import { VIDEO_CREDITS } from "@/config/pricing";
-import { GEMINI_IMAGE_SIZES, parseGeminiImageConfig } from "@/lib/gemini";
 import { parseGenjutsuConfig, parseMarketingImageConfig } from "@/lib/higgsfield";
 import { parseSeedanceConfig } from "@/lib/seedance";
 
@@ -10,11 +9,13 @@ export type Engine =
   | "genjutsu-light"
   | "seedance-edit"
   | "seedance-reference"
-  | "marketing-image"
-  | "gemini-image";
+  | "marketing-image";
+
+/** Methods whose price can be looked up (Higgsfield). Seedance has no price API, so its cost is typed in. */
+export const hasPriceLookup = (engine: Engine) => isGenjutsuEngine(engine) || engine === "marketing-image";
 
 /** Engines that return an edited picture rather than a video. */
-export const isImageEngine = (engine: Engine) => engine === "marketing-image" || engine === "gemini-image";
+export const isImageEngine = (engine: Engine) => engine === "marketing-image";
 
 /** Both Genjutsu variants swap the user's photo into a source video and share one config shape. */
 export const isGenjutsuEngine = (engine: Engine) => engine === "genjutsu" || engine === "genjutsu-light";
@@ -49,12 +50,6 @@ export const ENGINES: { value: Engine; type: "VIDEO" | "IMAGE"; label: string; h
     type: "IMAGE",
     label: "Edit the photo (Higgsfield image)",
     help: "Returns an edited picture of the user's photo, for example restoring or restyling it.",
-  },
-  {
-    value: "gemini-image",
-    type: "IMAGE",
-    label: "Edit the photo (Gemini)",
-    help: "Same kind of result as above, made by Google's Gemini image model. Billed per image; there is no price lookup, so enter your cost from the Google AI Studio billing page.",
   },
 ];
 
@@ -146,7 +141,6 @@ function engineOf(config: unknown): Engine | null {
   const genjutsu = parseGenjutsuConfig(config);
   if (genjutsu) return genjutsu.light ? "genjutsu-light" : "genjutsu";
   if (parseMarketingImageConfig(config)) return "marketing-image";
-  if (parseGeminiImageConfig(config)) return "gemini-image";
   const seedance = parseSeedanceConfig(config);
   if (seedance) return seedance.mode === "reference" ? "seedance-reference" : "seedance-edit";
   return null;
@@ -181,8 +175,7 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   if (typeof config.costUsd === "number") v.costUsd = String(config.costUsd);
   if (typeof config.costUsdHd === "number") v.costUsdHd = String(config.costUsdHd);
   if (isImageEngine(engine)) {
-    // Gemini stores its size as "2K"; the form uses the lowercase values Higgsfield takes.
-    v.imageResolution = str(config.resolution) || str(config.imageSize).toLowerCase() || v.imageResolution;
+    v.imageResolution = str(config.resolution) || v.imageResolution;
     v.imageQuality = str(config.quality) || v.imageQuality;
     v.imageAspect = str(config.aspectRatio) || v.imageAspect;
   } else {
@@ -371,16 +364,6 @@ export function buildTemplateData(
       prompt: v.prompt,
       quality: v.imageQuality,
       resolution: v.imageResolution,
-      aspectRatio: v.imageAspect,
-    });
-  } else if (v.engine === "gemini-image") {
-    const imageSize = v.imageResolution.toUpperCase();
-    if (!oneOf(GEMINI_IMAGE_SIZES, imageSize)) errors.imageResolution = "Choose a resolution.";
-    if (!oneOf(IMAGE_ASPECTS, v.imageAspect)) errors.imageAspect = "Choose an aspect ratio.";
-    Object.assign(config, {
-      provider: "gemini-image",
-      prompt: v.prompt,
-      imageSize,
       aspectRatio: v.imageAspect,
     });
   } else {

@@ -8,7 +8,6 @@ import { requireAdmin } from "@/lib/admin";
 import { baseUrlFromHeaders } from "@/lib/actor";
 import { prisma } from "@/lib/db";
 import { assetIdFromUrl } from "@/lib/media";
-import { GEMINI_IMAGE_LIST_USD, GEMINI_IMAGE_SIZES } from "@/lib/gemini";
 import { estimateImageEditUsd, estimateMotionTransferUsd, HiggsfieldError } from "@/lib/higgsfield";
 import { creditsForMargin, marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
 import {
@@ -17,6 +16,7 @@ import {
   IMAGE_RESOLUTIONS,
   VIDEO_RESOLUTIONS,
   buildTemplateData,
+  hasPriceLookup,
   readForm,
   resolveUrl,
   slugify,
@@ -126,8 +126,7 @@ const oneOf = <T extends string>(list: readonly T[], value: string): value is T 
 
 /**
  * Asks Higgsfield what one generation with these settings costs this account (discount
- * included), so the admin can price the template. Gemini images use Google's list price.
- * Seedance has no estimate API.
+ * included), so the admin can price the template. Seedance has no estimate API.
  */
 export async function estimateCostAction(input: CostEstimateInput): Promise<CostEstimateResult> {
   await requireAdmin();
@@ -171,11 +170,6 @@ async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult
       });
       return { ok: true, usd };
     }
-    if (input.engine === "gemini-image") {
-      const size = input.imageResolution.toUpperCase();
-      if (!oneOf(GEMINI_IMAGE_SIZES, size)) return { ok: false, error: "Choose the quality settings first." };
-      return { ok: true, usd: GEMINI_IMAGE_LIST_USD[size] };
-    }
     return { ok: false, error: "Seedance has no price lookup: enter your cost from the BytePlus console." };
   } catch (e) {
     console.error("[admin] cost estimate failed", e);
@@ -210,12 +204,18 @@ export type PriceSuggestionResult = ({ ok: true } & PriceSuggestion) | { ok: fal
 
 /**
  * Suggests credit prices that leave about 55% of what users pay after the provider's cost.
- * It looks up the real cost (Higgsfield for this account, Google's list price for Gemini
- * images) and does the arithmetic here, because credit packs have different prices per credit:
+ * It looks up the real cost (Higgsfield for this account) and does the arithmetic here, because credit packs have different prices per credit:
  * the price is worked out against the most popular pack, so the cheaper-per-credit packs land
  * a little below 55% and the dearer ones a little above, roughly 50% to 60% overall.
  */
-export async function suggestPriceAction(input: CostEstimateInput & { type: "VIDEO" | "IMAGE" }): Promise<PriceSuggestionResult> {
+export async function suggestPriceAction(
+  input: CostEstimateInput & {
+    type: "VIDEO" | "IMAGE";
+    /** For methods without a price lookup (Seedance): what one generation costs, typed by the admin. */
+    manualCostUsd?: number;
+    manualCostUsdHd?: number;
+  },
+): Promise<PriceSuggestionResult> {
   await requireAdmin();
   const packs = await prisma.creditPackage.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } });
   if (packs.length === 0) return { ok: false, error: "There are no credit packs to price against." };
@@ -223,9 +223,22 @@ export async function suggestPriceAction(input: CostEstimateInput & { type: "VID
   const usdMnt = usdMntRate();
   const isVideo = input.type === "VIDEO";
 
-  const standard = await estimateUsd({ ...input, videoResolution: "480p" });
+  // The provider's cost per generation: looked up where there is a price API, typed in otherwise.
+  let standard: CostEstimateResult;
+  let hd: CostEstimateResult | null = null;
+  if (hasPriceLookup(input.engine)) {
+    // An image's price does not depend on the words of its prompt, but the lookup insists on one.
+    const lookup = { ...input, prompt: input.prompt || "price lookup" };
+    standard = await estimateUsd({ ...lookup, videoResolution: "480p" });
+    if (isVideo) hd = await estimateUsd({ ...lookup, videoResolution: "720p" });
+  } else {
+    if (!(input.manualCostUsd && input.manualCostUsd > 0)) {
+      return { ok: false, error: "This method has no price lookup. Enter what one generation costs you and the credits are worked out for you." };
+    }
+    standard = { ok: true, usd: input.manualCostUsd };
+    if (isVideo && input.manualCostUsdHd && input.manualCostUsdHd > 0) hd = { ok: true, usd: input.manualCostUsdHd };
+  }
   if (!standard.ok) return standard;
-  const hd = isVideo ? await estimateUsd({ ...input, videoResolution: "720p" }) : null;
 
   const creditsFor = (costUsd: number) =>
     niceCredits(creditsForMargin({ costUsd, perCredit: perCreditMnt(reference), usdMnt, targetPct: TARGET_MARGIN_PCT }));

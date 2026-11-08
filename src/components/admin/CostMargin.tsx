@@ -4,7 +4,7 @@ import { useState } from "react";
 import { estimateCostAction } from "@/app/actions/admin";
 import { RESOLUTION_LABELS, RESOLUTIONS, type Resolution } from "@/config/pricing";
 import { creditsForMargin, marginFor, perCreditMnt, type PackagePrice } from "@/lib/pricing";
-import { isGenjutsuEngine, type TemplateFormValues } from "@/lib/template-admin";
+import { hasPriceLookup, type TemplateFormValues } from "@/lib/template-admin";
 
 const inputClass = "w-full rounded-xl border border-foreground/30 bg-transparent px-3 py-2";
 
@@ -21,12 +21,15 @@ export function CostMargin({
   onChange,
   packages,
   defaultUsdMnt,
+  auto,
   error,
 }: {
   values: TemplateFormValues;
   onChange: <K extends keyof TemplateFormValues>(key: K, value: TemplateFormValues[K]) => void;
   packages: PackagePrice[];
   defaultUsdMnt: number;
+  /** The credits are worked out automatically, so only what the price needs is asked for. */
+  auto: boolean;
   error?: string;
 }) {
   const [usdMnt, setUsdMnt] = useState(String(defaultUsdMnt));
@@ -41,8 +44,7 @@ export function CostMargin({
   const otherCostKey = hd ? "costUsd" : "costUsdHd";
   const creditKey = hd ? "creditCostHd" : "creditCost";
 
-  const gemini = values.engine === "gemini-image";
-  const hasLookup = isGenjutsuEngine(values.engine) || values.engine === "marketing-image" || gemini;
+  const hasLookup = hasPriceLookup(values.engine);
   const costValue = values[costKey];
   const costUsd = Number(costValue);
   const rate = Number(usdMnt);
@@ -67,11 +69,7 @@ export function CostMargin({
       });
       if (result.ok) {
         onChange(costKey, String(result.usd));
-        setNote(
-          gemini
-            ? "Google’s list price for one edited image, including a typical photo and prompt."
-            : "Priced by Higgsfield for your account.",
-        );
+        setNote("Priced by Higgsfield for your account.");
       } else {
         setNote(result.error);
       }
@@ -104,43 +102,99 @@ export function CostMargin({
         </div>
       )}
 
-      <input type="hidden" name={otherCostKey} value={values[otherCostKey]} />
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-xs font-semibold">
-            Provider cost per generation{isVideo ? ` at ${RESOLUTION_LABELS[view].label}` : ""} (USD)
-          </label>
-          <input
-            name={costKey}
-            value={costValue}
-            onChange={(e) => onChange(costKey, e.target.value)}
-            inputMode="decimal"
-            placeholder="e.g. 2.39"
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold">Exchange rate (₮ per $1)</label>
-          <input value={usdMnt} onChange={(e) => setUsdMnt(e.target.value)} inputMode="decimal" className={inputClass} />
-        </div>
-      </div>
-
-      {hasLookup ? (
-        <button
-          type="button"
-          onClick={() => void check()}
-          disabled={checking}
-          className="rounded-full border border-foreground/30 px-4 py-1.5 text-sm font-semibold disabled:opacity-50"
-        >
-          {checking ? "Checking…" : gemini ? "Use Google’s list price" : "Get price from Higgsfield"}
-        </button>
+      {auto ? (
+        <>
+          {hasLookup ? (
+            <>
+              <input type="hidden" name="costUsd" value={values.costUsd} />
+              <input type="hidden" name="costUsdHd" value={values.costUsdHd} />
+              <p className="text-sm">
+                Provider cost{isVideo ? ` at ${RESOLUTION_LABELS[view].label}` : ""}:{" "}
+                <span className="font-semibold">
+                  {costValue !== "" && Number.isFinite(costUsd) ? `$${costUsd.toFixed(2)}` : "…"}
+                </span>{" "}
+                <span className="text-xs text-foreground/60">(looked up from Higgsfield for your account)</span>
+              </p>
+            </>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold">Provider cost at 480p (USD)</label>
+                <input
+                  name="costUsd"
+                  value={values.costUsd}
+                  onChange={(e) => onChange("costUsd", e.target.value)}
+                  inputMode="decimal"
+                  placeholder="e.g. 2.39"
+                  className={inputClass}
+                />
+              </div>
+              {isVideo ? (
+                <div>
+                  <label className="mb-1 block text-xs font-semibold">Provider cost at 720p HD (USD)</label>
+                  <input
+                    name="costUsdHd"
+                    value={values.costUsdHd}
+                    onChange={(e) => onChange("costUsdHd", e.target.value)}
+                    inputMode="decimal"
+                    placeholder="empty = 480p only"
+                    className={inputClass}
+                  />
+                </div>
+              ) : (
+                <input type="hidden" name="costUsdHd" value={values.costUsdHd} />
+              )}
+              <p className="col-span-2 text-xs text-foreground/60">
+                Seedance has no price lookup: type what one generation costs you (BytePlus console) and the credits are
+                worked out for you.
+              </p>
+            </div>
+          )}
+          <p className="text-xs text-foreground/60">
+            Exchange rate: {mnt(rate)} per $1 (set on the server as USD_MNT_RATE).
+          </p>
+        </>
       ) : (
-        <p className="text-xs text-foreground/60">
-          Seedance has no price lookup here. Enter what one generation costs you (BytePlus console, per video
-          length and resolution).
-        </p>
+        <>
+        <input type="hidden" name={otherCostKey} value={values[otherCostKey]} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-semibold">
+              Provider cost per generation{isVideo ? ` at ${RESOLUTION_LABELS[view].label}` : ""} (USD)
+            </label>
+            <input
+              name={costKey}
+              value={costValue}
+              onChange={(e) => onChange(costKey, e.target.value)}
+              inputMode="decimal"
+              placeholder="e.g. 2.39"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold">Exchange rate (₮ per $1)</label>
+            <input value={usdMnt} onChange={(e) => setUsdMnt(e.target.value)} inputMode="decimal" className={inputClass} />
+          </div>
+        </div>
+
+        {hasLookup ? (
+          <button
+            type="button"
+            onClick={() => void check()}
+            disabled={checking}
+            className="rounded-full border border-foreground/30 px-4 py-1.5 text-sm font-semibold disabled:opacity-50"
+          >
+            {checking ? "Checking…" : "Get price from Higgsfield"}
+          </button>
+        ) : (
+          <p className="text-xs text-foreground/60">
+            Seedance has no price lookup here. Enter what one generation costs you (BytePlus console, per video
+            length and resolution).
+          </p>
+        )}
+        {note && <p className="text-xs text-foreground/70">{note}</p>}
+        </>
       )}
-      {note && <p className="text-xs text-foreground/70">{note}</p>}
       {error && <p className="text-xs text-red-500">{error}</p>}
       {hd && !hasCredits && (
         <p className="text-xs text-foreground/60">Set the 720p credits above first, then the margin shows here.</p>
@@ -179,29 +233,31 @@ export function CostMargin({
             </table>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span>For a margin of</span>
-            <input
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              inputMode="numeric"
-              className="w-14 rounded-lg border border-foreground/30 bg-transparent px-2 py-1"
-            />
-            <span>% charge at least:</span>
-            {packages.map((p) => {
-              const credits = creditsForMargin({ costUsd, perCredit: perCreditMnt(p), usdMnt: rate, targetPct });
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => onChange(creditKey, String(credits))}
-                  className="rounded-full border border-foreground/30 px-3 py-1 font-semibold"
-                >
-                  {credits.toLocaleString("en-US")} credits ({p.name})
-                </button>
-              );
-            })}
-          </div>
+          {!auto && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span>For a margin of</span>
+              <input
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                inputMode="numeric"
+                className="w-14 rounded-lg border border-foreground/30 bg-transparent px-2 py-1"
+              />
+              <span>% charge at least:</span>
+              {packages.map((p) => {
+                const credits = creditsForMargin({ costUsd, perCredit: perCreditMnt(p), usdMnt: rate, targetPct });
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => onChange(creditKey, String(credits))}
+                    className="rounded-full border border-foreground/30 px-3 py-1 font-semibold"
+                  >
+                    {credits.toLocaleString("en-US")} credits ({p.name})
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <p className="text-xs text-foreground/50">
             Provider cost only: payment fees, free signup credits and failed requests are not included.
           </p>

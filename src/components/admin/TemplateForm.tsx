@@ -1,18 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useActionState, useState } from "react";
-import { saveTemplateAction, type TemplateFormState } from "@/app/actions/admin";
+import { startTransition, useActionState, useEffect, useState } from "react";
+import { saveTemplateAction, suggestPriceAction, type TemplateFormState } from "@/app/actions/admin";
 import { CostMargin } from "@/components/admin/CostMargin";
 import { VideoAnalysis } from "@/components/admin/VideoAnalysis";
 import { TemplatePreview } from "@/components/TemplatePreview";
-import {
-  IMAGE_CREDITS,
-  RESOLUTIONS,
-  VIDEO_CREDITS,
-  formatCredits,
-  standardPrice,
-} from "@/config/pricing";
+import { RESOLUTIONS } from "@/config/pricing";
 import type { PackagePrice } from "@/lib/pricing";
 import {
   CARD_SHAPES,
@@ -22,6 +16,7 @@ import {
   IMAGE_RESOLUTIONS,
   MAX_PHOTOS,
   VIDEO_RATIOS,
+  hasPriceLookup,
   isGenjutsuEngine,
   type Engine,
   type TemplateFormValues,
@@ -46,8 +41,7 @@ const PROMPT_HELP: Record<Engine, string> = {
   "seedance-reference": 'Describe the scene, the action and the look. Refer to the photos as "Image 1", "Image 2"…',
   "marketing-image":
     "Describe the edit you want. The user's photo is sent as the reference image, so say what to keep (faces, composition) and what to change.",
-  "gemini-image":
-    "Describe the edit you want in plain sentences, e.g. \"Restore this old photo: remove scratches and creases, sharpen the faces and colorize it naturally. Keep the people's faces and the composition unchanged.\" Several photos are sent in order; refer to them as the first, second image.",
+
 };
 
 const inputClass = "w-full rounded-xl border border-foreground/30 bg-transparent px-3 py-2";
@@ -106,6 +100,9 @@ export function TemplateForm({
   const [previewUpload, setPreviewUpload] = useState<UploadState>({ busy: false, error: null });
   const [sourceUpload, setSourceUpload] = useState<UploadState>({ busy: false, error: null });
   const [sourceSeconds, setSourceSeconds] = useState<number | null>(null);
+  // New templates are priced automatically; an existing one keeps its price until the admin asks.
+  const [autoPrice, setAutoPrice] = useState(!templateId);
+  const [priceStatus, setPriceStatus] = useState<{ error: boolean; note: string | null }>({ error: false, note: null });
 
   const set = <K extends keyof TemplateFormValues>(key: K, value: TemplateFormValues[K]) =>
     setV((prev) => ({ ...prev, [key]: value }));
@@ -160,10 +157,72 @@ export function TemplateForm({
           ? RESOLUTIONS.map((r) => ({ r, usd: lightSeconds * (GENJUTSU_LIGHT_RATE[r] ?? 0) }))
           : null;
 
-  function applyStandardPrice() {
-    const standard = standardPrice(v.type, Number(v.durationSeconds) || null);
-    set("creditCost", String(standard.credits));
-    set("creditCostHd", standard.creditsHd === null ? "" : String(standard.creditsHd));
+  // The credits follow the method, the source video, the image quality and, for video, both qualities (480p and 720p).
+  // Only methods without a price API (Seedance) need the provider cost typed in.
+  const hasLookup = hasPriceLookup(v.engine);
+  const typedCost = hasLookup ? "" : v.costUsd;
+  const typedCostHd = hasLookup ? "" : v.costUsdHd;
+  useEffect(() => {
+    if (!autoPrice) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (hasLookup && needsVideo && !v.sourceVideoUrl) {
+        setPriceStatus({ error: false, note: "Upload the source video and the price is worked out for you." });
+        return;
+      }
+      setPriceStatus({ error: false, note: "Working out the price…" });
+      let result;
+      try {
+        result = await suggestPriceAction({
+          engine: v.engine,
+          type: v.type,
+          videoResolution: "480p",
+          sourceVideoUrl: v.sourceVideoUrl,
+          prompt: "",
+          imageResolution: v.imageResolution,
+          imageQuality: v.imageQuality,
+          imageAspect: v.imageAspect,
+          manualCostUsd: Number(typedCost) || undefined,
+          manualCostUsdHd: Number(typedCostHd) || undefined,
+        });
+      } catch {
+        result = { ok: false as const, error: "Could not work out the price. Turn off “automatically” to set it by hand." };
+      }
+      if (cancelled) return;
+      if (!result.ok) {
+        setPriceStatus({ error: true, note: result.error });
+        return;
+      }
+      setV((prev) => ({
+        ...prev,
+        creditCost: String(result.credits),
+        // Looked-up costs fill the cost boxes; typed ones stay as typed. A missing HD price means 480p only.
+        creditCostHd: result.creditsHd !== null ? String(result.creditsHd) : hasLookup ? prev.creditCostHd : "",
+        ...(hasLookup
+          ? { costUsd: String(result.costUsd), costUsdHd: result.costUsdHd !== null ? String(result.costUsdHd) : prev.costUsdHd }
+          : {}),
+      }));
+      setPriceStatus({
+        error: false,
+        note: `About ${result.targetPct}% margin on the ${result.reference}. Packs: ${result.margins
+          .map((m) => `${m.name} ${m.pct.toFixed(0)}%`)
+          .join(", ")}.`,
+      });
+    }, 700);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [autoPrice, hasLookup, needsVideo, typedCost, typedCostHd, v.engine, v.type, v.sourceVideoUrl, v.imageResolution, v.imageQuality, v.imageAspect]);
+
+  // Switching between a method with a price lookup and one without makes the old cost meaningless.
+  function chooseEngine(next: Engine, type: TemplateFormValues["type"] = v.type) {
+    setV((prev) => ({
+      ...prev,
+      type,
+      engine: next,
+      ...(hasPriceLookup(prev.engine) !== hasPriceLookup(next) ? { costUsd: "", costUsdHd: "" } : {}),
+    }));
   }
 
   return (
@@ -315,8 +374,7 @@ export function TemplateForm({
                   value={t}
                   checked={v.type === t}
                   onChange={() => {
-                    set("type", t);
-                    set("engine", ENGINES.find((e) => e.type === t)!.value);
+                    chooseEngine(ENGINES.find((e) => e.type === t)!.value, t);
                   }}
                   className="sr-only"
                 />
@@ -336,7 +394,7 @@ export function TemplateForm({
                   name="engine"
                   value={e.value}
                   checked={v.engine === e.value}
-                  onChange={() => set("engine", e.value)}
+                  onChange={() => chooseEngine(e.value)}
                   className="mt-1"
                 />
                 <span>
@@ -378,7 +436,7 @@ export function TemplateForm({
 
       <Section title="Quality">
         {v.type === "IMAGE" ? (
-          <div className={`grid gap-4 ${v.engine === "gemini-image" ? "grid-cols-2" : "grid-cols-3"}`}>
+          <div className="grid grid-cols-3 gap-4">
             <Field label="Resolution" error={err.imageResolution}>
               <select {...text("imageResolution")} className={inputClass}>
                 {IMAGE_RESOLUTIONS.map((r) => (
@@ -386,8 +444,7 @@ export function TemplateForm({
                 ))}
               </select>
             </Field>
-            {/* Gemini has no quality setting. */}
-            {v.engine !== "gemini-image" && (
+            {(
               <Field label="Quality" error={err.imageQuality}>
                 <select {...text("imageQuality")} className={inputClass}>
                   {IMAGE_QUALITIES.map((q) => (
@@ -475,16 +532,25 @@ export function TemplateForm({
           </div>
         </Field>
         <div className="space-y-3 rounded-xl border border-foreground/20 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold">Credits per generation</span>
-            <button
-              type="button"
-              onClick={applyStandardPrice}
-              className="rounded-full border border-foreground/30 px-3 py-1 text-xs font-semibold"
-            >
-              Apply standard price
-            </button>
-          </div>
+          <span className="text-sm font-semibold">Credits per generation</span>
+          <label className="flex cursor-pointer items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={autoPrice}
+              onChange={(e) => setAutoPrice(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-semibold">Work out the credits automatically</span>
+              <span className="block text-xs text-foreground/60">
+                Follows the method you choose and, for video, the quality (480p and 720p each get their own price).
+                Aims for about 55% margin.
+              </span>
+            </span>
+          </label>
+          {autoPrice && priceStatus.note && (
+            <p className={`text-xs ${priceStatus.error ? "text-red-500" : "text-foreground/70"}`}>{priceStatus.note}</p>
+          )}
           <div className={`grid gap-3 ${v.type === "VIDEO" ? "grid-cols-3" : "grid-cols-1 max-w-40"}`}>
             {v.type === "VIDEO" && (
               <Field label="Video length (s)" error={err.durationSeconds}>
@@ -492,21 +558,16 @@ export function TemplateForm({
               </Field>
             )}
             <Field label={v.type === "VIDEO" ? "Credits at 480p" : "Credits"} error={err.creditCost}>
-              <input {...text("creditCost")} inputMode="numeric" className={inputClass} />
+              <input {...text("creditCost")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
             </Field>
             {v.type === "VIDEO" && (
               <Field label="Credits at 720p HD" error={err.creditCostHd} hint="Empty = 480p only.">
-                <input {...text("creditCostHd")} inputMode="numeric" className={inputClass} />
+                <input {...text("creditCostHd")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
               </Field>
             )}
           </div>
-          <p className="text-xs text-foreground/60">
-            Standard prices (1 credit = ₮1): image {formatCredits(IMAGE_CREDITS)} · 10 s video{" "}
-            {formatCredits(VIDEO_CREDITS[10]["480p"])} / {formatCredits(VIDEO_CREDITS[10]["720p"])} · 20 s video{" "}
-            {formatCredits(VIDEO_CREDITS[20]["480p"])} / {formatCredits(VIDEO_CREDITS[20]["720p"])} (480p / 720p).
-          </p>
         </div>
-        <CostMargin values={v} onChange={set} packages={packages} defaultUsdMnt={usdMnt} error={err.costUsd} />
+        <CostMargin values={v} onChange={set} packages={packages} defaultUsdMnt={usdMnt} auto={autoPrice} error={err.costUsd} />
       </Section>
 
       {state.message && (
