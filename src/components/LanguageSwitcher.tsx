@@ -7,11 +7,11 @@ import { useLocale, useT } from "@/components/I18nProvider";
 import type { Locale } from "@/lib/i18n/config";
 
 const OPTIONS: { locale: Locale; label: string; name: string }[] = [
-  { locale: "en", label: "EN", name: "English" },
   { locale: "mn", label: "МН", name: "Монгол" },
+  { locale: "en", label: "EN", name: "English" },
 ];
 
-/** English / Монгол switch for the top bar. Saves the choice in a cookie (server action) and re-renders the page in it. */
+/** Монгол / English switch for the top bar. Saves the choice in a cookie (server action) and re-renders the page in it. */
 export function LanguageSwitcher() {
   const current = useLocale();
   const t = useT();

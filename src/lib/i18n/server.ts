@@ -1,13 +1,12 @@
-import { cookies, headers } from "next/headers";
-import { LOCALE_COOKIE, isLocale, localeFromAcceptLanguage, type Locale } from "@/lib/i18n/config";
+import { cookies } from "next/headers";
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, type Locale } from "@/lib/i18n/config";
 import { MESSAGES } from "@/lib/i18n/messages";
 import { makeT } from "@/lib/i18n/translate";
 
-/** The visitor's language: their saved choice, else what their browser prefers. */
+/** The visitor's saved language, otherwise the default (Mongolian). */
 export async function getLocale(): Promise<Locale> {
   const saved = (await cookies()).get(LOCALE_COOKIE)?.value;
-  if (isLocale(saved)) return saved;
-  return localeFromAcceptLanguage((await headers()).get("accept-language"));
+  return isLocale(saved) ? saved : DEFAULT_LOCALE;
 }
 
 /** `t` for server components, pages and actions: `const { t, locale } = await getT();` */
