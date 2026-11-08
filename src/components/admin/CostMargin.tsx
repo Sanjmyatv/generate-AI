@@ -4,7 +4,7 @@ import { useState } from "react";
 import { estimateCostAction } from "@/app/actions/admin";
 import { RESOLUTION_LABELS, RESOLUTIONS, type Resolution } from "@/config/pricing";
 import { creditsForMargin, marginFor, perCreditMnt, type PackagePrice } from "@/lib/pricing";
-import type { TemplateFormValues } from "@/lib/template-admin";
+import { isGenjutsuEngine, type TemplateFormValues } from "@/lib/template-admin";
 
 const inputClass = "w-full rounded-xl border border-foreground/30 bg-transparent px-3 py-2";
 
@@ -41,7 +41,7 @@ export function CostMargin({
   const otherCostKey = hd ? "costUsd" : "costUsdHd";
   const creditKey = hd ? "creditCostHd" : "creditCost";
 
-  const higgsfield = values.engine === "genjutsu" || values.engine === "marketing-image";
+  const higgsfield = isGenjutsuEngine(values.engine) || values.engine === "marketing-image";
   const costValue = values[costKey];
   const costUsd = Number(costValue);
   const rate = Number(usdMnt);

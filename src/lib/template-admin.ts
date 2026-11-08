@@ -4,7 +4,10 @@ import { parseGenjutsuConfig, parseMarketingImageConfig } from "@/lib/higgsfield
 import { parseSeedanceConfig } from "@/lib/seedance";
 
 /** How a template produces its result. Stored in `Template.generationConfig.provider`/`mode`. */
-export type Engine = "genjutsu" | "seedance-edit" | "seedance-reference" | "marketing-image";
+export type Engine = "genjutsu" | "genjutsu-light" | "seedance-edit" | "seedance-reference" | "marketing-image";
+
+/** Both Genjutsu variants swap the user's photo into a source video and share one config shape. */
+export const isGenjutsuEngine = (engine: Engine) => engine === "genjutsu" || engine === "genjutsu-light";
 
 export const ENGINES: { value: Engine; type: "VIDEO" | "IMAGE"; label: string; help: string }[] = [
   {
@@ -12,6 +15,12 @@ export const ENGINES: { value: Engine; type: "VIDEO" | "IMAGE"; label: string; h
     type: "VIDEO",
     label: "Swap into a source video (Genjutsu)",
     help: "Keeps the source video's motion and swaps the character for the user's photo. Works with real people in the video. Billed per second of source video.",
+  },
+  {
+    value: "genjutsu-light",
+    type: "VIDEO",
+    label: "Swap into a source video, cheaper (Genjutsu Light)",
+    help: "Same idea as Genjutsu at a much lower price. Uses only the first 15 seconds of the source video and keeps its sound. Billed per second of output plus source video.",
   },
   {
     value: "seedance-edit",
@@ -113,7 +122,8 @@ export function defaultFormValues(): TemplateFormValues {
 }
 
 function engineOf(config: unknown): Engine | null {
-  if (parseGenjutsuConfig(config)) return "genjutsu";
+  const genjutsu = parseGenjutsuConfig(config);
+  if (genjutsu) return genjutsu.light ? "genjutsu-light" : "genjutsu";
   if (parseMarketingImageConfig(config)) return "marketing-image";
   const seedance = parseSeedanceConfig(config);
   if (seedance) return seedance.mode === "reference" ? "seedance-reference" : "seedance-edit";
@@ -310,11 +320,11 @@ export function buildTemplateData(
   const prevVersion = (existingConfig as { version?: unknown } | null)?.version;
   if (typeof prevVersion === "number") config.version = prevVersion;
 
-  const needsPrompt = v.engine !== "genjutsu";
+  const needsPrompt = !isGenjutsuEngine(v.engine);
   if (needsPrompt && !v.prompt) errors.prompt = "Write the prompt for this method.";
   if (v.prompt.length > 5000) errors.prompt = "Prompts can be up to 5000 characters.";
 
-  const needsVideo = v.engine === "genjutsu" || v.engine === "seedance-edit";
+  const needsVideo = isGenjutsuEngine(v.engine) || v.engine === "seedance-edit";
   let sourceVideoUrl = "";
   if (needsVideo) {
     sourceVideoUrl = (v.sourceVideoUrl && resolveUrl(v.sourceVideoUrl, baseUrl)) || "";
@@ -334,12 +344,13 @@ export function buildTemplateData(
     });
   } else {
     if (!oneOf(VIDEO_RESOLUTIONS, v.videoResolution)) errors.videoResolution = "Choose a resolution.";
-    if (v.engine === "genjutsu") {
+    if (isGenjutsuEngine(v.engine)) {
       Object.assign(config, {
         provider: "genjutsu",
         templateVideoUrl: sourceVideoUrl,
         ...(v.prompt ? { prompt: v.prompt } : {}),
         resolution: v.videoResolution,
+        ...(v.engine === "genjutsu-light" ? { light: true } : {}),
       });
     } else if (v.engine === "seedance-edit") {
       Object.assign(config, {

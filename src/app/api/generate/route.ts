@@ -173,6 +173,7 @@ export async function POST(req: Request) {
           imageUrls,
           prompt: genjutsu.prompt,
           resolution: videoResolution,
+          light: genjutsu.light,
         })
       : await submitVideoEdit({
           // Undefined in reference mode: the video is generated from the photo(s) + prompt alone.

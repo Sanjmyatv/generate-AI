@@ -21,6 +21,7 @@ import {
   IMAGE_RESOLUTIONS,
   MAX_PHOTOS,
   VIDEO_RATIOS,
+  isGenjutsuEngine,
   type Engine,
   type TemplateFormValues,
 } from "@/lib/template-admin";
@@ -30,9 +31,16 @@ const initialState: TemplateFormState = { errors: {}, message: null };
 /** Genjutsu list price per second of source video, before the account's discount. */
 const GENJUTSU_RATE: Record<string, number> = { "480p": 0.318, "720p": 0.681, "1080p": 1.632 };
 
+/** Genjutsu Light list price per second, counted over the output plus the source video. */
+const GENJUTSU_LIGHT_RATE: Record<string, number> = { "480p": 0.05, "720p": 0.1, "1080p": 0.2 };
+const GENJUTSU_LIGHT_MAX_SECONDS = 15;
+
+const GENJUTSU_PROMPT_HELP =
+  'Optional. Say who replaces whom, e.g. "Replace the dancer with the person in the first reference image." Refer to the photos as the first, second, third reference image.';
+
 const PROMPT_HELP: Record<Engine, string> = {
-  genjutsu:
-    'Optional. Say who replaces whom, e.g. "Replace the dancer with the person in the first reference image." Refer to the photos as the first, second, third reference image.',
+  genjutsu: GENJUTSU_PROMPT_HELP,
+  "genjutsu-light": GENJUTSU_PROMPT_HELP,
   "seedance-edit": 'Refer to the photos as "Image 1", "Image 2"… and to the source video as "Video 1".',
   "seedance-reference": 'Describe the scene, the action and the look. Refer to the photos as "Image 1", "Image 2"…',
   "marketing-image":
@@ -112,7 +120,7 @@ export function TemplateForm({
     set("photoLabels", labels.map((label, i) => (i === index ? value : label)).join("\n"));
 
   const err = state.errors;
-  const needsVideo = v.engine === "genjutsu" || v.engine === "seedance-edit";
+  const needsVideo = isGenjutsuEngine(v.engine) || v.engine === "seedance-edit";
   const engines = ENGINES.filter((e) => e.type === v.type);
 
   async function upload(file: File, purpose: "preview" | "source") {
@@ -138,10 +146,16 @@ export function TemplateForm({
     }
   }
 
+  // Light bills the output plus the source video, and only uses the first 15 s of it.
+  const lightSeconds = sourceSeconds === null ? 0 : Math.ceil(Math.min(sourceSeconds, GENJUTSU_LIGHT_MAX_SECONDS)) * 2;
   const estimates =
-    v.engine === "genjutsu" && sourceSeconds !== null
-      ? RESOLUTIONS.map((r) => ({ r, usd: Math.ceil(sourceSeconds) * (GENJUTSU_RATE[r] ?? 0) }))
-      : null;
+    sourceSeconds === null
+      ? null
+      : v.engine === "genjutsu"
+        ? RESOLUTIONS.map((r) => ({ r, usd: Math.ceil(sourceSeconds) * (GENJUTSU_RATE[r] ?? 0) }))
+        : v.engine === "genjutsu-light"
+          ? RESOLUTIONS.map((r) => ({ r, usd: lightSeconds * (GENJUTSU_LIGHT_RATE[r] ?? 0) }))
+          : null;
 
   function applyStandardPrice() {
     const standard = standardPrice(v.type, Number(v.durationSeconds) || null);
@@ -285,7 +299,7 @@ export function TemplateForm({
                   {sourceSeconds !== null && <p>Length: {sourceSeconds.toFixed(1)} s</p>}
                   {estimates && (
                     <p>
-                      Genjutsu list price per generation:{" "}
+                      {v.engine === "genjutsu-light" ? "Genjutsu Light" : "Genjutsu"} list price per generation:{" "}
                       {estimates.map((e) => `${e.r} ≈ ${e.usd.toFixed(2)}`).join(", ")} (your account discount
                       applies on top). Check the real cost under Photos and price.
                     </p>
@@ -365,7 +379,7 @@ export function TemplateForm({
                 </Field>
               </div>
             )}
-            {v.engine !== "genjutsu" && (
+            {!isGenjutsuEngine(v.engine) && (
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

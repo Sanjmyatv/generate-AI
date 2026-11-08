@@ -11,6 +11,9 @@ import type { TaskState } from "@/lib/seedance";
 
 const BASE_URL = "https://api.higgsfield.ai";
 const MODEL_PATH = "higgsfield/genjutsu/motion-transfer/v1.0";
+/** The cheaper variant: uses the first 15 s of the source video and keeps its audio. */
+const LIGHT_MODEL_PATH = "higgsfield/genjutsu-light/motion-transfer/v1.0";
+const motionModelPath = (light?: boolean) => (light ? LIGHT_MODEL_PATH : MODEL_PATH);
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export class HiggsfieldError extends Error {
@@ -29,6 +32,11 @@ export interface GenjutsuTemplateConfig {
   prompt?: string;
   /** Billed per second of source video; list price $0.318 (480p), $0.681 (720p), $1.632 (1080p), before discount. */
   resolution?: "480p" | "720p" | "1080p";
+  /**
+   * Run on Genjutsu Light instead: list price per total second (output + source video) is $0.05
+   * (480p), $0.10 (720p), $0.20 (1080p), and only the first 15 s of the source is used.
+   */
+  light?: boolean;
 }
 
 export function parseGenjutsuConfig(value: unknown): GenjutsuTemplateConfig | null {
@@ -99,11 +107,13 @@ export interface SubmitMotionTransferInput {
   imageUrls: string[];
   prompt?: string;
   resolution?: GenjutsuTemplateConfig["resolution"];
+  /** Use Genjutsu Light (see GenjutsuTemplateConfig.light). */
+  light?: boolean;
 }
 
 /** Starts a motion-transfer request and returns Higgsfield's request id. */
 export async function submitMotionTransfer(input: SubmitMotionTransferInput): Promise<string> {
-  const data = (await request(MODEL_PATH, {
+  const data = (await request(motionModelPath(input.light), {
     method: "POST",
     body: JSON.stringify({
       prompt: input.prompt ?? "",
@@ -191,7 +201,7 @@ async function estimateUsd(modelPath: string, body: unknown): Promise<number> {
 }
 
 export function estimateMotionTransferUsd(input: SubmitMotionTransferInput) {
-  return estimateUsd(MODEL_PATH, {
+  return estimateUsd(motionModelPath(input.light), {
     prompt: input.prompt ?? "",
     video_url: input.templateVideoUrl,
     image_urls: input.imageUrls,

@@ -133,7 +133,7 @@ export async function estimateCostAction(input: CostEstimateInput): Promise<Cost
   const imageUrls = [`${baseUrl}/favicon.ico`];
 
   try {
-    if (input.engine === "genjutsu") {
+    if (input.engine === "genjutsu" || input.engine === "genjutsu-light") {
       const templateVideoUrl = resolveUrl(input.sourceVideoUrl, baseUrl);
       if (!templateVideoUrl) return { ok: false, error: "Upload the source video first." };
       if (!oneOf(VIDEO_RESOLUTIONS, input.videoResolution)) return { ok: false, error: "Choose a resolution first." };
@@ -142,6 +142,7 @@ export async function estimateCostAction(input: CostEstimateInput): Promise<Cost
         imageUrls,
         prompt: input.prompt,
         resolution: input.videoResolution,
+        light: input.engine === "genjutsu-light",
       });
       return { ok: true, usd };
     }
