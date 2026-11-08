@@ -130,7 +130,7 @@ export async function estimateCostAction(input: CostEstimateInput): Promise<Cost
   await requireAdmin();
   const baseUrl = baseUrlFromHeaders(await headers());
   // Estimates need the same fields as a real request; this stands in for the user's photo.
-  const imageUrls = [`${baseUrl}/favicon.ico`];
+  const imageUrls = [`${baseUrl}/brand/z-emblem.png`];
 
   try {
     if (input.engine === "genjutsu" || input.engine === "genjutsu-light") {
