@@ -179,7 +179,7 @@ export function TemplateForm({
           videoResolution: "480p",
           sourceVideoUrl: v.sourceVideoUrl,
           prompt: "",
-          imageResolution: v.imageResolution,
+          imageResolution: "2k",
           imageQuality: v.imageQuality,
           imageAspect: v.imageAspect,
           manualCostUsd: Number(typedCost) || undefined,
@@ -193,7 +193,18 @@ export function TemplateForm({
         setPriceStatus({ error: true, note: result.error });
         return;
       }
-      setV((prev) => ({
+      if (result.imageTiers) {
+        const { credits, costUsd } = result.imageTiers;
+        setV((prev) => ({
+          ...prev,
+          creditCost: String(credits["1k"]),
+          creditCost2k: String(credits["2k"]),
+          creditCost4k: String(credits["4k"]),
+          costUsd: String(costUsd["1k"]),
+          costUsd2k: String(costUsd["2k"]),
+          costUsd4k: String(costUsd["4k"]),
+        }));
+      } else setV((prev) => ({
         ...prev,
         creditCost: String(result.credits),
         // Looked-up costs fill the cost boxes; typed ones stay as typed. A missing HD price means 480p only.
@@ -213,7 +224,7 @@ export function TemplateForm({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [autoPrice, hasLookup, needsVideo, typedCost, typedCostHd, v.engine, v.type, v.sourceVideoUrl, v.imageResolution, v.imageQuality, v.imageAspect]);
+  }, [autoPrice, hasLookup, needsVideo, typedCost, typedCostHd, v.engine, v.type, v.sourceVideoUrl, v.imageQuality, v.imageAspect]);
 
   // Switching between a method with a price lookup and one without makes the old cost meaningless.
   function chooseEngine(next: Engine, type: TemplateFormValues["type"] = v.type) {
@@ -551,19 +562,28 @@ export function TemplateForm({
           {autoPrice && priceStatus.note && (
             <p className={`text-xs ${priceStatus.error ? "text-red-500" : "text-foreground/70"}`}>{priceStatus.note}</p>
           )}
-          <div className={`grid gap-3 ${v.type === "VIDEO" ? "grid-cols-3" : "grid-cols-1 max-w-40"}`}>
+          <div className="grid grid-cols-3 gap-3">
             {v.type === "VIDEO" && (
               <Field label="Video length (s)" error={err.durationSeconds}>
                 <input {...text("durationSeconds")} inputMode="numeric" className={inputClass} />
               </Field>
             )}
-            <Field label={v.type === "VIDEO" ? "Credits at 480p" : "Credits"} error={err.creditCost}>
+            <Field label={v.type === "VIDEO" ? "Credits at 480p" : "Credits at 1K"} error={err.creditCost}>
               <input {...text("creditCost")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
             </Field>
-            {v.type === "VIDEO" && (
+            {v.type === "VIDEO" ? (
               <Field label="Credits at 720p HD" error={err.creditCostHd} hint="Empty = 480p only.">
                 <input {...text("creditCostHd")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
               </Field>
+            ) : (
+              <>
+                <Field label="Credits at 2K (HD)" error={err.creditCost2k} hint="Empty = not offered.">
+                  <input {...text("creditCost2k")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+                </Field>
+                <Field label="Credits at 4K (Ultra HD)" error={err.creditCost4k} hint="Empty = not offered.">
+                  <input {...text("creditCost4k")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+                </Field>
+              </>
             )}
           </div>
         </div>

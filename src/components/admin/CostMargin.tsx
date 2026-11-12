@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { estimateCostAction } from "@/app/actions/admin";
-import { RESOLUTION_LABELS, RESOLUTIONS, type Resolution } from "@/config/pricing";
 import { creditsForMargin, marginFor, perCreditMnt, type PackagePrice } from "@/lib/pricing";
 import { hasPriceLookup, type TemplateFormValues } from "@/lib/template-admin";
 
@@ -10,11 +9,36 @@ const inputClass = "w-full rounded-xl border border-foreground/30 bg-transparent
 
 const mnt = (n: number) => `${Math.round(n).toLocaleString("en-US")}₮`;
 
+/** Below this, a price is flagged: a margin under half of what users pay is thin once fees are counted. */
+const MIN_MARGIN_PCT = 50;
+
+type CostKey = "costUsd" | "costUsdHd" | "costUsd2k" | "costUsd4k";
+type CreditKey = "creditCost" | "creditCostHd" | "creditCost2k" | "creditCost4k";
+const ALL_COST_KEYS: CostKey[] = ["costUsd", "costUsdHd", "costUsd2k", "costUsd4k"];
+
+interface Tier {
+  id: string;
+  label: string;
+  costKey: CostKey;
+  creditKey: CreditKey;
+}
+
+/** A video is priced at 480p and 720p HD; an image at 1K, 2K and 4K. Each has its own cost and credits. */
+const VIDEO_TIERS: Tier[] = [
+  { id: "480p", label: "480p", costKey: "costUsd", creditKey: "creditCost" },
+  { id: "720p", label: "720p HD", costKey: "costUsdHd", creditKey: "creditCostHd" },
+];
+const IMAGE_TIERS: Tier[] = [
+  { id: "1k", label: "1K", costKey: "costUsd", creditKey: "creditCost" },
+  { id: "2k", label: "2K", costKey: "costUsd2k", creditKey: "creditCost2k" },
+  { id: "4k", label: "4K", costKey: "costUsd4k", creditKey: "creditCost4k" },
+];
+
 /**
  * The provider's price for one generation next to what users pay for it, so the admin can set
- * a credit cost with a margin in mind. Videos are priced per resolution (480p and 720p HD),
- * so each has its own provider cost and credit price. Higgsfield models are priced live for
- * this account (discount included); Seedance's cost is typed in.
+ * a credit cost with a margin in mind. Videos are priced per resolution (480p and 720p HD) and
+ * images per quality (1K, 2K, 4K), so each has its own provider cost and credit price. Higgsfield
+ * models are priced live for this account (discount included); Seedance's cost is typed in.
  */
 export function CostMargin({
   values,
@@ -34,15 +58,15 @@ export function CostMargin({
 }) {
   const [usdMnt, setUsdMnt] = useState(String(defaultUsdMnt));
   const [target, setTarget] = useState("60");
-  const [view, setView] = useState<Resolution>("480p");
+  const [view, setView] = useState("480p");
   const [checking, setChecking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
   const isVideo = values.type === "VIDEO";
-  const hd = isVideo && view === "720p";
-  const costKey = hd ? "costUsdHd" : "costUsd";
-  const otherCostKey = hd ? "costUsd" : "costUsdHd";
-  const creditKey = hd ? "creditCostHd" : "creditCost";
+  const tiers = isVideo ? VIDEO_TIERS : IMAGE_TIERS;
+  const tier = tiers.find((t) => t.id === view) ?? tiers[0];
+  const costKey = tier.costKey;
+  const creditKey = tier.creditKey;
 
   const hasLookup = hasPriceLookup(values.engine);
   const costValue = values[costKey];
@@ -54,16 +78,19 @@ export function CostMargin({
   const ready = costValue !== "" && Number.isFinite(costUsd) && rate > 0 && hasCredits;
   const targetPct = Number(target);
 
+  // Cost inputs that are shown for typing; every other one still travels with the form as a hidden field.
+  const visibleKeys: CostKey[] = auto ? (hasLookup ? [] : isVideo ? ["costUsd", "costUsdHd"] : ["costUsd"]) : [costKey];
+
   async function check() {
     setChecking(true);
     setNote(null);
     try {
       const result = await estimateCostAction({
         engine: values.engine,
-        videoResolution: view,
+        videoResolution: isVideo ? tier.id : "480p",
         sourceVideoUrl: values.sourceVideoUrl,
         prompt: values.prompt,
-        imageResolution: values.imageResolution,
+        imageResolution: isVideo ? values.imageResolution : tier.id,
         imageQuality: values.imageQuality,
         imageAspect: values.imageAspect,
       });
@@ -80,42 +107,45 @@ export function CostMargin({
     }
   }
 
+  const margins = ready
+    ? packages.map((p) => ({ pack: p, perCredit: perCreditMnt(p), m: marginFor({ costUsd, creditCost, perCredit: perCreditMnt(p), usdMnt: rate }) }))
+    : [];
+  const thinnest = margins.length > 0 ? margins.reduce((a, b) => (b.m.marginPct < a.m.marginPct ? b : a)) : null;
+
   return (
     <div className="space-y-3 rounded-xl border border-foreground/20 p-3">
       <div className="text-sm font-semibold">Cost and margin</div>
 
-      {isVideo && (
-        <div role="group" aria-label="Resolution to price" className="flex gap-2">
-          {RESOLUTIONS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              aria-pressed={view === r}
-              onClick={() => setView(r)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                view === r ? "btn-primary text-foreground" : "border-foreground/30"
-              }`}
-            >
-              {RESOLUTION_LABELS[r].label}
-            </button>
-          ))}
-        </div>
-      )}
+      {ALL_COST_KEYS.filter((k) => !visibleKeys.includes(k)).map((k) => (
+        <input key={k} type="hidden" name={k} value={values[k]} />
+      ))}
+
+      <div role="group" aria-label={isVideo ? "Resolution to price" : "Quality to price"} className="flex gap-2">
+        {tiers.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            aria-pressed={tier.id === t.id}
+            onClick={() => setView(t.id)}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+              tier.id === t.id ? "btn-primary text-foreground" : "border-foreground/30"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {auto ? (
         <>
           {hasLookup ? (
-            <>
-              <input type="hidden" name="costUsd" value={values.costUsd} />
-              <input type="hidden" name="costUsdHd" value={values.costUsdHd} />
-              <p className="text-sm">
-                Provider cost{isVideo ? ` at ${RESOLUTION_LABELS[view].label}` : ""}:{" "}
-                <span className="font-semibold">
-                  {costValue !== "" && Number.isFinite(costUsd) ? `$${costUsd.toFixed(2)}` : "…"}
-                </span>{" "}
-                <span className="text-xs text-foreground/60">(looked up from Higgsfield for your account)</span>
-              </p>
-            </>
+            <p className="text-sm">
+              Provider cost at {tier.label}:{" "}
+              <span className="font-semibold">
+                {costValue !== "" && Number.isFinite(costUsd) ? `$${costUsd.toFixed(2)}` : "…"}
+              </span>{" "}
+              <span className="text-xs text-foreground/60">(looked up from Higgsfield for your account)</span>
+            </p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -129,7 +159,7 @@ export function CostMargin({
                   className={inputClass}
                 />
               </div>
-              {isVideo ? (
+              {isVideo && (
                 <div>
                   <label className="mb-1 block text-xs font-semibold">Provider cost at 720p HD (USD)</label>
                   <input
@@ -141,8 +171,6 @@ export function CostMargin({
                     className={inputClass}
                   />
                 </div>
-              ) : (
-                <input type="hidden" name="costUsdHd" value={values.costUsdHd} />
               )}
               <p className="col-span-2 text-xs text-foreground/60">
                 Seedance has no price lookup: type what one generation costs you (BytePlus console) and the credits are
@@ -156,48 +184,47 @@ export function CostMargin({
         </>
       ) : (
         <>
-        <input type="hidden" name={otherCostKey} value={values[otherCostKey]} />
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-semibold">
-              Provider cost per generation{isVideo ? ` at ${RESOLUTION_LABELS[view].label}` : ""} (USD)
-            </label>
-            <input
-              name={costKey}
-              value={costValue}
-              onChange={(e) => onChange(costKey, e.target.value)}
-              inputMode="decimal"
-              placeholder="e.g. 2.39"
-              className={inputClass}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold">
+                Provider cost per generation at {tier.label} (USD)
+              </label>
+              <input
+                name={costKey}
+                value={costValue}
+                onChange={(e) => onChange(costKey, e.target.value)}
+                inputMode="decimal"
+                placeholder="e.g. 2.39"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold">Exchange rate (₮ per $1)</label>
+              <input value={usdMnt} onChange={(e) => setUsdMnt(e.target.value)} inputMode="decimal" className={inputClass} />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold">Exchange rate (₮ per $1)</label>
-            <input value={usdMnt} onChange={(e) => setUsdMnt(e.target.value)} inputMode="decimal" className={inputClass} />
-          </div>
-        </div>
 
-        {hasLookup ? (
-          <button
-            type="button"
-            onClick={() => void check()}
-            disabled={checking}
-            className="rounded-full border border-foreground/30 px-4 py-1.5 text-sm font-semibold disabled:opacity-50"
-          >
-            {checking ? "Checking…" : "Get price from Higgsfield"}
-          </button>
-        ) : (
-          <p className="text-xs text-foreground/60">
-            Seedance has no price lookup here. Enter what one generation costs you (BytePlus console, per video
-            length and resolution).
-          </p>
-        )}
-        {note && <p className="text-xs text-foreground/70">{note}</p>}
+          {hasLookup ? (
+            <button
+              type="button"
+              onClick={() => void check()}
+              disabled={checking}
+              className="rounded-full border border-foreground/30 px-4 py-1.5 text-sm font-semibold disabled:opacity-50"
+            >
+              {checking ? "Checking…" : "Get price from Higgsfield"}
+            </button>
+          ) : (
+            <p className="text-xs text-foreground/60">
+              Seedance has no price lookup here. Enter what one generation costs you (BytePlus console, per video
+              length and resolution).
+            </p>
+          )}
+          {note && <p className="text-xs text-foreground/70">{note}</p>}
         </>
       )}
       {error && <p className="text-xs text-red-500">{error}</p>}
-      {hd && !hasCredits && (
-        <p className="text-xs text-foreground/60">Set the 720p credits above first, then the margin shows here.</p>
+      {!hasCredits && tier !== tiers[0] && (
+        <p className="text-xs text-foreground/60">Set the {tier.label} credits above first, then the margin shows here.</p>
       )}
 
       {ready && packages.length > 0 && (
@@ -214,24 +241,28 @@ export function CostMargin({
                 </tr>
               </thead>
               <tbody>
-                {packages.map((p) => {
-                  const perCredit = perCreditMnt(p);
-                  const m = marginFor({ costUsd, creditCost, perCredit, usdMnt: rate });
-                  return (
-                    <tr key={p.id} className="border-t border-foreground/10">
-                      <td className="py-1 pr-2">{p.name}</td>
-                      <td className="py-1 pr-2">{mnt(perCredit)}</td>
-                      <td className="py-1 pr-2">{mnt(m.revenueMnt)}</td>
-                      <td className="py-1 pr-2">{mnt(m.costMnt)}</td>
-                      <td className={`py-1 font-semibold ${m.marginMnt < 0 ? "text-red-500" : ""}`}>
-                        {mnt(m.marginMnt)} ({m.marginPct.toFixed(0)}%)
-                      </td>
-                    </tr>
-                  );
-                })}
+                {margins.map(({ pack, perCredit, m }) => (
+                  <tr key={pack.id} className="border-t border-foreground/10">
+                    <td className="py-1 pr-2">{pack.name}</td>
+                    <td className="py-1 pr-2">{mnt(perCredit)}</td>
+                    <td className="py-1 pr-2">{mnt(m.revenueMnt)}</td>
+                    <td className="py-1 pr-2">{mnt(m.costMnt)}</td>
+                    <td className={`py-1 font-semibold ${m.marginMnt < 0 ? "text-red-500" : m.marginPct < MIN_MARGIN_PCT ? "text-amber-500" : ""}`}>
+                      {mnt(m.marginMnt)} ({m.marginPct.toFixed(0)}%)
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
+
+          {thinnest && thinnest.m.marginPct < MIN_MARGIN_PCT && (
+            <p role="alert" className={`text-xs font-semibold ${thinnest.m.marginMnt < 0 ? "text-red-500" : "text-amber-500"}`}>
+              {thinnest.m.marginMnt < 0
+                ? `Warning: at ${tier.label} this price loses money on the ${thinnest.pack.name} (${thinnest.m.marginPct.toFixed(0)}%).`
+                : `Warning: the margin at ${tier.label} is below ${MIN_MARGIN_PCT}% on the ${thinnest.pack.name} (${thinnest.m.marginPct.toFixed(0)}%).`}
+            </p>
+          )}
 
           {!auto && (
             <div className="flex flex-wrap items-center gap-2 text-xs">

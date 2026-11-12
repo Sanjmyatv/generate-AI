@@ -13,14 +13,20 @@ const groups: { title: TKey; items: { label: TKey; href?: string }[] }[] = [
       { label: "footer.trending", href: "/#trending" },
     ],
   },
-  { title: "footer.company", items: [{ label: "footer.about" }, { label: "footer.contact" }] },
+  { title: "footer.company", items: [{ label: "footer.about" }] },
   { title: "footer.legal", items: [{ label: "footer.terms" }, { label: "footer.privacy" }] },
 ];
 
+// The official accounts. The TikTok address follows the Instagram handle: change it here if the account differs.
 const socials = [
-  { label: "Instagram", icon: "/brand/icon-instagram.svg", framed: true },
-  { label: "Facebook", icon: "/brand/icon-facebook.svg", framed: true },
-  { label: "TikTok", icon: "/brand/icon-tiktok.svg", framed: false },
+  { label: "Instagram", href: "https://www.instagram.com/zyroai_mn", icon: "/brand/icon-instagram.svg", framed: true },
+  {
+    label: "Facebook",
+    href: "https://www.facebook.com/people/Zyro-AI-%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE-%D0%B7%D1%83%D1%80%D0%B0%D0%B3/61596146735212/",
+    icon: "/brand/icon-facebook.svg",
+    framed: true,
+  },
+  { label: "TikTok", href: "https://www.tiktok.com/@zyroai_mn", icon: "/brand/icon-tiktok.svg", framed: false },
 ];
 
 export async function Footer() {
@@ -36,17 +42,20 @@ export async function Footer() {
             </p>
             <div className="flex gap-3">
               {socials.map((s) => (
-                <span
+                <a
                   key={s.label}
-                  role="img"
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={s.label}
-                  className={`flex size-10 items-center justify-center rounded-full ${
-                    s.framed ? "border border-line bg-surface" : ""
+                  title={s.label}
+                  className={`flex size-10 items-center justify-center rounded-full opacity-80 transition duration-200 hover:scale-110 hover:opacity-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.45)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[0_0_18px_rgba(99,102,241,0.45)] ${
+                    s.framed ? "border border-line bg-surface hover:border-indigo-400/60" : ""
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.icon} alt="" className={s.framed ? "size-[18px]" : "size-10"} />
-                </span>
+                </a>
               ))}
             </div>
           </div>

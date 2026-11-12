@@ -246,3 +246,68 @@ body {
     animation: none;
   }
 }
+
+/* Generation progress: a frame whose edge glows and slowly rotates through purple, cyan and pink. */
+@property --glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.glow-box {
+  position: relative;
+  isolation: isolate;
+  border-radius: 1.5rem;
+  padding: 1.5px;
+  background: conic-gradient(from var(--glow-angle), #8b5cf6, #22d3ee, #ec4899, #f59e0b, #8b5cf6);
+  animation: glow-spin 6s linear infinite;
+}
+.glow-box::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: inherit;
+  background: inherit;
+  filter: blur(18px);
+  opacity: 0.55;
+}
+.glow-inner {
+  border-radius: calc(1.5rem - 1.5px);
+  background: var(--background);
+  padding: 1.25rem;
+}
+@keyframes glow-spin {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+/* The bar itself: a gradient with a soft highlight sliding along it. */
+.progress-fill {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #7c3aed, #6366f1, #22d3ee);
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.7);
+  transition: width 0.8s ease-out;
+}
+.progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: translateX(-100%);
+  animation: progress-shine 1.8s ease-in-out infinite;
+}
+@keyframes progress-shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow-box,
+  .progress-fill::after {
+    animation: none;
+  }
+  .progress-fill {
+    transition: none;
+  }
+}

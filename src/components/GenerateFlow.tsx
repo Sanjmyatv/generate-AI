@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useT } from "@/components/I18nProvider";
+import { GenerationProgress } from "@/components/GenerationProgress";
 import { LoginModal } from "@/components/LoginModal";
 import { QPayModal } from "@/components/QPayModal";
 import { ResolutionSelector } from "@/components/ResolutionSelector";
 import { TemplatePreview } from "@/components/TemplatePreview";
-import { DEFAULT_RESOLUTION, formatCredits, type Resolution } from "@/config/pricing";
+import { DEFAULT_RESOLUTION, RESOLUTION_LABELS, formatCredits, type Resolution } from "@/config/pricing";
 import { prepareImage } from "@/lib/image-client";
 import { templateDescription, templateName } from "@/lib/i18n/content";
-import type { T, TKey } from "@/lib/i18n/translate";
+import type { T } from "@/lib/i18n/translate";
 import type { CreditPackage, Template } from "@/types";
 
 type Step = "detail" | "upload" | "processing" | "result" | "error";
@@ -35,10 +36,6 @@ interface FlowError {
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_NETWORK_FAILURES = 5;
-
-const PROGRESS_MESSAGES: TKey[] = ["gen.progress1", "gen.progress2", "gen.progress3", "gen.progress4"];
-
-const IMAGE_PROGRESS_MESSAGES: TKey[] = ["gen.imgProgress1", "gen.imgProgress2", "gen.imgProgress3"];
 
 /** "9:16" -> "9 / 16" for the CSS aspect-ratio property; falls back to 3/4. */
 function aspectCss(ratio: string) {
@@ -181,6 +178,8 @@ export function GenerateFlow({
   const [showPay, setShowPay] = useState(false);
   // 480p is the default; 720p HD only exists when the template has an HD price.
   const [resolution, setResolution] = useState<Resolution>(DEFAULT_RESOLUTION);
+  // Images priced at more than one quality (1K, 2K, 4K) let the user choose, 1K by default.
+  const [imageTier, setImageTier] = useState("1k");
   // Kept locally so the balance stays right after paying for or being refunded a generation.
   const [balance, setBalance] = useState(credits);
   const charged = useRef(0);
@@ -192,7 +191,20 @@ export function GenerateFlow({
   const isVideo = template.type === "video";
   const hdPrice = isVideo ? template.creditCostHd : null;
   const activeResolution: Resolution = hdPrice !== null && resolution === "720p" ? "720p" : "480p";
-  const cost = activeResolution === "720p" && hdPrice !== null ? hdPrice : template.creditCost;
+  const imageTiers =
+    !isVideo && (template.creditCost2k !== null || template.creditCost4k !== null)
+      ? [
+          { id: "1k", credits: template.creditCost },
+          { id: "2k", credits: template.creditCost2k },
+          { id: "4k", credits: template.creditCost4k },
+        ].flatMap((tier) => (tier.credits === null ? [] : [{ id: tier.id, credits: tier.credits }]))
+      : null;
+  const activeTier = imageTiers?.find((tier) => tier.id === imageTier)?.id ?? "1k";
+  const cost = imageTiers
+    ? imageTiers.find((tier) => tier.id === activeTier)!.credits
+    : activeResolution === "720p" && hdPrice !== null
+      ? hdPrice
+      : template.creditCost;
   const seconds = template.durationSeconds;
   const generateLabel = isVideo
     ? seconds
@@ -235,7 +247,7 @@ export function GenerateFlow({
       const { id } = await postJson<{ id: string }>("/api/generate", {
         templateId: template.id,
         uploadIds,
-        ...(isVideo ? { resolution: activeResolution } : {}),
+        ...(isVideo ? { resolution: activeResolution } : imageTiers ? { resolution: activeTier } : {}),
       });
       charged.current = cost;
       setBalance((b) => (b === null ? b : b - cost));
@@ -315,8 +327,6 @@ export function GenerateFlow({
     };
   }, [step, generationId, fail, reset, t]);
 
-  const messages = template.type === "video" ? PROGRESS_MESSAGES : IMAGE_PROGRESS_MESSAGES;
-  const message = t(messages[Math.min(Math.floor(elapsed / 20), messages.length - 1)]);
 
   return (
     <div className="mx-auto max-w-md py-8">
@@ -372,11 +382,25 @@ export function GenerateFlow({
           {hdPrice !== null && (
             <ResolutionSelector
               value={activeResolution}
-              onChange={setResolution}
+              onChange={(id) => setResolution(id as Resolution)}
+              groupLabel={t("res.groupLabel")}
               options={[
-                { resolution: "480p", credits: template.creditCost },
-                { resolution: "720p", credits: hdPrice },
+                { id: "480p", label: RESOLUTION_LABELS["480p"].label, tagline: t("res.tagline.480p"), credits: template.creditCost },
+                { id: "720p", label: RESOLUTION_LABELS["720p"].label, tagline: t("res.tagline.720p"), credits: hdPrice },
               ]}
+            />
+          )}
+          {imageTiers && (
+            <ResolutionSelector
+              value={activeTier}
+              onChange={setImageTier}
+              groupLabel={t("res.groupLabelImage")}
+              options={imageTiers.map((tier) => ({
+                id: tier.id,
+                label: tier.id.toUpperCase(),
+                tagline: t(`res.tagline.${tier.id}` as "res.tagline.1k"),
+                credits: tier.credits,
+              }))}
             />
           )}
           <button
@@ -389,18 +413,8 @@ export function GenerateFlow({
         </div>
       )}
 
-      {step === "processing" && (
-        <div className="mt-6 text-center" role="status" aria-live="polite">
-          <div className="mx-auto h-1.5 w-full overflow-hidden rounded-full bg-foreground/10">
-            <div className="h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-violet-500 to-pink-500" />
-          </div>
-          <p className="mt-4 font-semibold">{message}</p>
-          <p className="text-sm text-foreground/60">
-            {t("gen.mayTake")} · {Math.floor(elapsed / 60)}:
-            {String(elapsed % 60).padStart(2, "0")}
-          </p>
-        </div>
-      )}
+
+      {step === "processing" && <GenerationProgress elapsed={elapsed} isVideo={isVideo} />}
 
       {step === "error" && error && (
         <div className="mt-6 space-y-3 text-center" role="alert">

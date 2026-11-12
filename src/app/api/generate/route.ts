@@ -29,7 +29,7 @@ function guestLimit() {
 }
 
 /**
- * POST /api/generate  { templateId, uploadIds: string[], resolution?: "480p" | "720p" }
+ * POST /api/generate  { templateId, uploadIds: string[], resolution?: "480p" | "720p" | "1k" | "2k" | "4k" }
  *
  * The client only chooses a template, its own photos and (for video) 480p or 720p. The
  * template video, the hidden prompt and the price come from the database, so callers cannot
@@ -69,6 +69,7 @@ export async function POST(req: Request) {
   // Videos are priced per resolution: 480p by default, 720p only when the template has an HD price.
   let resolution: string;
   let cost = template.creditCost;
+  let imageRenderSize: "1k" | "2k" | "4k" | undefined;
   if (template.type === "VIDEO") {
     const requested = body.resolution ?? DEFAULT_RESOLUTION;
     const offered: string[] = template.creditCostHd ? ["480p", "720p"] : ["480p"];
@@ -78,7 +79,21 @@ export async function POST(req: Request) {
     resolution = requested;
     if (requested === "720p") cost = template.creditCostHd!;
   } else {
-    resolution = imageEdit?.resolution ?? "image"; // images have one price and a fixed render size
+    // An image has one price at the size set on the template, or, when the admin priced the 2K and 4K
+    // qualities, a choice of 1K / 2K / 4K with a price each.
+    const tiers = { "1k": template.creditCost, "2k": template.creditCost2k, "4k": template.creditCost4k };
+    if (template.creditCost2k !== null || template.creditCost4k !== null) {
+      const requested = body.resolution ?? "1k";
+      const price = typeof requested === "string" && Object.hasOwn(tiers, requested) ? tiers[requested as keyof typeof tiers] : null;
+      if (typeof requested !== "string" || price === null) {
+        return Response.json({ error: "invalid_resolution" }, { status: 400 });
+      }
+      resolution = requested;
+      cost = price;
+      imageRenderSize = requested as "1k" | "2k" | "4k";
+    } else {
+      resolution = imageEdit?.resolution ?? "image";
+    }
   }
   const videoResolution = resolution as Resolution;
 
@@ -164,7 +179,7 @@ export async function POST(req: Request) {
           imageUrls,
           prompt: imageEdit.prompt,
           quality: imageEdit.quality,
-          resolution: imageEdit.resolution,
+          resolution: imageRenderSize ?? imageEdit.resolution,
           aspectRatio: imageEdit.aspectRatio,
         })
       : genjutsu

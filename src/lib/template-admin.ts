@@ -79,6 +79,9 @@ export interface TemplateFormValues {
   creditCost: string;
   /** Credits at 720p HD; empty means the template is offered at 480p only. */
   creditCostHd: string;
+  /** Images: credits for the 2K and 4K quality (empty = not offered). creditCost is the 1K price. */
+  creditCost2k: string;
+  creditCost4k: string;
   /** Length of the video this template makes, in seconds. */
   durationSeconds: string;
   aspectRatio: string;
@@ -101,6 +104,9 @@ export interface TemplateFormValues {
   costUsd: string;
   /** The same, at 720p HD. */
   costUsdHd: string;
+  /** The same for the 2K and 4K image qualities. */
+  costUsd2k: string;
+  costUsd4k: string;
 }
 
 export function defaultFormValues(): TemplateFormValues {
@@ -116,6 +122,8 @@ export function defaultFormValues(): TemplateFormValues {
     prompt: "",
     creditCost: String(VIDEO_CREDITS[20]["480p"]),
     creditCostHd: String(VIDEO_CREDITS[20]["720p"]),
+    creditCost2k: "",
+    creditCost4k: "",
     durationSeconds: "15",
     aspectRatio: "9:16",
     requiredPhotoCount: "1",
@@ -134,6 +142,8 @@ export function defaultFormValues(): TemplateFormValues {
     imageAspect: "auto",
     costUsd: "",
     costUsdHd: "",
+    costUsd2k: "",
+    costUsd4k: "",
   };
 }
 
@@ -163,6 +173,8 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   v.prompt = str(config.prompt);
   v.creditCost = String(t.creditCost);
   v.creditCostHd = t.creditCostHd === null ? "" : String(t.creditCostHd);
+  v.creditCost2k = t.creditCost2k === null ? "" : String(t.creditCost2k);
+  v.creditCost4k = t.creditCost4k === null ? "" : String(t.creditCost4k);
   v.durationSeconds = t.durationSeconds === null ? "" : String(t.durationSeconds);
   v.aspectRatio = t.aspectRatio;
   v.requiredPhotoCount = String(t.requiredPhotoCount);
@@ -174,6 +186,8 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   v.sourceVideoUrl = str(config.templateVideoUrl);
   if (typeof config.costUsd === "number") v.costUsd = String(config.costUsd);
   if (typeof config.costUsdHd === "number") v.costUsdHd = String(config.costUsdHd);
+  if (typeof config.costUsd2k === "number") v.costUsd2k = String(config.costUsd2k);
+  if (typeof config.costUsd4k === "number") v.costUsd4k = String(config.costUsd4k);
   if (isImageEngine(engine)) {
     v.imageResolution = str(config.resolution) || v.imageResolution;
     v.imageQuality = str(config.quality) || v.imageQuality;
@@ -208,6 +222,8 @@ export function readForm(form: FormData): TemplateFormValues {
     prompt: text("prompt").trim(),
     creditCost: text("creditCost").trim(),
     creditCostHd: text("creditCostHd").trim(),
+    creditCost2k: text("creditCost2k").trim(),
+    creditCost4k: text("creditCost4k").trim(),
     durationSeconds: text("durationSeconds").trim(),
     aspectRatio: text("aspectRatio"),
     requiredPhotoCount: text("requiredPhotoCount").trim(),
@@ -226,6 +242,8 @@ export function readForm(form: FormData): TemplateFormValues {
     imageAspect: text("imageAspect"),
     costUsd: text("costUsd").trim(),
     costUsdHd: text("costUsdHd").trim(),
+    costUsd2k: text("costUsd2k").trim(),
+    costUsd4k: text("costUsd4k").trim(),
   };
 }
 
@@ -241,6 +259,8 @@ export interface TemplateData {
   type: "VIDEO" | "IMAGE";
   creditCost: number;
   creditCostHd: number | null;
+  creditCost2k: number | null;
+  creditCost4k: number | null;
   durationSeconds: number | null;
   aspectRatio: string;
   requiredPhotoCount: number;
@@ -305,6 +325,19 @@ export function buildTemplateData(
       }
     }
   }
+  // Image quality tiers: 2K and 4K are optional extra prices on top of the 1K one.
+  let creditCost2k: number | null = null;
+  let creditCost4k: number | null = null;
+  if (v.type === "IMAGE") {
+    for (const [value, key] of [[v.creditCost2k, "creditCost2k"], [v.creditCost4k, "creditCost4k"]] as const) {
+      if (!value) continue;
+      const credits = Number(value);
+      if (!Number.isInteger(credits) || credits < 1 || credits > MAX_CREDITS) {
+        errors[key] = "Enter a whole number of credits, or leave it empty to not offer this quality.";
+      } else if (key === "creditCost2k") creditCost2k = credits;
+      else creditCost4k = credits;
+    }
+  }
   const requiredPhotoCount = Number(v.requiredPhotoCount);
   if (!Number.isInteger(requiredPhotoCount) || requiredPhotoCount < 1 || requiredPhotoCount > MAX_PHOTOS) {
     errors.requiredPhotoCount = `Enter 1 to ${MAX_PHOTOS} photos.`;
@@ -340,6 +373,12 @@ export function buildTemplateData(
     const costUsdHd = Number(v.costUsdHd);
     if (!Number.isFinite(costUsdHd) || costUsdHd < 0 || costUsdHd > 1000) errors.costUsdHd = "Enter the 720p cost in USD, e.g. 5.11.";
     else config.costUsdHd = costUsdHd;
+  }
+  for (const [value, key] of [[v.costUsd2k, "costUsd2k"], [v.costUsd4k, "costUsd4k"]] as const) {
+    if (!value) continue;
+    const cost = Number(value);
+    if (!Number.isFinite(cost) || cost < 0 || cost > 1000) errors[key] = "Enter the cost in USD, e.g. 0.12.";
+    else config[key] = cost;
   }
   const prevVersion = (existingConfig as { version?: unknown } | null)?.version;
   if (typeof prevVersion === "number") config.version = prevVersion;
@@ -414,6 +453,8 @@ export function buildTemplateData(
       type: v.type,
       creditCost,
       creditCostHd,
+      creditCost2k,
+      creditCost4k,
       durationSeconds,
       aspectRatio: v.aspectRatio,
       requiredPhotoCount,

@@ -238,6 +238,8 @@ export interface PriceSuggestion {
   margins: { name: string; pct: number }[];
   /** Set when the cost is an estimate rather than Higgsfield's own price. */
   note?: string;
+  /** Image templates: a price and cost for each quality (credits and costUsd above are the 1K ones). */
+  imageTiers?: { credits: Record<"1k" | "2k" | "4k", number>; costUsd: Record<"1k" | "2k" | "4k", number> };
 }
 
 export type PriceSuggestionResult = ({ ok: true } & PriceSuggestion) | { ok: false; error: string };
@@ -263,6 +265,38 @@ export async function suggestPriceAction(
   const usdMnt = usdMntRate();
   const isVideo = input.type === "VIDEO";
 
+  const creditsFor = (costUsd: number) =>
+    niceCredits(creditsForMargin({ costUsd, perCredit: perCreditMnt(reference), usdMnt, targetPct: TARGET_MARGIN_PCT }));
+
+  // An image is priced at each of its three qualities (1K, 2K, 4K); the 1K price is the base one.
+  if (!isVideo && hasPriceLookup(input.engine)) {
+    const lookup = { ...input, prompt: input.prompt || "price lookup" };
+    const costUsd = {} as Record<"1k" | "2k" | "4k", number>;
+    let note: string | undefined;
+    for (const tier of ["1k", "2k", "4k"] as const) {
+      const priced = await estimateUsd({ ...lookup, imageResolution: tier });
+      if (!priced.ok) return priced;
+      costUsd[tier] = priced.usd;
+      note ??= priced.note;
+    }
+    const credits = { "1k": creditsFor(costUsd["1k"]), "2k": creditsFor(costUsd["2k"]), "4k": creditsFor(costUsd["4k"]) };
+    return {
+      ok: true,
+      credits: credits["1k"],
+      creditsHd: null,
+      costUsd: costUsd["1k"],
+      costUsdHd: null,
+      targetPct: TARGET_MARGIN_PCT,
+      reference: reference.name,
+      margins: packs.map((p) => ({
+        name: p.name,
+        pct: marginFor({ costUsd: costUsd["1k"], creditCost: credits["1k"], perCredit: perCreditMnt(p), usdMnt }).marginPct,
+      })),
+      note,
+      imageTiers: { credits, costUsd },
+    };
+  }
+
   // The provider's cost per generation: looked up where there is a price API, typed in otherwise.
   let standard: CostEstimateResult;
   let hd: CostEstimateResult | null = null;
@@ -280,8 +314,6 @@ export async function suggestPriceAction(
   }
   if (!standard.ok) return standard;
 
-  const creditsFor = (costUsd: number) =>
-    niceCredits(creditsForMargin({ costUsd, perCredit: perCreditMnt(reference), usdMnt, targetPct: TARGET_MARGIN_PCT }));
   const credits = creditsFor(standard.usd);
   return {
     ok: true,

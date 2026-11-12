@@ -21,7 +21,7 @@ export async function Hero() {
             </p>
           </div>
 
-          <h1 className="text-[40px] font-semibold leading-[1.08] tracking-[-1.8px] text-foreground md:text-[68px] md:tracking-[-3.5px] xl:text-[76px]">
+          <h1 className="text-balance text-[34px] font-semibold leading-[1.1] tracking-[-1.5px] text-foreground md:text-[56px] md:tracking-[-2.8px] xl:text-[64px]">
             {t("hero.title1")}
             <br />
             <span className="bg-linear-to-r from-violet-300 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">

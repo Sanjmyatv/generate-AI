@@ -23,6 +23,9 @@ export interface Template {
   creditCost: number;
   /** Credits at 720p HD; null when the template is offered at 480p only. */
   creditCostHd: number | null;
+  /** Image templates: credits for a 2K and a 4K render (creditCost is 1K). Null = not offered. */
+  creditCost2k: number | null;
+  creditCost4k: number | null;
   /** Length of the video this template makes, in seconds. */
   durationSeconds: number | null;
   aspectRatio: string;

@@ -30,8 +30,8 @@ export const en = {
 
   // Hero
   "hero.eyebrow": "AI VIDEO & IMAGE GENERATION · READY-TO-USE TEMPLATES",
-  "hero.title1": "Your imagination.",
-  "hero.title2": "Without limits.",
+  "hero.title1": "No prompts needed.",
+  "hero.title2": "Create trending videos in one click.",
   "hero.desc":
     "Turn your photos into incredible AI videos and images. Choose a template, upload your photo, and let zyro.ai do the magic.",
   "hero.explore": "Explore Templates",
@@ -84,7 +84,6 @@ export const en = {
   "footer.trending": "Trending Templates",
   "footer.company": "Company",
   "footer.about": "About",
-  "footer.contact": "Contact",
   "footer.legal": "Legal",
   "footer.terms": "Terms of Service",
   "footer.privacy": "Privacy Policy",
@@ -143,6 +142,10 @@ export const en = {
   "res.groupLabel": "Video resolution",
   "res.tagline.480p": "Fast & Eco",
   "res.tagline.720p": "HD / Pro",
+  "res.groupLabelImage": "Image quality",
+  "res.tagline.1k": "Standard",
+  "res.tagline.2k": "HD",
+  "res.tagline.4k": "Ultra HD",
   "res.credits": "{amount} credits",
 
   // Log in, sign up, passwords
@@ -271,13 +274,9 @@ export const en = {
   "qpay.login.desc": "Credits belong to your account. Log in with Google or your email, then choose your pack again.",
 
   // Generate flow
-  "gen.progress1": "Creating your masterpiece...",
-  "gen.progress2": "Teaching the dancers your face...",
-  "gen.progress3": "Adding the final touches...",
-  "gen.progress4": "Almost there, this may take a little while.",
-  "gen.imgProgress1": "Working on your photo...",
-  "gen.imgProgress2": "Adding the finishing touches...",
-  "gen.imgProgress3": "Almost there, this may take a little while.",
+  "gen.stage1": "Processing your photo...",
+  "gen.stage2": "The AI model is reading it...",
+  "gen.stage3": "Almost ready...",
   "gen.err.invalidImageTitle": "Invalid image",
   "gen.err.invalidImage": "This photo doesn't meet the requirements. Please upload a clearer photo.",
   "gen.err.uploadTitle": "Upload error",

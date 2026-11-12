@@ -18,6 +18,8 @@ function toTemplate(t: DbTemplate): Template {
     type: t.type === "VIDEO" ? "video" : "image",
     creditCost: t.creditCost,
     creditCostHd: t.creditCostHd,
+    creditCost2k: t.creditCost2k,
+    creditCost4k: t.creditCost4k,
     durationSeconds: t.durationSeconds,
     aspectRatio: t.aspectRatio,
     requiredPhotoCount: t.requiredPhotoCount,

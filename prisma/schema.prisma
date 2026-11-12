@@ -99,6 +99,10 @@ model Template {
   creditCost         Int
   /// Credits at 720p HD; null means the template is offered at 480p only.
   creditCostHd       Int?
+  /// Image templates: credits for a 2K and a 4K render (creditCost is the 1K price). Empty = tier not offered;
+  /// with neither set the image has one price and renders at the size in its configuration.
+  creditCost2k       Int?
+  creditCost4k       Int?
   /// Length of the video this template produces, in seconds.
   durationSeconds    Int?
   aspectRatio        String           @default("3:4")

@@ -28,8 +28,8 @@ export const mn: Messages = {
 
   // Hero
   "hero.eyebrow": "AI ВИДЕО, ЗУРАГ ҮҮСГЭГЧ · БЭЛЭН ЗАГВАРУУД",
-  "hero.title1": "Таны төсөөлөл.",
-  "hero.title2": "Хязгааргүй.",
+  "hero.title1": "Prompt бичих шаардлагагүй.",
+  "hero.title2": "Нэг товшилтоор трэнд бичлэг бүтээе.",
   "hero.desc":
     "Зургаа гайхалтай AI видео, зураг болго. Загвараа сонгоод, зургаа оруул, үлдсийг нь zyro.ai хийнэ.",
   "hero.explore": "Загвар үзэх",
@@ -40,7 +40,7 @@ export const mn: Messages = {
 
   // Discovery
   "disc.title": "Гайхалтай зүйл бүтээ.",
-  "disc.subtitle": "Загвар сонго. Зургаа оруул. Хуваалцууштай үр дүн ав.",
+  "disc.subtitle": "Загвар сонго. Зургаа оруул. Хуваалцмаар үр дүн ав.",
   "disc.typeLabel": "Загварын төрөл",
   "disc.videos": "Видео",
   "disc.images": "Зураг",
@@ -82,7 +82,6 @@ export const mn: Messages = {
   "footer.trending": "Эрэлттэй загварууд",
   "footer.company": "Компани",
   "footer.about": "Бидний тухай",
-  "footer.contact": "Холбоо барих",
   "footer.legal": "Хууль, журам",
   "footer.terms": "Үйлчилгээний нөхцөл",
   "footer.privacy": "Нууцлалын бодлого",
@@ -141,6 +140,10 @@ export const mn: Messages = {
   "res.groupLabel": "Видеоны нягтрал",
   "res.tagline.480p": "Хурдан, хэмнэлттэй",
   "res.tagline.720p": "HD / Про",
+  "res.groupLabelImage": "Зургийн чанар",
+  "res.tagline.1k": "Стандарт",
+  "res.tagline.2k": "Өндөр чанар",
+  "res.tagline.4k": "Ultra HD",
   "res.credits": "{amount} кредит",
 
   // Log in, sign up, passwords
@@ -269,13 +272,9 @@ export const mn: Messages = {
   "qpay.login.desc": "Кредит таны бүртгэлд хадгалагдана. Google эсвэл имэйлээрээ нэвтэрч, багцаа дахин сонгоно уу.",
 
   // Generate flow
-  "gen.progress1": "Таны бүтээлийг хийж байна...",
-  "gen.progress2": "Бүжигчдэд таны царайг сургаж байна...",
-  "gen.progress3": "Сүүлчийн засваруудыг хийж байна...",
-  "gen.progress4": "Бараг болчихлоо, жаахан хугацаа орж магадгүй.",
-  "gen.imgProgress1": "Таны зураг дээр ажиллаж байна...",
-  "gen.imgProgress2": "Сүүлчийн засваруудыг хийж байна...",
-  "gen.imgProgress3": "Бараг болчихлоо, жаахан хугацаа орж магадгүй.",
+  "gen.stage1": "Зураг боловсруулж байна...",
+  "gen.stage2": "AI Модел уншиж байна...",
+  "gen.stage3": "Бэлэн болж байна...",
   "gen.err.invalidImageTitle": "Зураг тохирохгүй байна",
   "gen.err.invalidImage": "Энэ зураг шаардлагад нийцэхгүй байна. Илүү тод зураг оруулна уу.",
   "gen.err.uploadTitle": "Оруулахад алдаа гарлаа",
