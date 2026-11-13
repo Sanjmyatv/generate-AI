@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { prisma } from "@/lib/db";
-import { deleteTemplateAction, setTemplateActiveAction } from "@/app/actions/admin";
-import { formatCredits } from "@/config/pricing";
+import { deleteTemplateAction, savePricingSettingsAction, setTemplateActiveAction } from "@/app/actions/admin";
 import { marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
+import { getPricingRates } from "@/lib/pricing-settings";
 import { ENGINES, templateToFormValues } from "@/lib/template-admin";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,14 @@ const NOTICES: Record<string, string> = {
   saved: "Template saved.",
   deleted: "Template deleted.",
   has_generations: "This template has been used to generate content, so it can't be deleted. Hide it instead.",
+  pricing_saved: "Pricing settings saved. They apply the next time a price is worked out; saved templates keep their credits until you re-save them.",
+  pricing_invalid: "Enter the retry buffer (0 to 100%) and the payment gateway fee (0 to 20%) as numbers.",
 };
+
+/** Credits exactly as stored: whole numbers plain, otherwise up to 2 decimals. */
+const credits = (n: unknown) => Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+
+const inputClass = "w-24 rounded-xl border border-foreground/30 bg-transparent px-3 py-2";
 
 export default async function AdminHome({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
   const { notice } = await searchParams;
@@ -24,6 +31,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const packages = await prisma.creditPackage.findMany({ where: { active: true } });
   const cheapest = packages.sort((a, b) => perCreditMnt(a) - perCreditMnt(b))[0];
   const usdMnt = usdMntRate();
+  const rates = await getPricingRates();
 
   return (
     <div className="pt-6">
@@ -37,6 +45,28 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         <p className="mt-4 rounded-xl border border-foreground/20 p-3 text-sm">{NOTICES[notice]}</p>
       )}
 
+      <form action={savePricingSettingsAction} className="mt-6 rounded-2xl border border-foreground/15 p-4">
+        <h2 className="text-sm font-semibold">Pricing settings</h2>
+        <p className="mt-1 text-xs text-foreground/60">
+          The automatic selling price covers the provider cost, a retry buffer on top of it and the payment gateway&apos;s
+          share, and still leaves the target margin: price = provider cost × (1 + retry buffer) ÷ (1 − margin − gateway fee).
+          1 credit = 100₮.
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-4">
+          <label className="text-xs font-semibold">
+            Retry buffer rate (%)
+            <input name="retryPct" defaultValue={String(+(rates.retryRate * 100).toFixed(2))} inputMode="decimal" className={`mt-1 block ${inputClass}`} />
+            <span className="mt-1 block font-normal text-foreground/60">default 5 (= 0.05)</span>
+          </label>
+          <label className="text-xs font-semibold">
+            Payment gateway fee (%)
+            <input name="feePct" defaultValue={String(+(rates.gatewayFeeRate * 100).toFixed(2))} inputMode="decimal" className={`mt-1 block ${inputClass}`} />
+            <span className="mt-1 block font-normal text-foreground/60">default 1.5 (= 0.015)</span>
+          </label>
+          <button className="rounded-full btn-primary px-4 py-2 text-sm font-semibold text-foreground">Save</button>
+        </div>
+      </form>
+
       <ul className="mt-6 space-y-3">
         {templates.map((t) => {
           const engine = ENGINES.find((e) => e.value === templateToFormValues(t).engine);
@@ -44,7 +74,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
           const costUsd = (t.generationConfig as { costUsd?: unknown } | null)?.costUsd;
           const margin =
             typeof costUsd === "number" && cheapest
-              ? marginFor({ costUsd, creditCost: t.creditCost, perCredit: perCreditMnt(cheapest), usdMnt })
+              ? marginFor({ costUsd, creditCost: Number(t.creditCost), perCredit: perCreditMnt(cheapest), usdMnt, ...rates })
               : null;
           return (
             <li key={t.id} className="flex gap-3 rounded-2xl border border-foreground/15 p-3">
@@ -60,8 +90,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                   )}
                 </div>
                 <p className="text-xs text-foreground/60">
-                  {t.category.name} · {t.type === "VIDEO" ? "Video" : "Image"} · {formatCredits(t.creditCost)}
-                  {t.creditCostHd ? ` / ${formatCredits(t.creditCostHd)}` : ""} credits ·{" "}
+                  {t.category.name} · {t.type === "VIDEO" ? "Video" : "Image"} · {credits(t.creditCost)}
+                  {t.creditCostHd ? ` / ${credits(t.creditCostHd)}` : ""} credits ·{" "}
                   {configured ? engine?.label : "No method chosen"}
                 </p>
                 {configured && (

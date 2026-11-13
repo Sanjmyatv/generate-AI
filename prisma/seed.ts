@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { IMAGE_CREDITS, PACKAGES, VIDEO_CREDITS } from "../src/config/pricing";
+import { IMAGE_CREDITS, IMAGE_TIER_CREDITS, PACKAGES, VIDEO_CREDITS } from "../src/config/pricing";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -22,8 +22,8 @@ async function main() {
       description: "Upload your photo and generate an AI dance video.",
       categoryId: "dance",
       type: "VIDEO" as const,
-      creditCost: 3500,
-      creditCostHd: 5000,
+      creditCost: VIDEO_CREDITS[10]["480p"],
+      creditCostHd: VIDEO_CREDITS[10]["720p"],
       durationSeconds: 10,
       aspectRatio: "9:16",
       requiredPhotoCount: 1,
@@ -36,8 +36,8 @@ async function main() {
       description: "Turn your photo into a street dance clip.",
       categoryId: "dance",
       type: "VIDEO" as const,
-      creditCost: 3500,
-      creditCostHd: 5000,
+      creditCost: VIDEO_CREDITS[10]["480p"],
+      creditCostHd: VIDEO_CREDITS[10]["720p"],
       durationSeconds: 10,
       aspectRatio: "9:16",
       requiredPhotoCount: 1,
@@ -235,7 +235,7 @@ async function main() {
 
   // Bump when the colorize definition below changes; applied to the existing row only when the
   // stored version is older.
-  const COLORIZE_VERSION = 2;
+  const COLORIZE_VERSION = 3;
 
   // Image edit on Higgsfield Marketing Studio (direct mode, no preset): restores, sharpens and
   // colorizes an old photo at high resolution. Public pricing for this model isn't listed, so
@@ -246,7 +246,9 @@ async function main() {
     description: "Colorize an old photo, repair its damage and sharpen it into a high-resolution picture.",
     categoryId: "photo",
     type: "IMAGE" as const,
-    creditCost: IMAGE_CREDITS,
+    creditCost: IMAGE_TIER_CREDITS["1k"],
+    creditCost2k: IMAGE_TIER_CREDITS["2k"],
+    creditCost4k: IMAGE_TIER_CREDITS["4k"],
     aspectRatio: "3:4",
     requiredPhotoCount: 1,
     photoLabels: ["Old photo"],
@@ -312,6 +314,8 @@ async function main() {
         name: colorize.name,
         description: colorize.description,
         creditCost: colorize.creditCost,
+        creditCost2k: colorize.creditCost2k,
+        creditCost4k: colorize.creditCost4k,
         photoLabels: colorize.photoLabels,
         generationConfig: colorize.generationConfig,
       },

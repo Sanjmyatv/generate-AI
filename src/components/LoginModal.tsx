@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 import { useT } from "@/components/I18nProvider";
 import { LoginButtons } from "@/components/LoginButtons";
@@ -55,9 +56,9 @@ export function LoginModal({
         <LoginButtons redirectTo={redirectTo} />
         <p className="mt-6 text-center text-xs leading-relaxed text-zinc-500">
           {t("login.termsPre")}
-          <span className="text-zinc-300 underline underline-offset-2">{t("login.terms")}</span>
+          <Link href="/terms" target="_blank" className="text-zinc-300 underline underline-offset-2">{t("login.terms")}</Link>
           {t("login.termsAnd")}
-          <span className="text-zinc-300 underline underline-offset-2">{t("login.privacy")}</span>
+          <Link href="/privacy" target="_blank" className="text-zinc-300 underline underline-offset-2">{t("login.privacy")}</Link>
           {t("login.termsPost")}
         </p>
         <button type="button" onClick={onClose} className="mt-4 w-full text-sm text-zinc-400 hover:text-foreground">

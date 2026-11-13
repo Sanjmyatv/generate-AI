@@ -26,6 +26,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     // Served through our proxy so the provider URL stays private.
     videoUrl: gen.status === "COMPLETED" ? `/api/generations/${gen.id}/video` : null,
     error: gen.status === "FAILED" ? gen.error : null,
-    refunded: gen.status === "FAILED" && Boolean(gen.userId) && gen.creditCost > 0,
+    refunded: gen.status === "FAILED" && Boolean(gen.userId) && gen.creditCost.gt(0),
   });
 }

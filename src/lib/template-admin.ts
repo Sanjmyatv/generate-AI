@@ -61,7 +61,14 @@ export const VIDEO_RATIOS = ["9:16", "16:9", "1:1", "3:4", "4:3", "21:9"] as con
 export const CARD_SHAPES = ["9:16", "3:4", "1:1", "4:3", "16:9"] as const;
 
 export const MAX_PHOTOS = 5; // matches the cap in POST /api/generate
-const MAX_CREDITS = 1_000_000;
+const MAX_CREDITS = 10_000;
+
+/** A credit price: 0.01 to MAX_CREDITS with at most 2 decimals (the ledger keeps 2 decimals). */
+function isCreditPrice(n: number) {
+  return Number.isFinite(n) && n >= 0.01 && n <= MAX_CREDITS && Math.abs(n * 100 - Math.round(n * 100)) < 1e-6;
+}
+
+const CREDITS_HINT = `Enter an amount of credits from 0.01 to ${MAX_CREDITS.toLocaleString("en-US")} (up to 2 decimals).`;
 
 /** Everything the admin form edits, as plain strings so it round-trips through FormData. */
 export interface TemplateFormValues {
@@ -305,18 +312,14 @@ export function buildTemplateData(
   if (v.newCategory.length > 40) errors.newCategory = "Category names can be up to 40 characters.";
 
   const creditCost = Number(v.creditCost);
-  if (!Number.isInteger(creditCost) || creditCost < 1 || creditCost > MAX_CREDITS) {
-    errors.creditCost = `Enter a whole number of credits from 1 to ${MAX_CREDITS.toLocaleString("en-US")}.`;
-  }
+  if (!v.creditCost || !isCreditPrice(creditCost)) errors.creditCost = CREDITS_HINT;
   // 720p HD and the video length only apply to video; leaving HD empty offers 480p only.
   let creditCostHd: number | null = null;
   let durationSeconds: number | null = null;
   if (v.type === "VIDEO") {
     if (v.creditCostHd) {
       creditCostHd = Number(v.creditCostHd);
-      if (!Number.isInteger(creditCostHd) || creditCostHd < 1 || creditCostHd > MAX_CREDITS) {
-        errors.creditCostHd = "Enter a whole number of credits, or leave it empty for 480p only.";
-      }
+      if (!isCreditPrice(creditCostHd)) errors.creditCostHd = `${CREDITS_HINT} Or leave it empty for 480p only.`;
     }
     if (v.durationSeconds) {
       durationSeconds = Number(v.durationSeconds);
@@ -332,8 +335,8 @@ export function buildTemplateData(
     for (const [value, key] of [[v.creditCost2k, "creditCost2k"], [v.creditCost4k, "creditCost4k"]] as const) {
       if (!value) continue;
       const credits = Number(value);
-      if (!Number.isInteger(credits) || credits < 1 || credits > MAX_CREDITS) {
-        errors[key] = "Enter a whole number of credits, or leave it empty to not offer this quality.";
+      if (!isCreditPrice(credits)) {
+        errors[key] = `${CREDITS_HINT} Or leave it empty to not offer this quality.`;
       } else if (key === "creditCost2k") creditCost2k = credits;
       else creditCost4k = credits;
     }

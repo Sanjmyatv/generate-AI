@@ -7,7 +7,7 @@ import { CostMargin } from "@/components/admin/CostMargin";
 import { VideoAnalysis } from "@/components/admin/VideoAnalysis";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { RESOLUTIONS } from "@/config/pricing";
-import type { PackagePrice } from "@/lib/pricing";
+import type { PackagePrice, PricingRates } from "@/lib/pricing";
 import {
   CARD_SHAPES,
   ENGINES,
@@ -85,6 +85,7 @@ export function TemplateForm({
   categories,
   packages,
   usdMnt,
+  rates,
   templateId,
 }: {
   initial: TemplateFormValues;
@@ -93,6 +94,8 @@ export function TemplateForm({
   packages: PackagePrice[];
   /** Default exchange rate (₮ per $1) for the cost box. */
   usdMnt: number;
+  /** Retry buffer and gateway fee from the pricing settings. */
+  rates: PricingRates;
   templateId?: string;
 }) {
   const [v, setV] = useState(initial);
@@ -569,25 +572,25 @@ export function TemplateForm({
               </Field>
             )}
             <Field label={v.type === "VIDEO" ? "Credits at 480p" : "Credits at 1K"} error={err.creditCost}>
-              <input {...text("creditCost")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+              <input {...text("creditCost")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
             </Field>
             {v.type === "VIDEO" ? (
               <Field label="Credits at 720p HD" error={err.creditCostHd} hint="Empty = 480p only.">
-                <input {...text("creditCostHd")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+                <input {...text("creditCostHd")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
               </Field>
             ) : (
               <>
                 <Field label="Credits at 2K (HD)" error={err.creditCost2k} hint="Empty = not offered.">
-                  <input {...text("creditCost2k")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+                  <input {...text("creditCost2k")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
                 </Field>
                 <Field label="Credits at 4K (Ultra HD)" error={err.creditCost4k} hint="Empty = not offered.">
-                  <input {...text("creditCost4k")} inputMode="numeric" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+                  <input {...text("creditCost4k")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
                 </Field>
               </>
             )}
           </div>
         </div>
-        <CostMargin values={v} onChange={set} packages={packages} defaultUsdMnt={usdMnt} auto={autoPrice} error={err.costUsd} />
+        <CostMargin values={v} onChange={set} packages={packages} defaultUsdMnt={usdMnt} rates={rates} auto={autoPrice} error={err.costUsd} />
       </Section>
 
       {state.message && (

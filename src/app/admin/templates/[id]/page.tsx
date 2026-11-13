@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { TemplateForm } from "@/components/admin/TemplateForm";
 import { prisma } from "@/lib/db";
 import { usdMntRate } from "@/lib/pricing";
+import { getPricingRates } from "@/lib/pricing-settings";
 import { templateToFormValues } from "@/lib/template-admin";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
         categories={categories}
         packages={packages}
         usdMnt={usdMntRate()}
+        rates={await getPricingRates()}
         templateId={template.id}
       />
     </>

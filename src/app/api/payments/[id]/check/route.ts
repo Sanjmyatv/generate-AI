@@ -36,7 +36,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   const balance =
     payment.status === "SUCCEEDED"
-      ? (await prisma.user.findUnique({ where: { id: actor.userId }, select: { credits: true } }))?.credits
+      ? Number((await prisma.user.findUnique({ where: { id: actor.userId }, select: { credits: true } }))?.credits ?? 0)
       : undefined;
   return Response.json({ payment: toPublicPayment(payment), balance });
 }

@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { estimateCostAction } from "@/app/actions/admin";
-import { creditsForMargin, marginFor, perCreditMnt, type PackagePrice } from "@/lib/pricing";
+import { creditsForMargin, marginFor, perCreditMnt, type PackagePrice, type PricingRates } from "@/lib/pricing";
 import { hasPriceLookup, type TemplateFormValues } from "@/lib/template-admin";
 
 const inputClass = "w-full rounded-xl border border-foreground/30 bg-transparent px-3 py-2";
+
+const credits2 = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 const mnt = (n: number) => `${Math.round(n).toLocaleString("en-US")}₮`;
 
@@ -45,6 +47,7 @@ export function CostMargin({
   onChange,
   packages,
   defaultUsdMnt,
+  rates,
   auto,
   error,
 }: {
@@ -52,6 +55,8 @@ export function CostMargin({
   onChange: <K extends keyof TemplateFormValues>(key: K, value: TemplateFormValues[K]) => void;
   packages: PackagePrice[];
   defaultUsdMnt: number;
+  /** Retry buffer and gateway fee, counted as costs on top of the provider's price. */
+  rates: PricingRates;
   /** The credits are worked out automatically, so only what the price needs is asked for. */
   auto: boolean;
   error?: string;
@@ -108,8 +113,11 @@ export function CostMargin({
   }
 
   const margins = ready
-    ? packages.map((p) => ({ pack: p, perCredit: perCreditMnt(p), m: marginFor({ costUsd, creditCost, perCredit: perCreditMnt(p), usdMnt: rate }) }))
+    ? packages.map((p) => ({ pack: p, perCredit: perCreditMnt(p), m: marginFor({ costUsd, creditCost, perCredit: perCreditMnt(p), usdMnt: rate, ...rates }) }))
     : [];
+  // When every pack costs the same per credit (all at ₮100 now) one row says it all.
+  const uniform = margins.length > 1 && margins.every((m) => m.perCredit === margins[0].perCredit);
+  const rows = uniform ? [{ ...margins[0], pack: { ...margins[0].pack, id: "all", name: "All packs" } }] : margins;
   const thinnest = margins.length > 0 ? margins.reduce((a, b) => (b.m.marginPct < a.m.marginPct ? b : a)) : null;
 
   return (
@@ -236,12 +244,12 @@ export function CostMargin({
                   <th className="py-1 pr-2 font-medium">Credit pack</th>
                   <th className="py-1 pr-2 font-medium">₮ / credit</th>
                   <th className="py-1 pr-2 font-medium">You earn</th>
-                  <th className="py-1 pr-2 font-medium">Cost</th>
+                  <th className="py-1 pr-2 font-medium">Total cost</th>
                   <th className="py-1 font-medium">Margin</th>
                 </tr>
               </thead>
               <tbody>
-                {margins.map(({ pack, perCredit, m }) => (
+                {rows.map(({ pack, perCredit, m }) => (
                   <tr key={pack.id} className="border-t border-foreground/10">
                     <td className="py-1 pr-2">{pack.name}</td>
                     <td className="py-1 pr-2">{mnt(perCredit)}</td>
@@ -275,7 +283,7 @@ export function CostMargin({
               />
               <span>% charge at least:</span>
               {packages.map((p) => {
-                const credits = creditsForMargin({ costUsd, perCredit: perCreditMnt(p), usdMnt: rate, targetPct });
+                const credits = creditsForMargin({ costUsd, perCredit: perCreditMnt(p), usdMnt: rate, targetPct, ...rates });
                 return (
                   <button
                     key={p.id}
@@ -283,14 +291,15 @@ export function CostMargin({
                     onClick={() => onChange(creditKey, String(credits))}
                     className="rounded-full border border-foreground/30 px-3 py-1 font-semibold"
                   >
-                    {credits.toLocaleString("en-US")} credits ({p.name})
+                    {credits2(credits)} credits ({p.name})
                   </button>
                 );
               })}
             </div>
           )}
           <p className="text-xs text-foreground/50">
-            Provider cost only: payment fees, free signup credits and failed requests are not included.
+            Total cost = provider price + {(rates.retryRate * 100).toFixed(1)}% retry buffer + {(rates.gatewayFeeRate * 100).toFixed(1)}% payment gateway fee
+            (change these on the Templates page). Free signup credits are not included.
           </p>
         </>
       )}

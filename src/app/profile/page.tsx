@@ -46,7 +46,7 @@ export default async function ProfilePage() {
           <div className="flex items-center justify-between p-4">
             <dt className="text-foreground/60">{t("profile.credits")}</dt>
             <dd className="flex items-center gap-3">
-              <span className="font-semibold">{formatCredits(user.credits)}</span>
+              <span className="font-semibold">{formatCredits(Number(user.credits))}</span>
               <Link href="/pricing" className="btn-primary rounded-full px-3 py-1 text-xs font-medium">
                 {t("profile.buy")}
               </Link>

@@ -17,6 +17,7 @@ import {
   estimateMotionTransferUsd,
 } from "@/lib/higgsfield";
 import { creditsForMargin, marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
+import { getPricingRates } from "@/lib/pricing-settings";
 import {
   IMAGE_ASPECTS,
   IMAGE_QUALITIES,
@@ -221,10 +222,10 @@ async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult
 /** The profit share the suggested price aims for. */
 const TARGET_MARGIN_PCT = 55;
 
-/** Rounds a credit price up to a tidy number: to 100 above 1,000, to 50 above 200, else to 10. */
+/** Rounds a credit price up to a tidy number: to a half credit below 10, a whole credit below 200, else to 5. */
 function niceCredits(credits: number) {
-  const step = credits >= 1000 ? 100 : credits >= 200 ? 50 : 10;
-  return Math.ceil(credits / step) * step;
+  const step = credits < 10 ? 0.5 : credits < 200 ? 1 : 5;
+  return Math.ceil(credits / step - 1e-9) * step;
 }
 
 export interface PriceSuggestion {
@@ -245,10 +246,11 @@ export interface PriceSuggestion {
 export type PriceSuggestionResult = ({ ok: true } & PriceSuggestion) | { ok: false; error: string };
 
 /**
- * Suggests credit prices that leave about 55% of what users pay after the provider's cost.
- * It looks up the real cost (Higgsfield for this account) and does the arithmetic here, because credit packs have different prices per credit:
- * the price is worked out against the most popular pack, so the cheaper-per-credit packs land
- * a little below 55% and the dearer ones a little above, roughly 50% to 60% overall.
+ * Suggests credit prices that leave about 55% of what users pay after all costs: the provider's price,
+ * the retry buffer on top of it and the payment gateway's share (both set in the pricing settings).
+ * It looks up the real cost (Higgsfield for this account) and does the arithmetic here. The price is
+ * worked out against the highlighted pack; if packs ever differ in price per credit, the others land a
+ * little below or above the target.
  */
 export async function suggestPriceAction(
   input: CostEstimateInput & {
@@ -263,10 +265,11 @@ export async function suggestPriceAction(
   if (packs.length === 0) return { ok: false, error: "There are no credit packs to price against." };
   const reference = packs.find((p) => p.highlighted) ?? packs[Math.floor(packs.length / 2)];
   const usdMnt = usdMntRate();
+  const rates = await getPricingRates();
   const isVideo = input.type === "VIDEO";
 
   const creditsFor = (costUsd: number) =>
-    niceCredits(creditsForMargin({ costUsd, perCredit: perCreditMnt(reference), usdMnt, targetPct: TARGET_MARGIN_PCT }));
+    niceCredits(creditsForMargin({ costUsd, perCredit: perCreditMnt(reference), usdMnt, targetPct: TARGET_MARGIN_PCT, ...rates }));
 
   // An image is priced at each of its three qualities (1K, 2K, 4K); the 1K price is the base one.
   if (!isVideo && hasPriceLookup(input.engine)) {
@@ -290,7 +293,7 @@ export async function suggestPriceAction(
       reference: reference.name,
       margins: packs.map((p) => ({
         name: p.name,
-        pct: marginFor({ costUsd: costUsd["1k"], creditCost: credits["1k"], perCredit: perCreditMnt(p), usdMnt }).marginPct,
+        pct: marginFor({ costUsd: costUsd["1k"], creditCost: credits["1k"], perCredit: perCreditMnt(p), usdMnt, ...rates }).marginPct,
       })),
       note,
       imageTiers: { credits, costUsd },
@@ -326,7 +329,28 @@ export async function suggestPriceAction(
     note: standard.note,
     margins: packs.map((p) => ({
       name: p.name,
-      pct: marginFor({ costUsd: standard.usd, creditCost: credits, perCredit: perCreditMnt(p), usdMnt }).marginPct,
+      pct: marginFor({ costUsd: standard.usd, creditCost: credits, perCredit: perCreditMnt(p), usdMnt, ...rates }).marginPct,
     })),
   };
+}
+
+/** Parses a percentage typed in the settings form ("5", "1.5") into a fraction, or null when it is not between 0 and `max` percent. */
+function percentToRate(value: FormDataEntryValue | null, max: number) {
+  const pct = Number(String(value ?? "").trim().replace(",", "."));
+  if (!String(value ?? "").trim() || !Number.isFinite(pct) || pct < 0 || pct > max) return null;
+  return Math.round(pct * 100) / 10000; // 1.5 -> 0.015, kept to 4 decimals
+}
+
+/** Saves the retry buffer and the payment gateway fee that the automatic selling price includes. */
+export async function savePricingSettingsAction(form: FormData) {
+  await requireAdmin();
+  const retryBufferRate = percentToRate(form.get("retryPct"), 100);
+  const gatewayFeeRate = percentToRate(form.get("feePct"), 20);
+  if (retryBufferRate === null || gatewayFeeRate === null) redirect("/admin?notice=pricing_invalid");
+  await prisma.pricingSetting.upsert({
+    where: { id: "default" },
+    update: { retryBufferRate, gatewayFeeRate },
+    create: { id: "default", retryBufferRate, gatewayFeeRate },
+  });
+  redirect("/admin?notice=pricing_saved");
 }

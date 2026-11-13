@@ -89,7 +89,7 @@ function toFlowError(e: unknown, t: T): FlowError {
       const required = e instanceof ApiError ? e.extra?.required : undefined;
       return {
         title: t("gen.err.creditsTitle"),
-        message: t("gen.err.credits", { required: String(required ?? t("gen.err.creditsMore")) }),
+        message: t("gen.err.credits", { required: typeof required === "number" ? formatCredits(required) : t("gen.err.creditsMore") }),
         buyCredits: true,
       };
     }
@@ -349,7 +349,7 @@ export function GenerateFlow({
       <p className="mt-2 text-sm text-foreground/60">
         {isVideo ? t("gen.video") : t("gen.image")}
         {isVideo && seconds ? ` · ${t("gen.secondsShort", { n: seconds })}` : ""} ·{" "}
-        {t("gen.cost", { count: cost, amount: formatCredits(cost) })}
+        {t("gen.cost", { count: Math.ceil(cost), amount: formatCredits(cost) })}
         {balance !== null && ` · ${t("gen.youHave", { amount: formatCredits(balance) })}`}
       </p>
 

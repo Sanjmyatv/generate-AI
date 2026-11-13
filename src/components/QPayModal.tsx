@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/components/I18nProvider";
@@ -315,6 +316,13 @@ export function QPayModal({
                 ? t("qpay.select.creating")
                 : `${t("qpay.select.pay")}${selected ? ` · ${formatCredits(selected.priceMnt)}₮` : ""}`}
             </button>
+            <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
+              {t("qpay.terms.pre")}
+              <Link href="/terms" target="_blank" className="text-foreground underline underline-offset-2">{t("qpay.terms.terms")}</Link>
+              {t("qpay.terms.and")}
+              <Link href="/privacy" target="_blank" className="text-foreground underline underline-offset-2">{t("qpay.terms.privacy")}</Link>
+              {t("qpay.terms.post")}
+            </p>
             <button type="button" onClick={onClose} className="mt-3 w-full text-sm text-muted hover:text-foreground">
               {t("qpay.select.notNow")}
             </button>

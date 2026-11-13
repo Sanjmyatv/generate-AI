@@ -24,7 +24,7 @@ export function TemplateCard({ template }: { template: Template }) {
   const src = template.previewUrl;
   const previewIsVideo = Boolean(src && VIDEO_EXT.test(src));
   const photos = template.requiredPhotoCount;
-  const credits = t("card.credit", { count: template.creditCost, amount: formatCredits(template.creditCost) });
+  const credits = t("card.credit", { count: Math.ceil(template.creditCost), amount: formatCredits(template.creditCost) });
 
   function setHovering(next: boolean) {
     setHover(next);

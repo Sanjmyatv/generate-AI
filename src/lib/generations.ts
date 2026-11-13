@@ -50,7 +50,7 @@ export async function failGeneration(id: string, error: string) {
     if (flipped.count === 0) return false;
 
     const gen = await tx.generation.findUniqueOrThrow({ where: { id } });
-    if (gen.userId && gen.creditCost > 0) {
+    if (gen.userId && gen.creditCost.gt(0)) {
       await tx.user.update({
         where: { id: gen.userId },
         data: { credits: { increment: gen.creditCost } },

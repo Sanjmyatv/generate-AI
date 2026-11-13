@@ -1,7 +1,7 @@
 import { PricingPlans } from "@/components/PricingPlans";
 import { Reveal } from "@/components/Reveal";
 import {
-  IMAGE_CREDITS,
+  IMAGE_TIER_CREDITS,
   SIGNUP_BONUS_CREDITS,
   VIDEO_CREDITS,
   formatCredits,
@@ -28,7 +28,11 @@ export default async function PricingPage() {
         <div className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
           <div>
             <p className="text-muted">{t("pricing.image")}</p>
-            <p className="mt-1 text-[15px]">{t("pricing.credits", { amount: formatCredits(IMAGE_CREDITS) })}</p>
+            <p className="mt-1 text-[15px]">
+              {t("pricing.at1k", { amount: formatCredits(IMAGE_TIER_CREDITS["1k"]) })}
+              <span className="block text-muted">{t("pricing.at2k", { amount: formatCredits(IMAGE_TIER_CREDITS["2k"]) })}</span>
+              <span className="block text-muted">{t("pricing.at4k", { amount: formatCredits(IMAGE_TIER_CREDITS["4k"]) })}</span>
+            </p>
           </div>
           {([10, 20] as const).map((seconds) => (
             <div key={seconds}>

@@ -7,8 +7,8 @@ import type { T } from "@/lib/i18n/translate";
  * only holds the standard price list.
  */
 
-/** Base conversion: 1 credit is worth ₮1 (10,000 credits = ₮10,000). */
-export const CREDIT_VALUE_MNT = 1;
+/** Base conversion: 1 credit is worth ₮100 (a 5,000₮ pack buys 50 credits). */
+export const CREDIT_VALUE_MNT = 100;
 
 export type Resolution = "480p" | "720p";
 
@@ -21,16 +21,19 @@ export const RESOLUTION_LABELS: Record<Resolution, { label: string; tagline: str
   "720p": { label: "720p HD", tagline: "HD / Pro" },
 };
 
-/** Sunburst image render: one price, no resolution choice. */
-export const IMAGE_CREDITS = 100;
+/** Image render qualities and what each costs by default. */
+export const IMAGE_TIER_CREDITS = { "1k": 3, "2k": 6, "4k": 10 } as const;
+
+/** Standard image price: the 1K render. */
+export const IMAGE_CREDITS: number = IMAGE_TIER_CREDITS["1k"];
 
 /** Video lengths are fixed tiers of 10 to 20 seconds. */
 export const VIDEO_TIERS = [10, 20] as const;
 export type VideoTier = (typeof VIDEO_TIERS)[number];
 
 export const VIDEO_CREDITS: Record<VideoTier, Record<Resolution, number>> = {
-  10: { "480p": 3_500, "720p": 5_000 },
-  20: { "480p": 6_500, "720p": 9_000 },
+  10: { "480p": 35, "720p": 50 },
+  20: { "480p": 65, "720p": 90 },
 };
 
 /** The tier a video of this length is priced in: up to 10 s is the 10 s tier, anything longer the 20 s tier. */
@@ -45,8 +48,8 @@ export function standardPrice(type: "VIDEO" | "IMAGE", durationSeconds: number |
   return { credits: tier["480p"], creditsHd: tier["720p"] };
 }
 
-/** Credits a new Google account starts with. */
-export const SIGNUP_BONUS_CREDITS = 1_000;
+/** Credits a new Google account starts with (₮1,000 worth). */
+export const SIGNUP_BONUS_CREDITS = 10;
 
 export interface PackageDefinition {
   id: string;
@@ -58,17 +61,18 @@ export interface PackageDefinition {
   highlighted: boolean;
 }
 
-/** QPay tiers. `credits` already includes the bonus. */
+/** QPay tiers. `credits` already includes the bonus; every pack is priced at ₮100 per credit. */
 export const PACKAGES: PackageDefinition[] = [
-  { id: "starter", name: "Starter Pack", priceMnt: 10_000, credits: 10_000, bonusCredits: 0, highlighted: false },
-  { id: "creator", name: "Creator Pack", priceMnt: 30_000, credits: 35_000, bonusCredits: 5_000, highlighted: true },
-  { id: "pro", name: "Pro Agency Pack", priceMnt: 90_000, credits: 115_000, bonusCredits: 25_000, highlighted: false },
+  { id: "trial", name: "Trial", priceMnt: 5_000, credits: 50, bonusCredits: 0, highlighted: false },
+  { id: "light", name: "Light Creator", priceMnt: 9_000, credits: 90, bonusCredits: 0, highlighted: false },
+  { id: "pro", name: "Pro Creator", priceMnt: 23_000, credits: 230, bonusCredits: 0, highlighted: true },
+  { id: "business", name: "Business", priceMnt: 45_000, credits: 450, bonusCredits: 0, highlighted: false },
 ];
 
 /**
  * What a pack buys, as the bullet list on its pricing card. The counts are worked out from the
  * credits and the price list above, so the card can never promise more than the credits cover
- * (10,000 credits buy two 10 s videos at 480p, not three).
+ * (50 credits buy one 10 s video at 480p, not two).
  */
 export function packageHighlights(pack: Pick<PackageDefinition, "id" | "credits">, t: T): string[] {
   const n = (credits: number, each: number) => Math.floor(credits / each);
@@ -81,20 +85,23 @@ export function packageHighlights(pack: Pick<PackageDefinition, "id" | "credits"
   const expiry = t("hl.expiry");
 
   switch (pack.id) {
-    case "starter": {
-      // One 20 s video, then the images the rest of the credits cover.
-      const left = n(pack.credits - VIDEO_CREDITS[20]["480p"], IMAGE_CREDITS);
-      return [imagesLine, t("hl.starterVideos", { v10, left }), expiry, t("hl.refund")];
-    }
-    case "creator":
-      return [imagesLine, t("hl.videos", { v10, v20 }), t("hl.hd10", { n: hd10 }), expiry, t("hl.priority")];
+    case "trial":
+      return [imagesLine, t("hl.videosOnly", { v10 }), expiry, t("hl.refund")];
+    case "light":
+      return [imagesLine, t("hl.videos", { v10, v20 }), expiry, t("hl.refund")];
     case "pro":
+      return [imagesLine, t("hl.videos", { v10, v20 }), t("hl.hd10", { n: hd10 }), expiry, t("hl.priority")];
+    case "business":
       return [imagesLine, t("hl.videos", { v10, v20 }), t("hl.hd20", { n: hd20 }), expiry, t("hl.maxPriority")];
     default:
       return [imagesLine, t("hl.videosOnly", { v10 }), expiry];
   }
 }
 
+/**
+ * Credits as users see them: always a whole number, rounded up. The wallet and the ledger keep the
+ * exact 2-decimal value; this is only for display.
+ */
 export function formatCredits(n: number) {
-  return n.toLocaleString("en-US");
+  return Math.ceil(n).toLocaleString("en-US");
 }

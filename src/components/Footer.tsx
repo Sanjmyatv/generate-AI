@@ -3,8 +3,8 @@ import { Logo } from "@/components/Logo";
 import { getT } from "@/lib/i18n/server";
 import type { TKey } from "@/lib/i18n/translate";
 
-// Figma: zyro.ai / Footer. Entries without a page of their own are plain text, not dead links.
-const groups: { title: TKey; items: { label: TKey; href?: string }[] }[] = [
+// Figma: zyro.ai / Footer.
+const groups: { title: TKey; items: { label: TKey; href: string }[] }[] = [
   {
     title: "footer.explore",
     items: [
@@ -13,8 +13,14 @@ const groups: { title: TKey; items: { label: TKey; href?: string }[] }[] = [
       { label: "footer.trending", href: "/#trending" },
     ],
   },
-  { title: "footer.company", items: [{ label: "footer.about" }] },
-  { title: "footer.legal", items: [{ label: "footer.terms" }, { label: "footer.privacy" }] },
+  {
+    title: "footer.info",
+    items: [
+      { label: "footer.about", href: "/about" },
+      { label: "footer.terms", href: "/terms" },
+      { label: "footer.privacy", href: "/privacy" },
+    ],
+  },
 ];
 
 // The official accounts. The TikTok address follows the Instagram handle: change it here if the account differs.
@@ -64,17 +70,11 @@ export async function Footer() {
             {groups.map((group) => (
               <div key={group.title} className="flex flex-col gap-[14px] leading-[1.5]">
                 <p className="text-[13px] text-foreground">{t(group.title)}</p>
-                {group.items.map((item) =>
-                  item.href ? (
-                    <Link key={item.label} href={item.href} className="text-[12px] text-muted hover:text-foreground">
-                      {t(item.label)}
-                    </Link>
-                  ) : (
-                    <span key={item.label} className="text-[12px] text-muted">
-                      {t(item.label)}
-                    </span>
-                  ),
-                )}
+                {group.items.map((item) => (
+                  <Link key={item.label} href={item.href} className="text-[12px] text-muted hover:text-foreground">
+                    {t(item.label)}
+                  </Link>
+                ))}
               </div>
             ))}
           </div>

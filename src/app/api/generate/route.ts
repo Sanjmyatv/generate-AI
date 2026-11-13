@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
 import { getActor, getBaseUrl } from "@/lib/actor";
 import { DEFAULT_RESOLUTION, type Resolution } from "@/config/pricing";
 import { failGeneration, refreshGeneration } from "@/lib/generations";
@@ -68,7 +69,8 @@ export async function POST(req: Request) {
 
   // Videos are priced per resolution: 480p by default, 720p only when the template has an HD price.
   let resolution: string;
-  let cost = template.creditCost;
+  // Prices are exact decimals in the database; they stay Decimals until they reach the ledger.
+  let cost: Prisma.Decimal = template.creditCost;
   let imageRenderSize: "1k" | "2k" | "4k" | undefined;
   if (template.type === "VIDEO") {
     const requested = body.resolution ?? DEFAULT_RESOLUTION;
@@ -137,7 +139,7 @@ export async function POST(req: Request) {
         });
         if (charged.count === 0) {
           const user = await tx.user.findUnique({ where: { id: actor.userId }, select: { credits: true } });
-          throw new HttpError(402, "insufficient_credits", { required: cost, balance: user?.credits ?? 0 });
+          throw new HttpError(402, "insufficient_credits", { required: Number(cost), balance: Number(user?.credits ?? 0) });
         }
       } else {
         const used = await tx.generation.count({
@@ -159,7 +161,7 @@ export async function POST(req: Request) {
       });
       if (actor.userId) {
         await tx.creditLedger.create({
-          data: { userId: actor.userId, delta: -cost, reason: "GENERATION", generationId: created.id },
+          data: { userId: actor.userId, delta: cost.neg(), reason: "GENERATION", generationId: created.id },
         });
       }
       return created;

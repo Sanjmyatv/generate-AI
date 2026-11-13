@@ -23,7 +23,7 @@ export default async function TemplatePage({
       template={template}
       isAuthenticated={Boolean(session?.user?.id)}
       resumeId={g}
-      credits={user ? user.credits : null}
+      credits={user ? Number(user.credits) : null}
       packages={packages}
     />
   );

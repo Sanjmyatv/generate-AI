@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <I18nProvider locale={locale} messages={MESSAGES[locale]}>
           <AuthConfigProvider value={{ providers: enabledProviders, emailLogin: emailLoginEnabled }}>
-            <Nav user={user ? { name: user.name, email: user.email, credits: user.credits } : null} />
+            <Nav user={user ? { name: user.name, email: user.email, credits: Number(user.credits) } : null} />
             <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 md:px-8 lg:px-16">{children}</main>
             <Footer />
           </AuthConfigProvider>

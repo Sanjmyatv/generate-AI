@@ -51,7 +51,7 @@ model User {
   /// Can open /admin. Set by hand in the database, never from the app.
   isAdmin   Boolean  @default(false)
   /** Cached balance. The CreditLedger is the source of truth. */
-  credits   Int      @default(0)
+  credits   Decimal  @default(0) @db.Decimal(10, 2)
   /// When the free signup credits were granted; null until then, so they are only given once.
   signupBonusAt DateTime?
   createdAt DateTime @default(now())
@@ -96,13 +96,13 @@ model Template {
   category           Category         @relation(fields: [categoryId], references: [id])
   type               OutputType
   /// Credits for one generation. For video this is the 480p (default) price.
-  creditCost         Int
+  creditCost         Decimal          @db.Decimal(10, 2)
   /// Credits at 720p HD; null means the template is offered at 480p only.
-  creditCostHd       Int?
+  creditCostHd       Decimal?         @db.Decimal(10, 2)
   /// Image templates: credits for a 2K and a 4K render (creditCost is the 1K price). Empty = tier not offered;
   /// with neither set the image has one price and renders at the size in its configuration.
-  creditCost2k       Int?
-  creditCost4k       Int?
+  creditCost2k       Decimal?         @db.Decimal(10, 2)
+  creditCost4k       Decimal?         @db.Decimal(10, 2)
   /// Length of the video this template produces, in seconds.
   durationSeconds    Int?
   aspectRatio        String           @default("3:4")
@@ -153,7 +153,7 @@ model Generation {
   providerTaskId String?
   /// Provider-hosted result URL. Served to clients only through our own proxy route.
   outputUrl    String?
-  creditCost   Int
+  creditCost   Decimal          @default(0) @db.Decimal(10, 2)
   /// Resolution the user picked (480p / 720p for video; the render size for images).
   resolution   String           @default("480p")
   /// Set when the credits were handed back after a failure.
@@ -209,7 +209,7 @@ model CreditLedger {
   userId       String
   user         User         @relation(fields: [userId], references: [id])
   /** Positive = credits added, negative = credits spent. */
-  delta        Int
+  delta        Decimal      @db.Decimal(10, 2)
   reason       LedgerReason
   generationId String?
   paymentId    String?
@@ -239,4 +239,15 @@ model Payment {
   paidAt      DateTime?
 
   @@index([userId])
+}
+
+/// Admin-editable numbers behind the automatic selling price. One row (id "default"); without it the
+/// defaults in src/lib/pricing-settings.ts apply.
+model PricingSetting {
+  id              String   @id @default("default")
+  /// Share of the provider cost added for failed or repeated requests we pay for (0.05 = 5%).
+  retryBufferRate Decimal  @default(0.05) @db.Decimal(5, 4)
+  /// Share of the selling price the payment gateway keeps (0.015 = 1.5%).
+  gatewayFeeRate  Decimal  @default(0.015) @db.Decimal(5, 4)
+  updatedAt       DateTime @updatedAt
 }
