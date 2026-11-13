@@ -16,6 +16,7 @@ import {
   estimateImageEditUsd,
   estimateMotionTransferUsd,
 } from "@/lib/higgsfield";
+import { CREDIT_VALUE_MNT } from "@/config/pricing";
 import { creditsForMargin, marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
 import { getPricingRates } from "@/lib/pricing-settings";
 import {
@@ -52,6 +53,40 @@ async function deleteUnusedAssets(candidates: string[]) {
   if (unused.length > 0) await prisma.asset.deleteMany({ where: { id: { in: unused } } });
 }
 
+const COST_PAIRS = [
+  { credits: "creditCost", cost: "costUsd", video: "480p", image: "1K" },
+  { credits: "creditCostHd", cost: "costUsdHd", video: "720p HD", image: "" },
+  { credits: "creditCost2k", cost: "costUsd2k", video: "", image: "2K" },
+  { credits: "creditCost4k", cost: "costUsd4k", video: "", image: "4K" },
+] as const;
+
+/**
+ * Refuses a price that sells below what it costs to run: the provider cost on record for that quality, plus
+ * the retry buffer and the gateway fee, against the credits charged. Prices without a cost on record pass.
+ */
+async function lossMakingPrice(
+  data: { type: "VIDEO" | "IMAGE" } & Record<string, unknown>,
+  config: Record<string, unknown>,
+): Promise<{ field: string; message: string } | null> {
+  const rates = await getPricingRates();
+  const usdMnt = usdMntRate();
+  for (const pair of COST_PAIRS) {
+    const credits = Number(data[pair.credits]);
+    const costUsd = config[pair.cost];
+    if (!Number.isFinite(credits) || typeof costUsd !== "number" || !(costUsd > 0)) continue;
+    const m = marginFor({ costUsd, creditCost: credits, perCredit: CREDIT_VALUE_MNT, usdMnt, ...rates });
+    if (m.marginMnt < 0) {
+      const label = data.type === "VIDEO" ? pair.video : pair.image;
+      const needed = creditsForMargin({ costUsd, perCredit: CREDIT_VALUE_MNT, usdMnt, targetPct: 0, ...rates });
+      return {
+        field: pair.credits,
+        message: `At ${label} this price loses about ${Math.round(-m.marginMnt).toLocaleString("en-US")}₮ per generation. It needs at least ${Math.ceil(needed)} credits just to break even; use the automatic price for a 55% margin.`,
+      };
+    }
+  }
+  return null;
+}
+
 /** Creates a template, or updates it when the form carries a `templateId`. */
 export async function saveTemplateAction(_prev: TemplateFormState, form: FormData): Promise<TemplateFormState> {
   await requireAdmin();
@@ -63,6 +98,9 @@ export async function saveTemplateAction(_prev: TemplateFormState, form: FormDat
   const built = buildTemplateData(readForm(form), baseUrlFromHeaders(await headers()), existing?.generationConfig);
   if (!built.ok) return { errors: built.errors, message: "Fix the highlighted fields and save again." };
   const { newCategory, generationConfig, ...data } = built.data;
+
+  const loss = await lossMakingPrice(data, generationConfig);
+  if (loss) return { errors: { [loss.field]: loss.message }, message: "Fix the highlighted fields and save again." };
 
   let categoryId = data.categoryId;
   if (newCategory) {
@@ -222,9 +260,9 @@ async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult
 /** The profit share the suggested price aims for. */
 const TARGET_MARGIN_PCT = 55;
 
-/** Rounds a credit price up to a tidy number: to a half credit below 10, a whole credit below 200, else to 5. */
+/** Rounds a credit price up to a whole credit (users see whole credits), and to 5 from 200 up. */
 function niceCredits(credits: number) {
-  const step = credits < 10 ? 0.5 : credits < 200 ? 1 : 5;
+  const step = credits < 200 ? 1 : 5;
   return Math.ceil(credits / step - 1e-9) * step;
 }
 

@@ -132,6 +132,17 @@ export async function POST(req: Request) {
   try {
     generation = await prisma.$transaction(async (tx) => {
       if (actor.userId) {
+        // Serialize this user's generations: parallel clicks queue here, so the limit below cannot be raced.
+        await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${actor.userId} FOR UPDATE`;
+        const activeNow = await tx.generation.count({
+          where: {
+            status: { in: ["QUEUED", "PROCESSING"] },
+            createdAt: { gt: new Date(Date.now() - ACTIVE_WINDOW_MS) },
+            userId: actor.userId,
+          },
+        });
+        if (activeNow >= MAX_ACTIVE_PER_ACTOR) throw new HttpError(429, "too_many_active");
+
         // Atomic check-and-deduct: the balance can never go negative.
         const charged = await tx.user.updateMany({
           where: { id: actor.userId, credits: { gte: cost } },

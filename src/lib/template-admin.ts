@@ -1,5 +1,4 @@
 import type { Template as DbTemplate } from "@/generated/prisma/client";
-import { VIDEO_CREDITS } from "@/config/pricing";
 import { parseGenjutsuConfig, parseMarketingImageConfig } from "@/lib/higgsfield";
 import { parseSeedanceConfig } from "@/lib/seedance";
 
@@ -127,8 +126,8 @@ export function defaultFormValues(): TemplateFormValues {
     type: "VIDEO",
     engine: "genjutsu",
     prompt: "",
-    creditCost: String(VIDEO_CREDITS[20]["480p"]),
-    creditCostHd: String(VIDEO_CREDITS[20]["720p"]),
+    creditCost: "",
+    creditCostHd: "",
     creditCost2k: "",
     creditCost4k: "",
     durationSeconds: "15",

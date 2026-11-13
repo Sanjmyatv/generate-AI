@@ -31,9 +31,14 @@ export const IMAGE_CREDITS: number = IMAGE_TIER_CREDITS["1k"];
 export const VIDEO_TIERS = [10, 20] as const;
 export type VideoTier = (typeof VIDEO_TIERS)[number];
 
+/**
+ * The 20 s tier is what the Genjutsu templates (15 s source video, about $2.4-2.5 at 480p and $5.11 at 720p)
+ * cost to run, priced for a ~55% margin after the retry buffer and gateway fee. The 10 s tier has no provider
+ * cost on record: check it in /admin before relying on it.
+ */
 export const VIDEO_CREDITS: Record<VideoTier, Record<Resolution, number>> = {
   10: { "480p": 35, "720p": 50 },
-  20: { "480p": 65, "720p": 90 },
+  20: { "480p": 215, "720p": 435 },
 };
 
 /** The tier a video of this length is priced in: up to 10 s is the 10 s tier, anything longer the 20 s tier. */
@@ -88,7 +93,7 @@ export function packageHighlights(pack: Pick<PackageDefinition, "id" | "credits"
     case "trial":
       return [imagesLine, t("hl.videosOnly", { v10 }), expiry, t("hl.refund")];
     case "light":
-      return [imagesLine, t("hl.videos", { v10, v20 }), expiry, t("hl.refund")];
+      return [imagesLine, t("hl.videosOnly", { v10 }), expiry, t("hl.refund")];
     case "pro":
       return [imagesLine, t("hl.videos", { v10, v20 }), t("hl.hd10", { n: hd10 }), expiry, t("hl.priority")];
     case "business":
