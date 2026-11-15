@@ -7,7 +7,7 @@ export const mn: Messages = {
   "meta.description": "Загвараа сонгоод, зургаа оруулахад zyro.ai таны зургийг AI видео эсвэл зураг болгон хувиргана.",
 
   // Navigation
-  "nav.explore": "Судлах",
+  "nav.explore": "Нүүр",
   "nav.videos": "Видео",
   "nav.images": "Зураг",
   "nav.pricing": "Үнэ",
