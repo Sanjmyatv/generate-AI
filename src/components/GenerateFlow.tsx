@@ -205,6 +205,9 @@ export function GenerateFlow({
     : activeResolution === "720p" && hdPrice !== null
       ? hdPrice
       : template.creditCost;
+  // Credits are shared by every pack and never expire, so there is no per-pack rule: a video is locked while the
+  // balance is below its cheapest price (images stay open as long as one costs less than the balance).
+  const locked = isVideo && balance !== null && balance < template.creditCost;
   const seconds = template.durationSeconds;
   const generateLabel = isVideo
     ? seconds
@@ -353,7 +356,25 @@ export function GenerateFlow({
         {balance !== null && ` · ${t("gen.youHave", { amount: formatCredits(balance) })}`}
       </p>
 
-      {step === "detail" && (
+      {step === "detail" && locked && (
+        // A video costs more than the balance: show what it needs and a way to add credits, instead of the upload.
+        <div className="mt-6 rounded-2xl border border-purple-500/40 bg-surface p-4 text-center">
+          <p className="flex items-center justify-center gap-2 font-semibold">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-4 text-purple-400">
+              <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+            </svg>
+            {t("gen.locked", { n: formatCredits(template.creditCost) })}
+          </p>
+          <button
+            onClick={() => setShowPay(true)}
+            className="mt-3 w-full rounded-full btn-primary py-3 font-semibold text-foreground"
+          >
+            {t("gen.buy")}
+          </button>
+        </div>
+      )}
+
+      {step === "detail" && !locked && (
         <button
           onClick={() => setStep("upload")}
           className="mt-6 w-full rounded-full btn-primary py-3 font-semibold text-foreground"

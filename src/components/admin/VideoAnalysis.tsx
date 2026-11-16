@@ -242,11 +242,10 @@ export function VideoAnalysis({
                   )}
                 </p>
                 <p className="text-xs text-foreground/60">
-                  Aims for about {price.targetPct}% margin on the {price.reference}; the packs end up at{" "}
-                  {price.margins.map((m) => `${m.name} ${m.pct.toFixed(0)}%`).join(", ")}. Provider cost ≈ $
+                  Aims for about {price.targetPct}% margin after the retry buffer and gateway fee. Provider cost ≈ $
                   {price.costUsd.toFixed(2)}
-                  {price.costUsdHd !== null ? ` (480p) / $${price.costUsdHd.toFixed(2)} (720p)` : ""}; payment fees and
-                  free signup credits are not included.
+                  {price.costUsdHd !== null ? ` (480p) / $${price.costUsdHd.toFixed(2)} (720p)` : ""}.
+                  {price.note ? ` ${price.note}` : ""}
                 </p>
               </div>
             ) : (

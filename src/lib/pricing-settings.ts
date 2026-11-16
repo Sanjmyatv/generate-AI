@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/db";
-import { DEFAULT_PRICING_RATES, type PricingRates } from "@/lib/pricing";
+import { toPricingConfig } from "@/lib/pricing-config";
+import type { PricingConfig } from "@/lib/pricing";
 
-/** The rates the automatic selling price uses: what the admin saved, else the defaults. */
-export async function getPricingRates(): Promise<PricingRates> {
-  const row = await prisma.pricingSetting.findUnique({ where: { id: "default" } });
-  if (!row) return DEFAULT_PRICING_RATES;
-  return { retryRate: Number(row.retryBufferRate), gatewayFeeRate: Number(row.gatewayFeeRate) };
+/** The settings the price formula uses: what the admin saved, else the defaults. */
+export async function getPricingConfig(): Promise<PricingConfig> {
+  return toPricingConfig(await prisma.pricingSetting.findUnique({ where: { id: "default" } }));
 }

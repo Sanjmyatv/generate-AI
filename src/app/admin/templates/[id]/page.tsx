@@ -1,18 +1,17 @@
 import { notFound } from "next/navigation";
 import { TemplateForm } from "@/components/admin/TemplateForm";
 import { prisma } from "@/lib/db";
-import { usdMntRate } from "@/lib/pricing";
-import { getPricingRates } from "@/lib/pricing-settings";
+import { getPricingConfig } from "@/lib/pricing-settings";
 import { templateToFormValues } from "@/lib/template-admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [template, categories, packages] = await Promise.all([
+  const [template, categories, config] = await Promise.all([
     prisma.template.findUnique({ where: { id } }),
     prisma.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
-    prisma.creditPackage.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
+    getPricingConfig(),
   ]);
   if (!template) notFound();
 
@@ -22,9 +21,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
       <TemplateForm
         initial={templateToFormValues(template)}
         categories={categories}
-        packages={packages}
-        usdMnt={usdMntRate()}
-        rates={await getPricingRates()}
+        config={config}
         templateId={template.id}
       />
     </>

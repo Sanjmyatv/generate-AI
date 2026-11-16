@@ -43,6 +43,9 @@ function toPackage(p: DbPackage): CreditPackage {
     priceMnt: p.priceMnt,
     bonusCredits: p.bonusCredits,
     highlighted: p.highlighted,
+    nameMn: p.nameMn,
+    priorityQueue: p.priorityQueue,
+    topPriorityQueue: p.topPriorityQueue,
   };
 }
 

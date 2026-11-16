@@ -6,8 +6,7 @@ import { saveTemplateAction, suggestPriceAction, type TemplateFormState } from "
 import { CostMargin } from "@/components/admin/CostMargin";
 import { VideoAnalysis } from "@/components/admin/VideoAnalysis";
 import { TemplatePreview } from "@/components/TemplatePreview";
-import { GENJUTSU_LIGHT_MAX_SECONDS, RESOLUTIONS } from "@/config/pricing";
-import type { PackagePrice, PricingRates } from "@/lib/pricing";
+import type { PricingConfig } from "@/lib/pricing";
 import {
   CARD_SHAPES,
   ENGINES,
@@ -23,12 +22,6 @@ import {
 } from "@/lib/template-admin";
 
 const initialState: TemplateFormState = { errors: {}, message: null };
-
-/** Genjutsu list price per second of source video, before the account's discount. */
-const GENJUTSU_RATE: Record<string, number> = { "480p": 0.318, "720p": 0.681, "1080p": 1.632 };
-
-/** Genjutsu Light list price per second, counted over the output plus the source video. */
-const GENJUTSU_LIGHT_RATE: Record<string, number> = { "480p": 0.05, "720p": 0.1, "1080p": 0.2 };
 
 const GENJUTSU_PROMPT_HELP =
   'Optional. Say who replaces whom, e.g. "Replace the dancer with the person in the first reference image." Refer to the photos as the first, second, third reference image.';
@@ -82,19 +75,13 @@ const UPLOAD_ERRORS: Record<string, string> = {
 export function TemplateForm({
   initial,
   categories,
-  packages,
-  usdMnt,
-  rates,
+  config,
   templateId,
 }: {
   initial: TemplateFormValues;
   categories: { id: string; name: string }[];
-  /** Credit packs, used to work out what a credit earns. */
-  packages: PackagePrice[];
-  /** Default exchange rate (₮ per $1) for the cost box. */
-  usdMnt: number;
-  /** Retry buffer and gateway fee from the pricing settings. */
-  rates: PricingRates;
+  /** The pricing settings: what a credit is worth, the target margin, the retry buffer and the gateway fee. */
+  config: PricingConfig;
   templateId?: string;
 }) {
   const [v, setV] = useState(initial);
@@ -102,8 +89,8 @@ export function TemplateForm({
   const [previewUpload, setPreviewUpload] = useState<UploadState>({ busy: false, error: null });
   const [sourceUpload, setSourceUpload] = useState<UploadState>({ busy: false, error: null });
   const [sourceSeconds, setSourceSeconds] = useState<number | null>(null);
-  // New templates are priced automatically; an existing one keeps its price until the admin asks.
-  const [autoPrice, setAutoPrice] = useState(!templateId);
+  // A new template is priced automatically; an existing one stays as it was saved (priced by hand unless it was automatic).
+  const [autoPrice, setAutoPrice] = useState(initial.autoCredits);
   const [priceStatus, setPriceStatus] = useState<{ error: boolean; note: string | null }>({ error: false, note: null });
 
   const set = <K extends keyof TemplateFormValues>(key: K, value: TemplateFormValues[K]) =>
@@ -148,19 +135,9 @@ export function TemplateForm({
     }
   }
 
-  // Light bills the output plus the source video, and only uses the first 30 s of it.
-  const lightSeconds = sourceSeconds === null ? 0 : Math.ceil(Math.min(sourceSeconds, GENJUTSU_LIGHT_MAX_SECONDS)) * 2;
-  const estimates =
-    sourceSeconds === null
-      ? null
-      : v.engine === "genjutsu"
-        ? RESOLUTIONS.map((r) => ({ r, usd: Math.ceil(sourceSeconds) * (GENJUTSU_RATE[r] ?? 0) }))
-        : v.engine === "genjutsu-light"
-          ? RESOLUTIONS.map((r) => ({ r, usd: lightSeconds * (GENJUTSU_LIGHT_RATE[r] ?? 0) }))
-          : null;
-
-  // The credits follow the method, the source video, the image quality and, for video, both qualities (480p and 720p).
-  // Only methods without a price API (Seedance) need the provider cost typed in.
+  // Video credits follow the pricing formula (settings in /admin) and the template's length, for 480p and 720p.
+  // Images keep their standard credits; only their provider cost is looked up, for the margin panel.
+  // Methods without a price API (Seedance) may have a cost typed in; empty means the per-second rate.
   const hasLookup = hasPriceLookup(v.engine);
   const typedCost = hasLookup ? "" : v.costUsd;
   const typedCostHd = hasLookup ? "" : v.costUsdHd;
@@ -168,8 +145,8 @@ export function TemplateForm({
     if (!autoPrice) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      if (hasLookup && needsVideo && !v.sourceVideoUrl) {
-        setPriceStatus({ error: false, note: "Upload the source video and the price is worked out for you." });
+      if (v.type === "VIDEO" && needsVideo && !v.sourceVideoUrl && !Number(v.durationSeconds)) {
+        setPriceStatus({ error: false, note: "Upload the source video (or enter its length) and the price is worked out for you." });
         return;
       }
       setPriceStatus({ error: false, note: "Working out the price…" });
@@ -180,6 +157,7 @@ export function TemplateForm({
           type: v.type,
           videoResolution: "480p",
           sourceVideoUrl: v.sourceVideoUrl,
+          durationSeconds: Number(v.durationSeconds) || null,
           prompt: "",
           imageResolution: "2k",
           imageQuality: v.imageQuality,
@@ -197,36 +175,34 @@ export function TemplateForm({
       }
       if (result.imageTiers) {
         const { credits, costUsd } = result.imageTiers;
+        setV((prev) => {
+          // A new image template starts at the standard credits; an existing price is never changed for you.
+          const fresh = !prev.creditCost && !prev.creditCost2k && !prev.creditCost4k;
+          return {
+            ...prev,
+            ...(fresh ? { creditCost: String(credits["1k"]), creditCost2k: String(credits["2k"]), creditCost4k: String(credits["4k"]) } : {}),
+            ...(costUsd["1k"] !== undefined ? { costUsd: String(costUsd["1k"]) } : {}),
+            ...(costUsd["2k"] !== undefined ? { costUsd2k: String(costUsd["2k"]) } : {}),
+            ...(costUsd["4k"] !== undefined ? { costUsd4k: String(costUsd["4k"]) } : {}),
+          };
+        });
+      } else {
         setV((prev) => ({
           ...prev,
-          creditCost: String(credits["1k"]),
-          creditCost2k: String(credits["2k"]),
-          creditCost4k: String(credits["4k"]),
-          costUsd: String(costUsd["1k"]),
-          costUsd2k: String(costUsd["2k"]),
-          costUsd4k: String(costUsd["4k"]),
+          creditCost: String(result.credits),
+          // A missing HD price means 480p only.
+          creditCostHd: result.creditsHd !== null ? String(result.creditsHd) : "",
+          costUsd: String(result.costUsd),
+          costUsdHd: result.costUsdHd !== null ? String(result.costUsdHd) : "",
         }));
-      } else setV((prev) => ({
-        ...prev,
-        creditCost: String(result.credits),
-        // Looked-up costs fill the cost boxes; typed ones stay as typed. A missing HD price means 480p only.
-        creditCostHd: result.creditsHd !== null ? String(result.creditsHd) : hasLookup ? prev.creditCostHd : "",
-        ...(hasLookup
-          ? { costUsd: String(result.costUsd), costUsdHd: result.costUsdHd !== null ? String(result.costUsdHd) : prev.costUsdHd }
-          : {}),
-      }));
-      setPriceStatus({
-        error: false,
-        note: `About ${result.targetPct}% margin on the ${result.reference}. Packs: ${result.margins
-          .map((m) => `${m.name} ${m.pct.toFixed(0)}%`)
-          .join(", ")}.${result.note ? ` ${result.note}` : ""}`,
-      });
+      }
+      setPriceStatus({ error: false, note: result.note ?? null });
     }, 700);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [autoPrice, hasLookup, needsVideo, typedCost, typedCostHd, v.engine, v.type, v.sourceVideoUrl, v.imageQuality, v.imageAspect]);
+  }, [autoPrice, needsVideo, typedCost, typedCostHd, v.engine, v.type, v.sourceVideoUrl, v.durationSeconds, v.imageQuality, v.imageAspect]);
 
   // Switching between a method with a price lookup and one without makes the old cost meaningless.
   function chooseEngine(next: Engine, type: TemplateFormValues["type"] = v.type) {
@@ -249,6 +225,7 @@ export function TemplateForm({
       className="mx-auto max-w-2xl space-y-6 py-6"
     >
       {templateId && <input type="hidden" name="templateId" value={templateId} />}
+      <input type="hidden" name="autoCredits" value={autoPrice ? "on" : ""} />
       <input type="hidden" name="previewUrl" value={v.previewUrl} />
       <input type="hidden" name="sourceVideoUrl" value={v.sourceVideoUrl} />
 
@@ -272,13 +249,6 @@ export function TemplateForm({
                   <video src={v.sourceVideoUrl} controls muted playsInline className="h-40 rounded-lg bg-black" />
                   <div className="text-xs text-foreground/70">
                     {sourceSeconds !== null && <p>Length: {sourceSeconds.toFixed(1)} s</p>}
-                    {estimates && (
-                      <p>
-                        {v.engine === "genjutsu-light" ? "Genjutsu Light" : "Genjutsu"} list price per generation:{" "}
-                        {estimates.map((e) => `${e.r} ≈ ${e.usd.toFixed(2)}`).join(", ")} (your account discount
-                        applies on top). Check the real cost under Photos and price.
-                      </p>
-                    )}
                   </div>
                 </div>
               )}
@@ -556,8 +526,8 @@ export function TemplateForm({
             <span>
               <span className="font-semibold">Work out the credits automatically</span>
               <span className="block text-xs text-foreground/60">
-                Follows the method you choose and, for video, the quality (480p and 720p each get their own price).
-                Aims for about 55% margin.
+                Videos follow the pricing formula and their length (480p and 720p each get their own price) and aim for about{" "}
+                {config.targetMarginPct}% margin. Images keep their standard credits.
               </span>
             </span>
           </label>
@@ -571,7 +541,7 @@ export function TemplateForm({
               </Field>
             )}
             <Field label={v.type === "VIDEO" ? "Credits at 480p" : "Credits at 1K"} error={err.creditCost}>
-              <input {...text("creditCost")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+              <input {...text("creditCost")} inputMode="decimal" readOnly={autoPrice && v.type === "VIDEO"} className={`${inputClass} ${autoPrice && v.type === "VIDEO" ? "opacity-70" : ""}`} />
             </Field>
             {v.type === "VIDEO" ? (
               <Field label="Credits at 720p HD" error={err.creditCostHd} hint="Empty = 480p only.">
@@ -580,16 +550,16 @@ export function TemplateForm({
             ) : (
               <>
                 <Field label="Credits at 2K (HD)" error={err.creditCost2k} hint="Empty = not offered.">
-                  <input {...text("creditCost2k")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+                  <input {...text("creditCost2k")} inputMode="decimal" className={inputClass} />
                 </Field>
                 <Field label="Credits at 4K (Ultra HD)" error={err.creditCost4k} hint="Empty = not offered.">
-                  <input {...text("creditCost4k")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
+                  <input {...text("creditCost4k")} inputMode="decimal" className={inputClass} />
                 </Field>
               </>
             )}
           </div>
         </div>
-        <CostMargin values={v} onChange={set} packages={packages} defaultUsdMnt={usdMnt} rates={rates} auto={autoPrice} error={err.costUsd} />
+        <CostMargin values={v} onChange={set} config={config} auto={autoPrice} error={err.costUsd} />
       </Section>
 
       {state.message && (

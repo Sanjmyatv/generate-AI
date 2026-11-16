@@ -10,15 +10,15 @@ import { prisma } from "@/lib/db";
 import { assetIdFromUrl } from "@/lib/media";
 import {
   GENJUTSU_LIGHT_LIST_USD_PER_SECOND,
-  GENJUTSU_LIGHT_MAX_SECONDS,
   GENJUTSU_LIST_USD_PER_SECOND,
   HiggsfieldError,
   estimateImageEditUsd,
   estimateMotionTransferUsd,
 } from "@/lib/higgsfield";
-import { CREDIT_VALUE_MNT } from "@/config/pricing";
-import { creditsForMargin, marginFor, perCreditMnt, usdMntRate } from "@/lib/pricing";
-import { getPricingRates } from "@/lib/pricing-settings";
+import { GENJUTSU_LIGHT_MAX_SECONDS, IMAGE_TIER_CREDITS } from "@/config/pricing";
+import { creditsForCostUsd, videoCostUsd, type PricingConfig } from "@/lib/pricing";
+import { getPricingConfig } from "@/lib/pricing-settings";
+import { planRepricing, type PriceChange } from "@/lib/repricing";
 import {
   IMAGE_ASPECTS,
   IMAGE_QUALITIES,
@@ -53,40 +53,6 @@ async function deleteUnusedAssets(candidates: string[]) {
   if (unused.length > 0) await prisma.asset.deleteMany({ where: { id: { in: unused } } });
 }
 
-const COST_PAIRS = [
-  { credits: "creditCost", cost: "costUsd", video: "480p", image: "1K" },
-  { credits: "creditCostHd", cost: "costUsdHd", video: "720p HD", image: "" },
-  { credits: "creditCost2k", cost: "costUsd2k", video: "", image: "2K" },
-  { credits: "creditCost4k", cost: "costUsd4k", video: "", image: "4K" },
-] as const;
-
-/**
- * Refuses a price that sells below what it costs to run: the provider cost on record for that quality, plus
- * the retry buffer and the gateway fee, against the credits charged. Prices without a cost on record pass.
- */
-async function lossMakingPrice(
-  data: { type: "VIDEO" | "IMAGE" } & Record<string, unknown>,
-  config: Record<string, unknown>,
-): Promise<{ field: string; message: string } | null> {
-  const rates = await getPricingRates();
-  const usdMnt = usdMntRate();
-  for (const pair of COST_PAIRS) {
-    const credits = Number(data[pair.credits]);
-    const costUsd = config[pair.cost];
-    if (!Number.isFinite(credits) || typeof costUsd !== "number" || !(costUsd > 0)) continue;
-    const m = marginFor({ costUsd, creditCost: credits, perCredit: CREDIT_VALUE_MNT, usdMnt, ...rates });
-    if (m.marginMnt < 0) {
-      const label = data.type === "VIDEO" ? pair.video : pair.image;
-      const needed = creditsForMargin({ costUsd, perCredit: CREDIT_VALUE_MNT, usdMnt, targetPct: 0, ...rates });
-      return {
-        field: pair.credits,
-        message: `At ${label} this price loses about ${Math.round(-m.marginMnt).toLocaleString("en-US")}₮ per generation. It needs at least ${Math.ceil(needed)} credits just to break even; use the automatic price for a 55% margin.`,
-      };
-    }
-  }
-  return null;
-}
-
 /** Creates a template, or updates it when the form carries a `templateId`. */
 export async function saveTemplateAction(_prev: TemplateFormState, form: FormData): Promise<TemplateFormState> {
   await requireAdmin();
@@ -98,9 +64,6 @@ export async function saveTemplateAction(_prev: TemplateFormState, form: FormDat
   const built = buildTemplateData(readForm(form), baseUrlFromHeaders(await headers()), existing?.generationConfig);
   if (!built.ok) return { errors: built.errors, message: "Fix the highlighted fields and save again." };
   const { newCategory, generationConfig, ...data } = built.data;
-
-  const loss = await lossMakingPrice(data, generationConfig);
-  if (loss) return { errors: { [loss.field]: loss.message }, message: "Fix the highlighted fields and save again." };
 
   let categoryId = data.categoryId;
   if (newCategory) {
@@ -166,7 +129,10 @@ export interface CostEstimateInput {
   imageAspect: string;
 }
 
-export type CostEstimateResult = { ok: true; usd: number; note?: string } | { ok: false; error: string };
+/** Where a provider cost came from: "account" is Higgsfield's own price for this account, "list" its published price. */
+export type CostOrigin = "account" | "list";
+
+export type CostEstimateResult = { ok: true; usd: number; origin: CostOrigin; note?: string } | { ok: false; error: string };
 
 const oneOf = <T extends string>(list: readonly T[], value: string): value is T => (list as readonly string[]).includes(value);
 
@@ -193,8 +159,9 @@ async function listPriceEstimate(input: CostEstimateInput, light: boolean, cause
   const why = cause instanceof HiggsfieldError ? cause.message : "lookup unavailable";
   return {
     ok: true,
+    origin: "list",
     usd: Math.round(seconds * perSecond * 1000) / 1000,
-    note: `Higgsfield's price lookup was unavailable (${why}), so this is the list price. Any discount on your account is not included, so the real cost may be lower.`,
+    note: `List price: Higgsfield's price lookup was unavailable (${why}). Any discount on your account is not included, so the real cost may be lower.`,
   };
 }
 
@@ -217,7 +184,7 @@ async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult
           resolution: input.videoResolution,
           light,
         });
-        return { ok: true, usd };
+        return { ok: true, usd, origin: "account" };
       } catch (e) {
         // The price lookup is a convenience: without it, work from the published list price.
         console.error("[admin] Higgsfield price lookup failed, using the list price", e);
@@ -242,7 +209,7 @@ async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult
         quality: input.imageQuality,
         aspectRatio: input.imageAspect,
       });
-      return { ok: true, usd };
+      return { ok: true, usd, origin: "account" };
     }
     return { ok: false, error: "Seedance has no price lookup: enter your cost from the BytePlus console." };
   } catch (e) {
@@ -257,14 +224,8 @@ async function estimateUsd(input: CostEstimateInput): Promise<CostEstimateResult
   }
 }
 
-/** The profit share the suggested price aims for. */
-const TARGET_MARGIN_PCT = 55;
-
-/** Rounds a credit price up to a whole credit (users see whole credits), and to 5 from 200 up. */
-function niceCredits(credits: number) {
-  const step = credits < 200 ? 1 : 5;
-  return Math.ceil(credits / step - 1e-9) * step;
-}
+/** Where a suggested price came from, so the editor never says two different things at once. */
+export type PriceOrigin = "manual" | CostOrigin;
 
 export interface PriceSuggestion {
   credits: number;
@@ -272,123 +233,228 @@ export interface PriceSuggestion {
   costUsd: number;
   costUsdHd: number | null;
   targetPct: number;
-  /** The pack the price was worked out against, and the margin each pack ends up with. */
-  reference: string;
-  margins: { name: string; pct: number }[];
-  /** Set when the cost is an estimate rather than Higgsfield's own price. */
+  /** "manual": the per-second rate in the pricing settings (or a cost typed by hand); otherwise Higgsfield's own price or list price. */
+  origin: PriceOrigin;
+  /** Says how the cost was found (rate used, or why the list price was used). */
   note?: string;
-  /** Image templates: a price and cost for each quality (credits and costUsd above are the 1K ones). */
-  imageTiers?: { credits: Record<"1k" | "2k" | "4k", number>; costUsd: Record<"1k" | "2k" | "4k", number> };
+  /** Image templates keep their standard prices (3 / 6 / 10); the costs, when Higgsfield could be asked, only feed the margin panel. */
+  imageTiers?: { credits: Record<"1k" | "2k" | "4k", number>; costUsd: Partial<Record<"1k" | "2k" | "4k", number>> };
 }
 
 export type PriceSuggestionResult = ({ ok: true } & PriceSuggestion) | { ok: false; error: string };
 
+/** The length a video is priced for: what the form says, else the uploaded source video's, capped for Genjutsu Light. */
+async function pricedSeconds(input: { engine: Engine; durationSeconds?: number | null; sourceVideoUrl: string }) {
+  let seconds = input.durationSeconds && input.durationSeconds > 0 ? input.durationSeconds : null;
+  if (seconds === null) {
+    const assetId = assetIdFromUrl(input.sourceVideoUrl);
+    const asset = assetId ? await prisma.asset.findUnique({ where: { id: assetId }, select: { duration: true } }) : null;
+    if (asset?.duration) seconds = Math.ceil(asset.duration);
+  }
+  if (seconds === null) return null;
+  return input.engine === "genjutsu-light" ? Math.min(seconds, GENJUTSU_LIGHT_MAX_SECONDS) : seconds;
+}
+
 /**
- * Suggests credit prices that leave about 55% of what users pay after all costs: the provider's price,
- * the retry buffer on top of it and the payment gateway's share (both set in the pricing settings).
- * It looks up the real cost (Higgsfield for this account) and does the arithmetic here. The price is
- * worked out against the highlighted pack; if packs ever differ in price per credit, the others land a
- * little below or above the target.
+ * Suggests the credits for a template from the pricing settings: ceil(provider cost × rate × K ÷ credit value),
+ * rounded up once on the whole video. The provider cost is the per-second rate in the settings by default
+ * (a cost typed by hand wins, for Seedance); with the "Higgsfield" price source it is looked up per template and
+ * labelled as the account price or the list price. Images keep their standard 3 / 6 / 10 credits.
  */
 export async function suggestPriceAction(
   input: CostEstimateInput & {
     type: "VIDEO" | "IMAGE";
-    /** For methods without a price lookup (Seedance): what one generation costs, typed by the admin. */
+    /** The template's length in seconds, when the form knows it. */
+    durationSeconds?: number | null;
+    /** For methods without a price lookup (Seedance): what one generation costs you, typed by the admin. */
     manualCostUsd?: number;
     manualCostUsdHd?: number;
   },
 ): Promise<PriceSuggestionResult> {
   await requireAdmin();
-  const packs = await prisma.creditPackage.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } });
-  if (packs.length === 0) return { ok: false, error: "There are no credit packs to price against." };
-  const reference = packs.find((p) => p.highlighted) ?? packs[Math.floor(packs.length / 2)];
-  const usdMnt = usdMntRate();
-  const rates = await getPricingRates();
-  const isVideo = input.type === "VIDEO";
+  const cfg = await getPricingConfig();
 
-  const creditsFor = (costUsd: number) =>
-    niceCredits(creditsForMargin({ costUsd, perCredit: perCreditMnt(reference), usdMnt, targetPct: TARGET_MARGIN_PCT, ...rates }));
-
-  // An image is priced at each of its three qualities (1K, 2K, 4K); the 1K price is the base one.
-  if (!isVideo && hasPriceLookup(input.engine)) {
-    const lookup = { ...input, prompt: input.prompt || "price lookup" };
-    const costUsd = {} as Record<"1k" | "2k" | "4k", number>;
+  if (input.type === "IMAGE") {
+    const costUsd: Partial<Record<"1k" | "2k" | "4k", number>> = {};
     let note: string | undefined;
-    for (const tier of ["1k", "2k", "4k"] as const) {
-      const priced = await estimateUsd({ ...lookup, imageResolution: tier });
-      if (!priced.ok) return priced;
-      costUsd[tier] = priced.usd;
-      note ??= priced.note;
+    if (hasPriceLookup(input.engine)) {
+      const lookup = { ...input, prompt: input.prompt || "price lookup" };
+      for (const tier of ["1k", "2k", "4k"] as const) {
+        const priced = await estimateUsd({ ...lookup, imageResolution: tier });
+        if (!priced.ok) {
+          note = "Image prices stay at the standard credits. Higgsfield could not be asked for the cost, so no margin is shown.";
+          break;
+        }
+        costUsd[tier] = priced.usd;
+        note ??= priced.origin === "list" ? priced.note : "Cost looked up from Higgsfield for this account.";
+      }
     }
-    const credits = { "1k": creditsFor(costUsd["1k"]), "2k": creditsFor(costUsd["2k"]), "4k": creditsFor(costUsd["4k"]) };
+    const credits = { ...IMAGE_TIER_CREDITS };
     return {
       ok: true,
       credits: credits["1k"],
       creditsHd: null,
-      costUsd: costUsd["1k"],
+      costUsd: costUsd["1k"] ?? 0,
       costUsdHd: null,
-      targetPct: TARGET_MARGIN_PCT,
-      reference: reference.name,
-      margins: packs.map((p) => ({
-        name: p.name,
-        pct: marginFor({ costUsd: costUsd["1k"], creditCost: credits["1k"], perCredit: perCreditMnt(p), usdMnt, ...rates }).marginPct,
-      })),
+      targetPct: cfg.targetMarginPct,
+      origin: "manual",
       note,
       imageTiers: { credits, costUsd },
     };
   }
 
-  // The provider's cost per generation: looked up where there is a price API, typed in otherwise.
-  let standard: CostEstimateResult;
-  let hd: CostEstimateResult | null = null;
-  if (hasPriceLookup(input.engine)) {
-    // An image's price does not depend on the words of its prompt, but the lookup insists on one.
-    const lookup = { ...input, prompt: input.prompt || "price lookup" };
-    standard = await estimateUsd({ ...lookup, videoResolution: "480p" });
-    if (isVideo) hd = await estimateUsd({ ...lookup, videoResolution: "720p" });
-  } else {
-    if (!(input.manualCostUsd && input.manualCostUsd > 0)) {
-      return { ok: false, error: "This method has no price lookup. Enter what one generation costs you and the credits are worked out for you." };
-    }
-    standard = { ok: true, usd: input.manualCostUsd };
-    if (isVideo && input.manualCostUsdHd && input.manualCostUsdHd > 0) hd = { ok: true, usd: input.manualCostUsdHd };
-  }
-  if (!standard.ok) return standard;
+  const seconds = await pricedSeconds(input);
+  if (seconds === null) return { ok: false, error: "Upload the source video or enter its length first." };
 
-  const credits = creditsFor(standard.usd);
+  let cost480: number;
+  let cost720: number | null;
+  let origin: PriceOrigin = "manual";
+  let note: string;
+  if (cfg.priceSource === "HIGGSFIELD" && hasPriceLookup(input.engine)) {
+    const lookup = { ...input, prompt: input.prompt || "price lookup" };
+    const [standard, hd] = [await estimateUsd({ ...lookup, videoResolution: "480p" }), await estimateUsd({ ...lookup, videoResolution: "720p" })];
+    if (!standard.ok) return standard;
+    if (!hd.ok) return hd;
+    cost480 = standard.usd;
+    cost720 = hd.usd;
+    origin = standard.origin === "list" || hd.origin === "list" ? "list" : "account";
+    note = origin === "list" ? (standard.origin === "list" ? standard : hd).note! : "Account price from Higgsfield.";
+  } else if (input.manualCostUsd && input.manualCostUsd > 0) {
+    cost480 = input.manualCostUsd;
+    cost720 = input.manualCostUsdHd && input.manualCostUsdHd > 0 ? input.manualCostUsdHd : null;
+    note = "Provider cost typed by hand.";
+  } else {
+    cost480 = videoCostUsd(seconds, "480p", cfg);
+    cost720 = videoCostUsd(seconds, "720p", cfg);
+    note = `Manual rate: $${cfg.videoUsdPerSecond}/s × ${seconds} s (720p ×${cfg.hdMultiplier}).`;
+  }
+
   return {
     ok: true,
-    credits,
-    creditsHd: hd?.ok ? creditsFor(hd.usd) : null,
-    costUsd: standard.usd,
-    costUsdHd: hd?.ok ? hd.usd : null,
-    targetPct: TARGET_MARGIN_PCT,
-    reference: reference.name,
-    note: standard.note,
-    margins: packs.map((p) => ({
-      name: p.name,
-      pct: marginFor({ costUsd: standard.usd, creditCost: credits, perCredit: perCreditMnt(p), usdMnt, ...rates }).marginPct,
-    })),
+    credits: creditsForCostUsd(cost480, cfg),
+    creditsHd: cost720 === null ? null : creditsForCostUsd(cost720, cfg),
+    costUsd: Math.round(cost480 * 10000) / 10000,
+    costUsdHd: cost720 === null ? null : Math.round(cost720 * 10000) / 10000,
+    targetPct: cfg.targetMarginPct,
+    origin,
+    note,
   };
 }
 
-/** Parses a percentage typed in the settings form ("5", "1.5") into a fraction, or null when it is not between 0 and `max` percent. */
-function percentToRate(value: FormDataEntryValue | null, max: number) {
-  const pct = Number(String(value ?? "").trim().replace(",", "."));
-  if (!String(value ?? "").trim() || !Number.isFinite(pct) || pct < 0 || pct > max) return null;
-  return Math.round(pct * 100) / 10000; // 1.5 -> 0.015, kept to 4 decimals
+export interface PricingSettingsState {
+  errors: Record<string, string>;
+  message: string | null;
+  /** Set when the change would reprice automatic templates: shown for confirmation before anything is applied. */
+  changes: PriceChange[] | null;
 }
 
-/** Saves the retry buffer and the payment gateway fee that the automatic selling price includes. */
-export async function savePricingSettingsAction(form: FormData) {
+const num = (value: FormDataEntryValue | null) => Number(String(value ?? "").trim().replace(",", "."));
+
+/**
+ * Saves the pricing settings. When they would change the credits of templates priced automatically, nothing is
+ * saved yet: the old → new list comes back for confirmation, and only the confirming submit saves the settings
+ * and reprices those templates. Templates priced by hand are never touched.
+ */
+export async function savePricingSettingsAction(_prev: PricingSettingsState, form: FormData): Promise<PricingSettingsState> {
   await requireAdmin();
-  const retryBufferRate = percentToRate(form.get("retryPct"), 100);
-  const gatewayFeeRate = percentToRate(form.get("feePct"), 20);
-  if (retryBufferRate === null || gatewayFeeRate === null) redirect("/admin?notice=pricing_invalid");
-  await prisma.pricingSetting.upsert({
-    where: { id: "default" },
-    update: { retryBufferRate, gatewayFeeRate },
-    create: { id: "default", retryBufferRate, gatewayFeeRate },
+  const errors: Record<string, string> = {};
+  const field = (name: string, label: string, min: number, max: number, integer = false) => {
+    const value = num(form.get(name));
+    if (!Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) {
+      errors[name] = `${label}: enter ${integer ? "a whole number" : "a number"} from ${min} to ${max}.`;
+    }
+    return value;
+  };
+  const creditValueMnt = field("creditValueMnt", "Credit value", 1, 100000, true);
+  const targetMarginPct = field("targetMarginPct", "Target margin", 0, 90);
+  const retryPct = field("retryPct", "Retry buffer", 0, 100);
+  const feePct = field("feePct", "Payment gateway fee", 0, 20);
+  const usdMnt = field("usdMnt", "USD → MNT rate", 1, 100000);
+  const videoUsdPerSecond = field("videoUsdPerSecond", "Video cost per second", 0.0001, 10);
+  const hdMultiplier = field("hdMultiplier", "720p multiplier", 1, 10);
+  const referenceSeconds = field("referenceSeconds", "Reference video length", 1, 120, true);
+  const listUsdPerSecond = field("listUsdPerSecond", "List price per second", 0.0001, 10);
+  const priceSource = form.get("priceSource") === "HIGGSFIELD" ? "HIGGSFIELD" : "MANUAL";
+  if (!errors.targetMarginPct && !errors.feePct && targetMarginPct + feePct >= 95) {
+    errors.targetMarginPct = "Target margin plus the gateway fee must stay under 95%.";
+  }
+  if (Object.keys(errors).length > 0) return { errors, message: "Fix the highlighted fields.", changes: null };
+
+  const row = {
+    creditValueMnt,
+    targetMarginPct,
+    retryBufferRate: Math.round(retryPct * 100) / 10000,
+    gatewayFeeRate: Math.round(feePct * 100) / 10000,
+    usdMntRate: usdMnt,
+    videoUsdPerSecond,
+    hdMultiplier,
+    referenceSeconds,
+    priceSource,
+    listUsdPerSecond,
+  } as const;
+  const next: PricingConfig = {
+    creditValueMnt,
+    targetMarginPct,
+    retryRate: row.retryBufferRate,
+    gatewayFeeRate: row.gatewayFeeRate,
+    usdMnt,
+    videoUsdPerSecond,
+    hdMultiplier,
+    referenceSeconds,
+    priceSource,
+    listUsdPerSecond,
+  };
+
+  const templates = await prisma.template.findMany({ where: { type: "VIDEO", autoCredits: true } });
+  const { auto } = planRepricing(
+    templates.map((t) => ({ ...t, creditCost: Number(t.creditCost), creditCostHd: t.creditCostHd === null ? null : Number(t.creditCostHd) })),
+    next,
+  );
+
+  if (auto.length > 0 && form.get("intent") !== "confirm") {
+    return { errors: {}, message: null, changes: auto };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.pricingSetting.upsert({ where: { id: "default" }, update: row, create: { id: "default", ...row } });
+    // Only the templates the admin confirmed, priced automatically: their credits follow the new settings.
+    for (const c of auto) {
+      await tx.template.update({ where: { id: c.id }, data: { creditCost: c.newCredits, creditCostHd: c.newCreditsHd } });
+    }
   });
-  redirect("/admin?notice=pricing_saved");
+  redirect(`/admin?notice=${auto.length > 0 ? "pricing_applied" : "pricing_saved"}`);
+}
+
+/** Edits a credit pack. The credits follow the price (price ÷ credit value), so they cannot drift apart. */
+export async function savePackAction(form: FormData) {
+  await requireAdmin();
+  const id = String(form.get("packId") ?? "");
+  const cfg = await getPricingConfig();
+  const priceMnt = num(form.get("priceMnt"));
+  const name = String(form.get("name") ?? "").trim();
+  const nameMn = String(form.get("nameMn") ?? "").trim();
+  if (!(await prisma.creditPackage.findUnique({ where: { id } }))) redirect("/admin/packs?notice=missing");
+  if (!name || name.length > 60 || nameMn.length > 60) redirect("/admin/packs?notice=invalid");
+  if (!Number.isInteger(priceMnt) || priceMnt < cfg.creditValueMnt || priceMnt % cfg.creditValueMnt !== 0) {
+    redirect("/admin/packs?notice=invalid_price");
+  }
+  const highlighted = form.get("highlighted") === "on";
+  await prisma.$transaction(async (tx) => {
+    if (highlighted) await tx.creditPackage.updateMany({ where: { id: { not: id } }, data: { highlighted: false } });
+    await tx.creditPackage.update({
+      where: { id },
+      data: {
+        name,
+        nameMn: nameMn || null,
+        priceMnt,
+        credits: priceMnt / cfg.creditValueMnt,
+        bonusCredits: 0,
+        highlighted,
+        active: form.get("active") === "on",
+        priorityQueue: form.get("priorityQueue") === "on",
+        topPriorityQueue: form.get("topPriorityQueue") === "on",
+      },
+    });
+  });
+  redirect("/admin/packs?notice=saved");
 }

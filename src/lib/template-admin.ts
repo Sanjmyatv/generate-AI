@@ -96,6 +96,8 @@ export interface TemplateFormValues {
   photoLabels: string;
   photoRequirement: "FACE" | "FULL_BODY";
   active: boolean;
+  /** Credits worked out by the pricing formula; a settings change may reprice the template. */
+  autoCredits: boolean;
   trendingRank: string;
   previewUrl: string;
   sourceVideoUrl: string;
@@ -136,6 +138,7 @@ export function defaultFormValues(): TemplateFormValues {
     photoLabels: "",
     photoRequirement: "FACE",
     active: true,
+    autoCredits: true,
     trendingRank: "",
     previewUrl: "",
     sourceVideoUrl: "",
@@ -187,6 +190,7 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   v.photoLabels = t.photoLabels.join("\n");
   v.photoRequirement = t.photoRequirement;
   v.active = t.active;
+  v.autoCredits = t.autoCredits;
   v.trendingRank = t.trendingRank === null ? "" : String(t.trendingRank);
   v.previewUrl = t.previewUrl ?? "";
   v.sourceVideoUrl = str(config.templateVideoUrl);
@@ -236,6 +240,7 @@ export function readForm(form: FormData): TemplateFormValues {
     photoLabels: text("photoLabels"),
     photoRequirement: text("photoRequirement") === "FULL_BODY" ? "FULL_BODY" : "FACE",
     active: form.get("active") === "on",
+    autoCredits: form.get("autoCredits") === "on",
     trendingRank: text("trendingRank").trim(),
     previewUrl: text("previewUrl").trim(),
     sourceVideoUrl: text("sourceVideoUrl").trim(),
@@ -273,6 +278,7 @@ export interface TemplateData {
   photoLabels: string[];
   photoRequirement: "FACE" | "FULL_BODY";
   active: boolean;
+  autoCredits: boolean;
   trendingRank: number | null;
   previewUrl: string | null;
   generationConfig: Record<string, unknown>;
@@ -463,6 +469,7 @@ export function buildTemplateData(
       photoLabels,
       photoRequirement: v.photoRequirement,
       active: v.active,
+      autoCredits: v.autoCredits,
       trendingRank,
       previewUrl,
       generationConfig: config,

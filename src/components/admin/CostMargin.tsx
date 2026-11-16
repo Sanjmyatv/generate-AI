@@ -2,17 +2,12 @@
 
 import { useState } from "react";
 import { estimateCostAction } from "@/app/actions/admin";
-import { creditsForMargin, marginFor, perCreditMnt, type PackagePrice, type PricingRates } from "@/lib/pricing";
+import { creditsForCostUsd, marginFor, type PricingConfig } from "@/lib/pricing";
 import { hasPriceLookup, type TemplateFormValues } from "@/lib/template-admin";
 
 const inputClass = "w-full rounded-xl border border-foreground/30 bg-transparent px-3 py-2";
 
-const credits2 = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-
 const mnt = (n: number) => `${Math.round(n).toLocaleString("en-US")}₮`;
-
-/** Below this, a price is flagged: a margin under half of what users pay is thin once fees are counted. */
-const MIN_MARGIN_PCT = 50;
 
 type CostKey = "costUsd" | "costUsdHd" | "costUsd2k" | "costUsd4k";
 type CreditKey = "creditCost" | "creditCostHd" | "creditCost2k" | "creditCost4k";
@@ -37,32 +32,24 @@ const IMAGE_TIERS: Tier[] = [
 ];
 
 /**
- * The provider's price for one generation next to what users pay for it, so the admin can set
- * a credit cost with a margin in mind. Videos are priced per resolution (480p and 720p HD) and
- * images per quality (1K, 2K, 4K), so each has its own provider cost and credit price. Higgsfield
- * models are priced live for this account (discount included); Seedance's cost is typed in.
+ * The provider's cost for one generation next to what users pay for it: credits charged, revenue, total cost
+ * (provider cost × (1 + retry buffer) + gateway fee) and the margin, from the same settings the price formula
+ * uses. A margin under the target shows a red warning; saving is never blocked.
  */
 export function CostMargin({
   values,
   onChange,
-  packages,
-  defaultUsdMnt,
-  rates,
+  config,
   auto,
   error,
 }: {
   values: TemplateFormValues;
   onChange: <K extends keyof TemplateFormValues>(key: K, value: TemplateFormValues[K]) => void;
-  packages: PackagePrice[];
-  defaultUsdMnt: number;
-  /** Retry buffer and gateway fee, counted as costs on top of the provider's price. */
-  rates: PricingRates;
+  config: PricingConfig;
   /** The credits are worked out automatically, so only what the price needs is asked for. */
   auto: boolean;
   error?: string;
 }) {
-  const [usdMnt, setUsdMnt] = useState(String(defaultUsdMnt));
-  const [target, setTarget] = useState("60");
   const [view, setView] = useState("480p");
   const [checking, setChecking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -76,12 +63,13 @@ export function CostMargin({
   const hasLookup = hasPriceLookup(values.engine);
   const costValue = values[costKey];
   const costUsd = Number(costValue);
-  const rate = Number(usdMnt);
   const creditsValue = values[creditKey];
-  const creditCost = Number(creditsValue);
-  const hasCredits = creditsValue !== "" && Number.isFinite(creditCost);
-  const ready = costValue !== "" && Number.isFinite(costUsd) && rate > 0 && hasCredits;
-  const targetPct = Number(target);
+  const credits = Number(creditsValue);
+  const hasCredits = creditsValue !== "" && Number.isFinite(credits);
+  const ready = costValue !== "" && Number.isFinite(costUsd) && hasCredits;
+  const m = ready ? marginFor({ costUsd, credits, cfg: config }) : null;
+  const target = config.targetMarginPct;
+  const formulaCredits = costValue !== "" && Number.isFinite(costUsd) ? creditsForCostUsd(costUsd, config) : null;
 
   // Cost inputs that are shown for typing; every other one still travels with the form as a hidden field.
   const visibleKeys: CostKey[] = auto ? (hasLookup ? [] : isVideo ? ["costUsd", "costUsdHd"] : ["costUsd"]) : [costKey];
@@ -101,7 +89,7 @@ export function CostMargin({
       });
       if (result.ok) {
         onChange(costKey, String(result.usd));
-        setNote(result.note ?? "Priced by Higgsfield for your account.");
+        setNote(result.origin === "list" ? (result.note ?? "Higgsfield list price.") : "Higgsfield account price.");
       } else {
         setNote(result.error);
       }
@@ -111,14 +99,6 @@ export function CostMargin({
       setChecking(false);
     }
   }
-
-  const margins = ready
-    ? packages.map((p) => ({ pack: p, perCredit: perCreditMnt(p), m: marginFor({ costUsd, creditCost, perCredit: perCreditMnt(p), usdMnt: rate, ...rates }) }))
-    : [];
-  // When every pack costs the same per credit (all at ₮100 now) one row says it all.
-  const uniform = margins.length > 1 && margins.every((m) => m.perCredit === margins[0].perCredit);
-  const rows = uniform ? [{ ...margins[0], pack: { ...margins[0].pack, id: "all", name: "All packs" } }] : margins;
-  const thinnest = margins.length > 0 ? margins.reduce((a, b) => (b.m.marginPct < a.m.marginPct ? b : a)) : null;
 
   return (
     <div className="space-y-3 rounded-xl border border-foreground/20 p-3">
@@ -146,13 +126,12 @@ export function CostMargin({
 
       {auto ? (
         <>
-          {hasLookup ? (
+          {visibleKeys.length === 0 ? (
             <p className="text-sm">
               Provider cost at {tier.label}:{" "}
               <span className="font-semibold">
                 {costValue !== "" && Number.isFinite(costUsd) ? `$${costUsd.toFixed(2)}` : "…"}
-              </span>{" "}
-              <span className="text-xs text-foreground/60">(looked up from Higgsfield for your account)</span>
+              </span>
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -163,7 +142,7 @@ export function CostMargin({
                   value={values.costUsd}
                   onChange={(e) => onChange("costUsd", e.target.value)}
                   inputMode="decimal"
-                  placeholder="e.g. 2.39"
+                  placeholder={`empty = $${config.videoUsdPerSecond}/s rate`}
                   className={inputClass}
                 />
               </div>
@@ -181,13 +160,13 @@ export function CostMargin({
                 </div>
               )}
               <p className="col-span-2 text-xs text-foreground/60">
-                Seedance has no price lookup: type what one generation costs you (BytePlus console) and the credits are
+                Type what one generation costs you (BytePlus console) to override the per-second rate; the credits are
                 worked out for you.
               </p>
             </div>
           )}
           <p className="text-xs text-foreground/60">
-            Exchange rate: {mnt(rate)} per $1 (set on the server as USD_MNT_RATE).
+            Rate: {mnt(config.usdMnt)} per $1, ${config.videoUsdPerSecond}/s at 480p (change these under Pricing settings).
           </p>
         </>
       ) : (
@@ -202,17 +181,24 @@ export function CostMargin({
                 value={costValue}
                 onChange={(e) => onChange(costKey, e.target.value)}
                 inputMode="decimal"
-                placeholder="e.g. 2.39"
+                placeholder="e.g. 1.11"
                 className={inputClass}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold">Exchange rate (₮ per $1)</label>
-              <input value={usdMnt} onChange={(e) => setUsdMnt(e.target.value)} inputMode="decimal" className={inputClass} />
+            <div className="flex items-end">
+              {formulaCredits !== null && (
+                <button
+                  type="button"
+                  onClick={() => onChange(creditKey, String(formulaCredits))}
+                  className="rounded-full border border-foreground/30 px-3 py-2 text-xs font-semibold"
+                >
+                  Use formula price: {formulaCredits} credits
+                </button>
+              )}
             </div>
           </div>
 
-          {hasLookup ? (
+          {hasLookup && (
             <button
               type="button"
               onClick={() => void check()}
@@ -221,11 +207,6 @@ export function CostMargin({
             >
               {checking ? "Checking…" : "Get price from Higgsfield"}
             </button>
-          ) : (
-            <p className="text-xs text-foreground/60">
-              Seedance has no price lookup here. Enter what one generation costs you (BytePlus console, per video
-              length and resolution).
-            </p>
           )}
           {note && <p className="text-xs text-foreground/70">{note}</p>}
         </>
@@ -235,72 +216,46 @@ export function CostMargin({
         <p className="text-xs text-foreground/60">Set the {tier.label} credits above first, then the margin shows here.</p>
       )}
 
-      {ready && packages.length > 0 && (
+      {m && (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="text-foreground/60">
-                <tr>
-                  <th className="py-1 pr-2 font-medium">Credit pack</th>
-                  <th className="py-1 pr-2 font-medium">₮ / credit</th>
-                  <th className="py-1 pr-2 font-medium">You earn</th>
-                  <th className="py-1 pr-2 font-medium">Total cost</th>
-                  <th className="py-1 font-medium">Margin</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ pack, perCredit, m }) => (
-                  <tr key={pack.id} className="border-t border-foreground/10">
-                    <td className="py-1 pr-2">{pack.name}</td>
-                    <td className="py-1 pr-2">{mnt(perCredit)}</td>
-                    <td className="py-1 pr-2">{mnt(m.revenueMnt)}</td>
-                    <td className="py-1 pr-2">{mnt(m.costMnt)}</td>
-                    <td className={`py-1 font-semibold ${m.marginMnt < 0 ? "text-red-500" : m.marginPct < MIN_MARGIN_PCT ? "text-amber-500" : ""}`}>
-                      {mnt(m.marginMnt)} ({m.marginPct.toFixed(0)}%)
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {thinnest && thinnest.m.marginPct < MIN_MARGIN_PCT && (
-            <p role="alert" className={`text-xs font-semibold ${thinnest.m.marginMnt < 0 ? "text-red-500" : "text-amber-500"}`}>
-              {thinnest.m.marginMnt < 0
-                ? `Warning: at ${tier.label} this price loses money on the ${thinnest.pack.name} (${thinnest.m.marginPct.toFixed(0)}%).`
-                : `Warning: the margin at ${tier.label} is below ${MIN_MARGIN_PCT}% on the ${thinnest.pack.name} (${thinnest.m.marginPct.toFixed(0)}%).`}
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
+            <div>
+              <dt className="text-foreground/60">Credits charged</dt>
+              <dd className="font-semibold">{credits.toLocaleString("en-US", { maximumFractionDigits: 2 })}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground/60">Revenue</dt>
+              <dd className="font-semibold">{mnt(m.revenueMnt)}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground/60">Provider cost</dt>
+              <dd className="font-semibold">{mnt(m.providerMnt)}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground/60">+ Retry buffer ({(config.retryRate * 100).toFixed(1)}%)</dt>
+              <dd className="font-semibold">{mnt(m.retryMnt)}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground/60">+ Gateway fee ({(config.gatewayFeeRate * 100).toFixed(1)}%)</dt>
+              <dd className="font-semibold">{mnt(m.feeMnt)}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground/60">Total cost</dt>
+              <dd className="font-semibold">{mnt(m.costMnt)}</dd>
+            </div>
+          </dl>
+          <p className={`text-sm font-semibold ${m.marginPct < target ? "text-red-500" : ""}`}>
+            Margin at {tier.label}: {mnt(m.marginMnt)} ({m.marginPct.toFixed(1)}%)
+          </p>
+          {m.marginPct < target && (
+            <p role="alert" className="text-xs font-semibold text-red-500">
+              {m.marginMnt < 0
+                ? `Warning: at ${tier.label} this price loses money (${m.marginPct.toFixed(0)}%).`
+                : `Warning: the margin at ${tier.label} is ${m.marginPct.toFixed(1)}%, below the ${target}% target.`}{" "}
+              {formulaCredits !== null && formulaCredits > credits ? `The formula would charge ${formulaCredits} credits. ` : ""}
+              You can still save.
             </p>
           )}
-
-          {!auto && (
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span>For a margin of</span>
-              <input
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-                inputMode="numeric"
-                className="w-14 rounded-lg border border-foreground/30 bg-transparent px-2 py-1"
-              />
-              <span>% charge at least:</span>
-              {packages.map((p) => {
-                const credits = creditsForMargin({ costUsd, perCredit: perCreditMnt(p), usdMnt: rate, targetPct, ...rates });
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => onChange(creditKey, String(credits))}
-                    className="rounded-full border border-foreground/30 px-3 py-1 font-semibold"
-                  >
-                    {credits2(credits)} credits ({p.name})
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <p className="text-xs text-foreground/50">
-            Total cost = provider price + {(rates.retryRate * 100).toFixed(1)}% retry buffer + {(rates.gatewayFeeRate * 100).toFixed(1)}% payment gateway fee
-            (change these on the Templates page). Free signup credits are not included.
-          </p>
         </>
       )}
     </div>

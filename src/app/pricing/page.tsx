@@ -1,18 +1,16 @@
 import { PricingPlans } from "@/components/PricingPlans";
-import { Reveal } from "@/components/Reveal";
-import {
-  IMAGE_TIER_CREDITS,
-  SIGNUP_BONUS_CREDITS,
-  VIDEO_CREDITS,
-  formatCredits,
-} from "@/config/pricing";
+import { IMAGE_CREDITS, SIGNUP_BONUS_CREDITS, formatCredits } from "@/config/pricing";
 import { getT } from "@/lib/i18n/server";
+import { packCounts } from "@/lib/packs";
+import { getPricingConfig } from "@/lib/pricing-settings";
 import { getCreditPackages } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function PricingPage() {
-  const [creditPackages, { t }] = await Promise.all([getCreditPackages(), getT()]);
+  const [creditPackages, cfg, { t }] = await Promise.all([getCreditPackages(), getPricingConfig(), getT()]);
+  // What each pack covers is counted from its credits and the price list, never typed by hand.
+  const plans = creditPackages.map((pkg) => ({ pkg, counts: packCounts(pkg.credits, cfg, IMAGE_CREDITS) }));
 
   return (
     <div className="py-10 md:py-16">
@@ -21,35 +19,7 @@ export default async function PricingPage() {
         {t("pricing.intro", { bonus: formatCredits(SIGNUP_BONUS_CREDITS) })}
       </p>
 
-      <PricingPlans packages={creditPackages} />
-
-      <Reveal className="mt-12 rounded-3xl border border-line bg-surface p-6">
-        <h2 className="text-lg font-semibold">{t("pricing.costTitle")}</h2>
-        <div className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-          <div>
-            <p className="text-muted">{t("pricing.image")}</p>
-            <p className="mt-1 text-[15px]">
-              {t("pricing.at1k", { amount: formatCredits(IMAGE_TIER_CREDITS["1k"]) })}
-              <span className="block text-muted">{t("pricing.at2k", { amount: formatCredits(IMAGE_TIER_CREDITS["2k"]) })}</span>
-              <span className="block text-muted">{t("pricing.at4k", { amount: formatCredits(IMAGE_TIER_CREDITS["4k"]) })}</span>
-            </p>
-          </div>
-          {([10, 20] as const).map((seconds) => (
-            <div key={seconds}>
-              <p className="text-muted">{t("pricing.videoSeconds", { seconds })}</p>
-              <p className="mt-1 text-[15px]">
-                {t("pricing.at480", { amount: formatCredits(VIDEO_CREDITS[seconds]["480p"]) })}
-                <span className="block text-muted">
-                  {t("pricing.at720", { amount: formatCredits(VIDEO_CREDITS[seconds]["720p"]) })}
-                </span>
-              </p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 text-xs text-muted">
-          {t("pricing.note")}
-        </p>
-      </Reveal>
+      <PricingPlans plans={plans} referenceSeconds={cfg.referenceSeconds} />
     </div>
   );
 }

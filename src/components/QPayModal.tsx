@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useT } from "@/components/I18nProvider";
+import { useLocale, useT } from "@/components/I18nProvider";
 import { LoginModal } from "@/components/LoginModal";
 import { formatCredits } from "@/config/pricing";
 import { packName } from "@/lib/i18n/helpers";
@@ -55,6 +55,7 @@ export function QPayModal({
   onPaid?: (balance: number) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(
     initialPackageId ?? packages.find((p) => p.highlighted)?.id ?? packages[0]?.id,
@@ -289,7 +290,7 @@ export function QPayModal({
                   >
                     <span>
                       <span className="flex items-center gap-2 text-[15px] font-medium text-foreground">
-                        {packName(t, p)}
+                        {packName(t, p, locale)}
                         {p.highlighted && (
                           <span className="btn-primary rounded-full px-2 py-0.5 text-[10px] font-medium">{t("qpay.select.popular")}</span>
                         )}

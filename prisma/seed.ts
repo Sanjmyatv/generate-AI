@@ -1,10 +1,18 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { IMAGE_CREDITS, IMAGE_TIER_CREDITS, PACKAGES, VIDEO_CREDITS } from "../src/config/pricing";
+import { IMAGE_CREDITS, IMAGE_TIER_CREDITS, PACKAGES } from "../src/config/pricing";
+import { DEFAULT_PRICING, videoCredits } from "../src/lib/pricing";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+});
+
+/** Credits for a video of this length from the pricing formula (a fresh database has the default settings). */
+const videoPrice = (seconds: number) => ({
+  creditCost: videoCredits(seconds, "480p", DEFAULT_PRICING),
+  creditCostHd: videoCredits(seconds, "720p", DEFAULT_PRICING),
+  autoCredits: true,
 });
 
 async function main() {
@@ -22,8 +30,7 @@ async function main() {
       description: "Upload your photo and generate an AI dance video.",
       categoryId: "dance",
       type: "VIDEO" as const,
-      creditCost: VIDEO_CREDITS[10]["480p"],
-      creditCostHd: VIDEO_CREDITS[10]["720p"],
+      ...videoPrice(10),
       durationSeconds: 10,
       aspectRatio: "9:16",
       requiredPhotoCount: 1,
@@ -36,8 +43,7 @@ async function main() {
       description: "Turn your photo into a street dance clip.",
       categoryId: "dance",
       type: "VIDEO" as const,
-      creditCost: VIDEO_CREDITS[10]["480p"],
-      creditCostHd: VIDEO_CREDITS[10]["720p"],
+      ...videoPrice(10),
       durationSeconds: 10,
       aspectRatio: "9:16",
       requiredPhotoCount: 1,
@@ -79,7 +85,6 @@ async function main() {
   // Higgsfield Genjutsu. It bills per second of source video (~14.7 s → 15 s): at 480p with
   // our 50% discount that is about $2.39 per generation. Prices come from src/config/pricing.ts
   // (the 20 s tier); check the margin in /admin, because that provider cost is above the standard price.
-  const THREE_GUYS_CREDITS = VIDEO_CREDITS[20];
 
   // Hidden instruction for Genjutsu motion transfer. Users never see it.
   const threeGuysConfig = {
@@ -108,9 +113,8 @@ async function main() {
     description: "Put yourself and two friends into this viral video — each of you gets your own scene.",
     categoryId: "dance",
     type: "VIDEO" as const,
-    creditCost: THREE_GUYS_CREDITS["480p"],
-    creditCostHd: THREE_GUYS_CREDITS["720p"],
-    durationSeconds: 15, // the template video is 14.7 s: the 20 s price tier
+    ...videoPrice(15),
+    durationSeconds: 15, // the template video is 14.7 s
     aspectRatio: "9:16", // the template video is 720x1280
     // Preview shown on cards and the template page (same file as the edit source).
     previewUrl: "/templates/three-guys-dancing.mp4",
@@ -129,8 +133,7 @@ async function main() {
     description: "Turn one photo into the sunset gas-station selfie everyone is posting.",
     categoryId: "dance",
     type: "VIDEO" as const,
-    creditCost: VIDEO_CREDITS[10]["480p"],
-    creditCostHd: VIDEO_CREDITS[10]["720p"],
+    ...videoPrice(8),
     durationSeconds: 8,
     aspectRatio: "9:16",
     requiredPhotoCount: 1,
@@ -167,8 +170,7 @@ async function main() {
     description: "Star in this video — your photo replaces the character, the moves stay the same.",
     categoryId: "trending",
     type: "VIDEO" as const,
-    creditCost: VIDEO_CREDITS[20]["480p"],
-    creditCostHd: VIDEO_CREDITS[20]["720p"],
+    ...videoPrice(15),
     durationSeconds: 15,
     aspectRatio: "9:16", // match the template video
     requiredPhotoCount: 1,
@@ -211,8 +213,7 @@ async function main() {
     description: "Step into this viral night-out dance — your photo, the exact same moves.",
     categoryId: "dance",
     type: "VIDEO" as const,
-    creditCost: VIDEO_CREDITS[20]["480p"],
-    creditCostHd: VIDEO_CREDITS[20]["720p"],
+    ...videoPrice(15),
     durationSeconds: 15,
     aspectRatio: "9:16", // the template video is 320x568
     previewUrl: "/templates/shine.mp4",
@@ -345,25 +346,23 @@ async function main() {
   for (const [id, [nameMn, descriptionMn]] of Object.entries(mongolian)) {
     await prisma.template.updateMany({ where: { id, nameMn: null }, data: { nameMn, descriptionMn } });
   }
-  // Credit packs follow src/config/pricing.ts and are re-applied on every deploy (nothing edits
-  // them elsewhere). Packs that are no longer in the list are hidden, not deleted, because
-  // payments may point at them.
+  // Credit packs live in the database and are edited in /admin/packs, so a deploy only creates the
+  // ones that are missing (a fresh database) and never overwrites an edit.
   for (const [sortOrder, p] of PACKAGES.entries()) {
     const data = {
       name: p.name,
+      nameMn: p.nameMn,
       credits: p.credits,
       bonusCredits: p.bonusCredits,
       priceMnt: p.priceMnt,
       highlighted: p.highlighted,
+      priorityQueue: p.priorityQueue,
+      topPriorityQueue: p.topPriorityQueue,
       sortOrder,
       active: true,
     };
-    await prisma.creditPackage.upsert({ where: { id: p.id }, update: data, create: { id: p.id, ...data } });
+    await prisma.creditPackage.upsert({ where: { id: p.id }, update: {}, create: { id: p.id, ...data } });
   }
-  await prisma.creditPackage.updateMany({
-    where: { id: { notIn: PACKAGES.map((p) => p.id) } },
-    data: { active: false },
-  });
 }
 
 main()

@@ -113,6 +113,9 @@ model Template {
   /// AI model / provider configuration (opaque to the frontend).
   generationConfig   Json?
   active             Boolean          @default(true)
+  /// The credits were worked out by the pricing formula ("Work out the credits automatically"), so a pricing-settings
+  /// change may reprice this template. Templates priced by hand keep false and are never repriced for you.
+  autoCredits        Boolean          @default(false)
   trendingRank       Int?
   createdAt          DateTime         @default(now())
 
@@ -133,6 +136,11 @@ model CreditPackage {
   highlighted Boolean @default(false)
   active   Boolean   @default(true)
   sortOrder Int      @default(0)
+  /// Mongolian name; empty falls back to the dictionary, then to `name`.
+  nameMn   String?
+  /// Promised on the pricing card ("priority queue" rows). Display only: generation order does not use them yet.
+  priorityQueue    Boolean @default(false)
+  topPriorityQueue Boolean @default(false)
   payments Payment[]
 }
 
@@ -247,7 +255,23 @@ model PricingSetting {
   id              String   @id @default("default")
   /// Share of the provider cost added for failed or repeated requests we pay for (0.05 = 5%).
   retryBufferRate Decimal  @default(0.05) @db.Decimal(5, 4)
-  /// Share of the selling price the payment gateway keeps (0.015 = 1.5%).
-  gatewayFeeRate  Decimal  @default(0.015) @db.Decimal(5, 4)
+  /// Share of the selling price the payment gateway keeps (0.01 = 1%).
+  gatewayFeeRate  Decimal  @default(0.01) @db.Decimal(5, 4)
+  /// MNT one credit is worth; the same in every pack.
+  creditValueMnt  Int      @default(100)
+  /// Margin the automatic price aims for, in percent of revenue.
+  targetMarginPct Decimal  @default(55) @db.Decimal(5, 2)
+  /// MNT per USD; empty uses the USD_MNT_RATE environment variable (default 3500).
+  usdMntRate      Decimal? @db.Decimal(10, 2)
+  /// Real cost of one second of 480p video on our account, in USD (manual).
+  videoUsdPerSecond Decimal @default(0.074) @db.Decimal(8, 4)
+  /// How much more 720p costs than 480p.
+  hdMultiplier    Decimal  @default(2.015) @db.Decimal(6, 3)
+  /// Length of the video a pack's "N videos" count refers to.
+  referenceSeconds Int     @default(15)
+  /// "MANUAL" (the per-second rate above) or "HIGGSFIELD" (look the price up per template).
+  priceSource     String   @default("MANUAL")
+  /// Higgsfield's list price per second of 480p video (what we would pay without our discount); only for the risk line.
+  listUsdPerSecond Decimal @default(0.10667) @db.Decimal(8, 5)
   updatedAt       DateTime @updatedAt
 }

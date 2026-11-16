@@ -48,6 +48,11 @@ export interface CreditPackage {
   bonusCredits: number;
   /** Shown as "Most Popular". */
   highlighted: boolean;
+  /** Mongolian name; null falls back to the dictionary, then to `name`. */
+  nameMn: string | null;
+  /** The two "queue priority" rows on the pricing card. */
+  priorityQueue: boolean;
+  topPriorityQueue: boolean;
 }
 
 export type GenerationStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
