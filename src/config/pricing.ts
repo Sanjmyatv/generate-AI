@@ -41,6 +41,9 @@ export const VIDEO_CREDITS: Record<VideoTier, Record<Resolution, number>> = {
   20: { "480p": 215, "720p": 435 },
 };
 
+/** Longest source video Genjutsu Light uses (Higgsfield trims anything longer). It bills output plus source, so cost scales with this. */
+export const GENJUTSU_LIGHT_MAX_SECONDS = 30;
+
 /** The tier a video of this length is priced in: up to 10 s is the 10 s tier, anything longer the 20 s tier. */
 export function videoTier(durationSeconds: number | null | undefined): VideoTier {
   return durationSeconds && durationSeconds > VIDEO_TIERS[0] ? 20 : 10;

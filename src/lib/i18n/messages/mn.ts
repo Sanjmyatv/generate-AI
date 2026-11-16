@@ -34,8 +34,9 @@ export const mn: Messages = {
     "Загвараа сонгоод өөрийнхөө зургийг нэмэхэд л хангалттай. ZYRO AI таны төсөөллийг бодит болгоно.",
   "hero.explore": "Загвар үзэх",
   "hero.possible": "Юу боломжтойг үз",
-
-  
+  // Left empty on purpose: these two lines were removed from the Mongolian hero, and the keys must stay for the type check.
+  "hero.note": "",
+  "hero.bottomLeft": "",
   "hero.bottomRight": "ДООШ ГҮЙЛГЭЖ БЭЛЭН ЗАГВАРУУД ХАРАХ ↓",
 
   // Discovery

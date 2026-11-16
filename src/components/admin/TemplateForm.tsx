@@ -6,7 +6,7 @@ import { saveTemplateAction, suggestPriceAction, type TemplateFormState } from "
 import { CostMargin } from "@/components/admin/CostMargin";
 import { VideoAnalysis } from "@/components/admin/VideoAnalysis";
 import { TemplatePreview } from "@/components/TemplatePreview";
-import { RESOLUTIONS } from "@/config/pricing";
+import { GENJUTSU_LIGHT_MAX_SECONDS, RESOLUTIONS } from "@/config/pricing";
 import type { PackagePrice, PricingRates } from "@/lib/pricing";
 import {
   CARD_SHAPES,
@@ -29,7 +29,6 @@ const GENJUTSU_RATE: Record<string, number> = { "480p": 0.318, "720p": 0.681, "1
 
 /** Genjutsu Light list price per second, counted over the output plus the source video. */
 const GENJUTSU_LIGHT_RATE: Record<string, number> = { "480p": 0.05, "720p": 0.1, "1080p": 0.2 };
-const GENJUTSU_LIGHT_MAX_SECONDS = 15;
 
 const GENJUTSU_PROMPT_HELP =
   'Optional. Say who replaces whom, e.g. "Replace the dancer with the person in the first reference image." Refer to the photos as the first, second, third reference image.';
@@ -149,7 +148,7 @@ export function TemplateForm({
     }
   }
 
-  // Light bills the output plus the source video, and only uses the first 15 s of it.
+  // Light bills the output plus the source video, and only uses the first 30 s of it.
   const lightSeconds = sourceSeconds === null ? 0 : Math.ceil(Math.min(sourceSeconds, GENJUTSU_LIGHT_MAX_SECONDS)) * 2;
   const estimates =
     sourceSeconds === null

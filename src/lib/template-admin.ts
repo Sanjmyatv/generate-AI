@@ -30,7 +30,7 @@ export const ENGINES: { value: Engine; type: "VIDEO" | "IMAGE"; label: string; h
     value: "genjutsu-light",
     type: "VIDEO",
     label: "Swap into a source video, cheaper (Genjutsu Light)",
-    help: "Same idea as Genjutsu at a much lower price. Uses only the first 15 seconds of the source video and keeps its sound. Billed per second of output plus source video.",
+    help: "Same idea as Genjutsu at a much lower price. Uses only the first 30 seconds of the source video and keeps its sound. Billed per second of output plus source video.",
   },
   {
     value: "seedance-edit",

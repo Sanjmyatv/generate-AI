@@ -52,7 +52,7 @@ export async function Hero() {
             </Link>
           </div>
 
-          <p className="text-[11px] leading-[1.5] text-muted">{t("hero.note")}</p>
+          {t("hero.note") && <p className="text-[11px] leading-[1.5] text-muted">{t("hero.note")}</p>}
         </div>
 
         {/* Two example results, framed in glass and floating over the backdrop. Laid out at 530x460 and scaled down on phones. */}

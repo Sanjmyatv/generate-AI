@@ -13,7 +13,7 @@ const DEFAULT_BASE_URL = "https://api.higgsfield.ai";
 /** HIGGSFIELD_BASE_URL points the client at a stand-in server when testing. */
 const baseUrl = () => process.env.HIGGSFIELD_BASE_URL?.trim().replace(/\/+$/, "") || DEFAULT_BASE_URL;
 const MODEL_PATH = "higgsfield/genjutsu/motion-transfer/v1.0";
-/** The cheaper variant: uses the first 15 s of the source video and keeps its audio. */
+/** The cheaper variant: uses the first 30 s of the source video and keeps its audio. */
 const LIGHT_MODEL_PATH = "higgsfield/genjutsu-light/motion-transfer/v1.0";
 const motionModelPath = (light?: boolean) => (light ? LIGHT_MODEL_PATH : MODEL_PATH);
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -28,9 +28,9 @@ export class HiggsfieldError extends Error {
 
 /** List price per second (USD, before any account discount): Genjutsu per second of source video. */
 export const GENJUTSU_LIST_USD_PER_SECOND = { "480p": 0.318, "720p": 0.681, "1080p": 1.632 } as const;
-/** Genjutsu Light per billable second (output plus source video, source trimmed to 15 s). */
+/** Genjutsu Light per billable second (output plus source video, source trimmed to GENJUTSU_LIGHT_MAX_SECONDS). */
 export const GENJUTSU_LIGHT_LIST_USD_PER_SECOND = { "480p": 0.05, "720p": 0.1, "1080p": 0.2 } as const;
-export const GENJUTSU_LIGHT_MAX_SECONDS = 15;
+export { GENJUTSU_LIGHT_MAX_SECONDS } from "@/config/pricing";
 
 /** Per-template settings stored in `Template.generationConfig`. */
 export interface GenjutsuTemplateConfig {
@@ -43,7 +43,7 @@ export interface GenjutsuTemplateConfig {
   resolution?: "480p" | "720p" | "1080p";
   /**
    * Run on Genjutsu Light instead: list price per total second (output + source video) is $0.05
-   * (480p), $0.10 (720p), $0.20 (1080p), and only the first 15 s of the source is used.
+   * (480p), $0.10 (720p), $0.20 (1080p), and only the first 30 s of the source is used.
    */
   light?: boolean;
 }

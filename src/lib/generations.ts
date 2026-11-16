@@ -5,7 +5,7 @@ import { getTask } from "@/lib/seedance";
 import { getHiggsfieldTask, isHiggsfieldConfig } from "@/lib/higgsfield";
 
 /** A job still running after this long is treated as failed (and refunded). */
-export const GENERATION_TIMEOUT_MS = 15 * 60 * 1000;
+export const GENERATION_TIMEOUT_MS = 30 * 60 * 1000;
 
 export function canAccess(gen: Pick<Generation, "userId" | "guestId">, actor: Actor) {
   if (actor.userId && gen.userId === actor.userId) return true;
