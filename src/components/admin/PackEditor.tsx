@@ -21,15 +21,24 @@ export interface PackRow {
 /**
  * One credit pack. The credits are the price divided by the credit value, so the two cannot drift apart. The
  * preview counts what the credits cover (rounded down, from the same price list as the pricing page) and
- * checks the pack against its rule: Starter no 15 s video, Lite at least 1, Pro 2, Business 4.
+ * checks the pack against its rule: Starter no 15 s video, Lite at least 1, Pro 2, Pro+ 4.
  */
-export function PackEditor({ pack, config }: { pack: PackRow; config: PricingConfig }) {
+export function PackEditor({
+  pack,
+  config,
+  imageCredits,
+}: {
+  pack: PackRow;
+  config: PricingConfig;
+  /** Credits one 1K image costs on the site (see getImageCredits1k); null falls back to the formula. */
+  imageCredits: number | null;
+}) {
   const [price, setPrice] = useState(String(pack.priceMnt));
   const priceMnt = Number(price);
   const valid = Number.isInteger(priceMnt) && priceMnt >= config.creditValueMnt && priceMnt % config.creditValueMnt === 0;
   const credits = valid ? priceMnt / config.creditValueMnt : null;
 
-  const counts = credits === null ? null : packCounts(credits, config);
+  const counts = credits === null ? null : packCounts(credits, config, imageCredits);
   const warnings = counts ? packWarnings(pack.id, counts, config.referenceSeconds) : [];
   const ref = referenceCredits(config);
   // Margin on the reference video when this pack's credits are paid for at this pack's price.
