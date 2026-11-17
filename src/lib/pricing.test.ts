@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { packCounts, packWarnings, referenceCredits } from "./packs";
-import { DEFAULT_PRICING, costFactor, creditsForCostUsd, imageCredits1k, marginFor, videoCostUsd, videoCredits } from "./pricing";
+import { DEFAULT_PRICING, costFactor, creditsForCostUsd, imageCredits1k, lossLines, marginFor, videoCostUsd, videoCredits } from "./pricing";
 
 const cfg = DEFAULT_PRICING;
 
@@ -100,4 +100,24 @@ test("pack validation fails when a pack is out of range", () => {
 
 test("the old Lite pack (9,000₮ / 90 credits) no longer covers a video", () => {
   assert.equal(packCounts(90, cfg).video480, 0);
+});
+
+// The save check for prices below cost (admin template form).
+test("an image priced 3 / 6 / 10 is not flagged by a leftover video HD cost", () => {
+  const data = { type: "IMAGE" as const, creditCost: 3, creditCostHd: null, creditCost2k: 6, creditCost4k: 10 };
+  const config = { costUsd: 0.03, costUsdHd: 2.35, costUsd2k: 0.05, costUsd4k: 0.08 };
+  assert.deepEqual(lossLines(data, config, cfg), []);
+});
+
+test("an image quality priced below its cost is still flagged", () => {
+  const data = { type: "IMAGE" as const, creditCost: 3, creditCostHd: null, creditCost2k: 1, creditCost4k: null };
+  const lines = lossLines(data, { costUsd: 0.03, costUsd2k: 0.05 }, cfg);
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /^2K: 1 credits/);
+});
+
+test("a video's 720p HD price is checked, its empty 2K / 4K slots are not", () => {
+  const data = { type: "VIDEO" as const, creditCost: 50, creditCostHd: 1, creditCost2k: null, creditCost4k: null };
+  const lines = lossLines(data, { costUsd: 0.5, costUsdHd: 1, costUsd2k: 9, costUsd4k: 9 }, cfg);
+  assert.deepEqual(lines.map((l) => l.split(":")[0]), ["720p HD"]);
 });

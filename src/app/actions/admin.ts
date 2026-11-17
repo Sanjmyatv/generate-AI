@@ -17,7 +17,7 @@ import {
   estimateMotionTransferUsd,
 } from "@/lib/higgsfield";
 import { GENJUTSU_LIGHT_MAX_SECONDS } from "@/config/pricing";
-import { creditsForCostUsd, marginFor, targetMarginFor, videoCostUsd, type ImageQuality, type PricingConfig } from "@/lib/pricing";
+import { creditsForCostUsd, lossLines, targetMarginFor, videoCostUsd, type ImageQuality, type PricingConfig } from "@/lib/pricing";
 import { getPricingConfig } from "@/lib/pricing-settings";
 import { invalidateTrending } from "@/lib/trending";
 import { changeData, planRepricing, type PriceChange } from "@/lib/repricing";
@@ -40,31 +40,6 @@ export interface TemplateFormState {
   message: string | null;
   /** Set when a price loses money: saving then needs one more click ("confirmLoss"). */
   lossWarning?: string[];
-}
-
-const LOSS_TIERS = [
-  { credits: "creditCost", cost: "costUsd", video: "480p", image: "1K" },
-  { credits: "creditCostHd", cost: "costUsdHd", video: "720p HD", image: "" },
-  { credits: "creditCost2k", cost: "costUsd2k", video: "", image: "2K" },
-  { credits: "creditCost4k", cost: "costUsd4k", video: "", image: "4K" },
-] as const;
-
-/**
- * The prices that lose money: the provider cost on record for that quality, plus the retry buffer and the gateway
- * fee, against the credits charged. A price with no cost on record is not checked.
- */
-function lossLines(data: { type: "VIDEO" | "IMAGE" } & Record<string, unknown>, config: Record<string, unknown>, cfg: PricingConfig) {
-  const lines: string[] = [];
-  for (const t of LOSS_TIERS) {
-    const credits = Number(data[t.credits]);
-    const costUsd = config[t.cost];
-    if (!Number.isFinite(credits) || typeof costUsd !== "number" || !(costUsd > 0)) continue;
-    const m = marginFor({ costUsd, credits, cfg });
-    if (m.marginMnt < 0) {
-      lines.push(`${data.type === "VIDEO" ? t.video : t.image}: ${credits} credits earn ${m.revenueMnt.toLocaleString("en-US")}₮ but cost ${Math.round(m.costMnt).toLocaleString("en-US")}₮ (margin ${m.marginPct.toFixed(0)}%)`);
-    }
-  }
-  return lines;
 }
 
 /** Asset ids a template points at: its preview and its source video. */
