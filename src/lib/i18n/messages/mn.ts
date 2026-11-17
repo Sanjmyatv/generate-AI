@@ -110,7 +110,9 @@ export const mn: Messages = {
   "plan.row.refund": "Амжилтгүй үүсгэлтийн кредит автоматаар буцна",
   "plan.row.priority": "Тэргүүлэх боловсруулалтын дараалал",
   "plan.row.topPriority": "Дараалын дээд тэргүүлэх эрх",
-  "plan.note": "Дээрх бүтээлүүд нэг кредитийн дүнгээс хасагдана.",
+  "plan.choiceTitle": "{amount} кредитээр аль нэгийг:",
+  "plan.or": "эсвэл",
+  "plan.note": "Кредитээ дээрх бүтээлүүдэд хүссэнээрээ хувааж зарцуулж болно.",
   "ratio.label": "Харьцаа",
   "ratio.auto": "Автомат",
   "ratio.autoDetected": "Автомат ({ratio})",
@@ -119,7 +121,7 @@ export const mn: Messages = {
   "pack.trial": "Туршилтын багц",
   "pack.light": "Лайт бүтээгчийн багц",
   "pack.pro": "Про бүтээгчийн багц",
-  "pack.business": "Бизнесийн багц",
+  "pack.business": "Про + багц",
 
   // Resolution selector
   "res.quality": "Чанар",

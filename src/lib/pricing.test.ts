@@ -121,3 +121,12 @@ test("a video's 720p HD price is checked, its empty 2K / 4K slots are not", () =
   const lines = lossLines(data, { costUsd: 0.5, costUsdHd: 1, costUsd2k: 9, costUsd4k: 9 }, cfg);
   assert.deepEqual(lines.map((l) => l.split(":")[0]), ["720p HD"]);
 });
+
+test("pack image counts follow the real 1K image price when there is one", () => {
+  // Lite: 100 credits. At the formula's 7 credits it covers 14 images; at a real price of 3 it covers 33.
+  assert.equal(packCounts(100, cfg).images, 14);
+  assert.equal(packCounts(100, cfg, 3).images, 33);
+  assert.equal(packCounts(100, cfg, null).images, 14);
+  // The video count does not depend on the image price.
+  assert.equal(packCounts(100, cfg, 3).video480, 1);
+});

@@ -43,7 +43,7 @@ export const PACKAGES: PackageDefinition[] = [
   { id: "trial", name: "Trial", nameMn: "Туршилтын багц", priceMnt: 5_000, credits: 50, bonusCredits: 0, highlighted: false, priorityQueue: false, topPriorityQueue: false },
   { id: "light", name: "Light Creator", nameMn: "Лайт бүтээгчийн багц", priceMnt: 10_000, credits: 100, bonusCredits: 0, highlighted: false, priorityQueue: false, topPriorityQueue: false },
   { id: "pro", name: "Pro Creator", nameMn: "Про бүтээгчийн багц", priceMnt: 23_000, credits: 230, bonusCredits: 0, highlighted: true, priorityQueue: true, topPriorityQueue: false },
-  { id: "business", name: "Business", nameMn: "Бизнесийн багц", priceMnt: 45_000, credits: 450, bonusCredits: 0, highlighted: false, priorityQueue: true, topPriorityQueue: true },
+  { id: "business", name: "Pro+", nameMn: "Про + багц", priceMnt: 45_000, credits: 450, bonusCredits: 0, highlighted: false, priorityQueue: true, topPriorityQueue: true },
 ];
 
 /**

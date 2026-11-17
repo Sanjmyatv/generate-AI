@@ -2,7 +2,7 @@ import { imageCredits1k, videoCredits, type PricingConfig } from "./pricing";
 
 /** What a pack's credits cover, counted from the price list: always rounded down, so a card never overpromises. */
 export interface PackCounts {
-  /** 1K images. */
+  /** 1K images, at the price the site really charges for one (see imageCredits in packCounts). */
   images: number;
   /** Videos of the reference length at 480p / 720p HD. */
   video480: number;
@@ -17,16 +17,21 @@ export function referenceCredits(cfg: PricingConfig) {
   };
 }
 
-export function packCounts(credits: number, cfg: PricingConfig): PackCounts {
+/**
+ * `imageCredits` is what one 1K image really costs on the site (the dearest live image template's 1K price, so the
+ * count never overpromises). Without one, the pricing formula's 1K price is used.
+ */
+export function packCounts(credits: number, cfg: PricingConfig, imageCredits?: number | null): PackCounts {
   const ref = referenceCredits(cfg);
+  const perImage = imageCredits && imageCredits > 0 ? imageCredits : imageCredits1k(cfg);
   return {
-    images: Math.floor(credits / imageCredits1k(cfg)),
+    images: Math.floor(credits / perImage),
     video480: Math.floor(credits / ref.video480),
     video720: Math.floor(credits / ref.video720),
   };
 }
 
-/** How many reference videos (480p) each pack must cover: Starter none, Lite at least 1, Pro 2, Business 4. */
+/** How many reference videos (480p) each pack must cover: Starter none, Lite at least 1, Pro 2, Pro+ 4. */
 export const PACK_VIDEO_RULES: Record<string, { min?: number; max?: number }> = {
   trial: { max: 0 },
   light: { min: 1 },

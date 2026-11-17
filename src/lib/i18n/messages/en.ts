@@ -112,7 +112,9 @@ export const en = {
   "plan.row.refund": "Credits are refunded automatically on failed generations",
   "plan.row.priority": "Priority rendering queue",
   "plan.row.topPriority": "Top queue priority",
-  "plan.note": "The items above are alternatives drawn from the same credit balance, not additions.",
+  "plan.choiceTitle": "{amount} credits get you one of:",
+  "plan.or": "or",
+  "plan.note": "Mix and match: spend your credits on any combination of the above.",
   "ratio.label": "Ratio",
   "ratio.auto": "Auto",
   "ratio.autoDetected": "Auto ({ratio})",
@@ -121,7 +123,7 @@ export const en = {
   "pack.trial": "Trial",
   "pack.light": "Light Creator",
   "pack.pro": "Pro Creator",
-  "pack.business": "Business",
+  "pack.business": "Pro+",
 
   // Resolution selector
   "res.quality": "Quality",

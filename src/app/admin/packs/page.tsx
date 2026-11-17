@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PackEditor } from "@/components/admin/PackEditor";
 import { prisma } from "@/lib/db";
 import { getPricingConfig } from "@/lib/pricing-settings";
+import { getImageCredits1k } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,10 @@ const NOTICES: Record<string, string> = {
 /** The credit packs: the one place the pricing page, checkout and admin read them from. */
 export default async function PacksPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
   const { notice } = await searchParams;
-  const [packs, config] = await Promise.all([
+  const [packs, config, imageCredits] = await Promise.all([
     prisma.creditPackage.findMany({ orderBy: { sortOrder: "asc" } }),
     getPricingConfig(),
+    getImageCredits1k(),
   ]);
 
   return (
@@ -38,6 +40,7 @@ export default async function PacksPage({ searchParams }: { searchParams: Promis
           <PackEditor
             key={p.id}
             config={config}
+            imageCredits={imageCredits}
             pack={{
               id: p.id,
               name: p.name,

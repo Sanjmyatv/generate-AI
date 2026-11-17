@@ -128,6 +128,15 @@ export async function getTemplate(id: string) {
   return t ? toTemplate(t, new Set()) : null;
 }
 
+/**
+ * Credits one 1K image costs on the site: the highest 1K price among the image templates on show, so a pack's
+ * image count holds for every template. Null when no image template is on show.
+ */
+export async function getImageCredits1k(): Promise<number | null> {
+  const { _max } = await prisma.template.aggregate({ where: { type: "IMAGE", active: true }, _max: { creditCost: true } });
+  return _max.creditCost === null ? null : Number(_max.creditCost);
+}
+
 export async function getCreditPackages() {
   const packages = await prisma.creditPackage.findMany({
     where: { active: true },
