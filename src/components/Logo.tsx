@@ -9,7 +9,7 @@ export function Logo() {
       width={684}
       height={168}
       priority
-      className="h-[30px] w-auto sm:h-[38px]"
+      className="block h-[30px] w-auto"
     />
   );
 }

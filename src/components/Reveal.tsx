@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 type Phase = "ssr" | "hidden" | "shown";
 
 /**
- * Fades and scales its content up into view the first time it scrolls on screen. Content that
+ * Fades, un-blurs and lifts its content into view the first time it scrolls on screen. Content that
  * is already in view when the page loads is never hidden, and nothing is hidden before the
  * script runs, so the page still works without JavaScript. Honors reduced-motion settings.
  */
@@ -51,8 +51,8 @@ export function Reveal({
       id={id}
       ref={ref as never}
       style={delay ? { transitionDelay: `${delay}ms` } : undefined}
-      className={`transition-[opacity,transform] duration-700 ease-out motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100 motion-reduce:transition-none ${
-        hidden ? "translate-y-8 scale-[0.97] opacity-0" : "translate-y-0 scale-100 opacity-100"
+      className={`transition-[opacity,translate,filter] duration-1000 ease-[cubic-bezier(.2,.7,.2,1)] motion-reduce:translate-y-0 motion-reduce:opacity-100 motion-reduce:blur-none motion-reduce:transition-none ${
+        hidden ? "translate-y-10 opacity-0 [@media(hover:hover)_and_(pointer:fine)]:blur-[10px]" : "opacity-100"
       } ${className}`}
     >
       {children}

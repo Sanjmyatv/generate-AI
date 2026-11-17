@@ -27,57 +27,40 @@ export const mn: Messages = {
   "lang.label": "Хэл",
 
   // Hero
-  "hero.eyebrow": "AI ВИДЕО, ЗУРАГ ҮҮСГЭГЧ · БЭЛЭН ЗАГВАРУУД",
-  "hero.title1": "Prompt бичих шаардлагагүй.",
-  "hero.title2": "Бэлэн загвараа сонгоод л шууд эхэл.",
-  "hero.desc":
-    "Загвараа сонгоод өөрийнхөө зургийг нэмэхэд л хангалттай. ZYRO AI таны төсөөллийг бодит болгоно.",
-  "hero.explore": "Загвар үзэх",
-  // Left empty on purpose: these two lines were removed from the Mongolian hero, and the keys must stay for the type check.
-  "hero.note": "",
-  "hero.bottomLeft": "",
-  "hero.bottomRight": "ДООШ ГҮЙЛГЭЖ БЭЛЭН ЗАГВАРУУД ХАРАХ ↓",
+  "hero.badge": "Видео ба зураг — хэдхэн секундэд",
+  "hero.title1": "Өөрийн зургаар",
+  "hero.title2": "трэнд контент",
+  "hero.title3": " бүтээе.",
+  "hero.desc": "Загвараа сонгоод, зургаа оруулахад zyro.ai таны зургийг AI видео эсвэл зураг болгон хувиргана.",
+  "hero.explore": "Загвар сонгох",
+  "hero.how": "Хэрхэн ажилладаг вэ",
 
   // Discovery
-  "disc.title": "ТРЭНДЭЭ ДАГА",
-  "disc.subtitle": "Загвар сонго. Зургаа оруул. Үлдсэнийг ZYRO.",
-  "disc.typeLabel": "Загварын төрөл",
+  "disc.title": "Загварууд",
+  "disc.subtitle": "Эрэлттэй загвараас сонгоод шууд эхлээрэй.",
+  "disc.filterLabel": "Загвар шүүх",
   "disc.videos": "Видео",
   "disc.images": "Зураг",
-  "disc.categories": "Ангилал",
   "disc.all": "Бүгд",
-  "disc.allTitle": "Бүх загвар",
   "disc.trendingChip": "Эрэлттэй",
   "disc.emptyVideo": "Видео загвар одоогоор алга. Удахгүй нэмэгдэнэ.",
   "disc.emptyImage": "Зургийн загвар одоогоор алга. Удахгүй нэмэгдэнэ.",
-  "disc.trendingTitle": "Одоо эрэлттэй",
-  "disc.trendingSub": "Хүн бүрийн өөрийнх болгож буй загварууд.",
-  "disc.count_one": "{count} загвар",
-  "disc.count_other": "{count} загвар",
-  "disc.scrollLeft": "{title}-ийг зүүн тийш гүйлгэх",
-  "disc.scrollRight": "{title}-ийг баруун тийш гүйлгэх",
-
-  // Featured template
-  "feat.eyebrow": "ОНЦЛОХ ЗАГВАР ТАНЫ ЭЭЛЖ",
-  "feat.cta": "Энэ загварыг туршах",
+  "disc.empty": "Энд одоогоор загвар алга. Удахгүй нэмэгдэнэ.",
 
   // How it works
-  "how.eyebrow": "Промпт бичих шаардлагагүй.",
-  "how.title": "Гурван алхам.",
-  "how.step1.title": "Алхам 01 — Загвараа сонго",
-  "how.step1.text": "Сошиалд трэнд болж буй видео болон зургийн загваруудаас өөрт таалагдсанаа сонгоод.",
-  "how.step2.title": "Алхам 02 — Зургаа оруул",
-  "how.step2.text": "Өөрийн селфи эсвэл дурын зургийг байршуулаад",
-  "how.step3.title": "Алхам 03 — Үүсгээд л хуваалц",
-  "how.step3.text": "AI таны өмнөөс бүгдийг хийнэ. Та ердөө л утсандаа татаж аваад сошиал хуудсандаа оруулахад л хангалттай.",
-  "how.cta.eyebrow": "ТРЭНД БЭЛЭН БИЧЛЭГҮҮД",
-  "how.cta.title": "Таны дараагийн бүтээл эндээс эхэлнэ.",
-  "how.cta.desc": "Өнөөдрөөс эхлэн өөрийн шинэ төрхөөрөө гайхуул.",
-  "how.cta.start": "Бүтээж эхлэх",
+  "how.title": "Хэдхэн даралтаар гайхалтай үр дүн",
+  "how.step1.title": "Загвар сонгох",
+  "how.step1.text": "Видео эсвэл зургийн трэнд загваруудаас өөрт таалагдсаныг сонгоно.",
+  "how.step2.title": "Зургаа оруулах",
+  "how.step2.text": "Өөрийн эсвэл найзуудынхаа зургийг оруулахад л хангалттай.",
+  "how.step3.title": "Үр дүнгээ авах",
+  "how.step3.text": "AI хэдхэн секундэд бэлэн видео, зураг үүсгэж өгнө. Татаж аваад хуваалц.",
+  "how.cta.title": "Кредитээ цэнэглээд хүссэн загвараа ашигла",
+  "how.cta.desc": "Сар бүрийн захиалгагүй. Зөвхөн ашигласан загвартаа төлнө.",
   "how.cta.pricing": "Үнэ харах",
 
   // Footer
-  "footer.tagline": "Хэдхэн даралтаар гайхалтай үр дүн",
+  "footer.tagline": "Өөрийн зургаар трэнд контент бүтээе.",
   "footer.explore": "Нүүр",
   "footer.videos": "Видео",
   "footer.images": "Зураг",
@@ -87,7 +70,6 @@ export const mn: Messages = {
   "footer.terms": "Үйлчилгээний нөхцөл",
   "footer.privacy": "Нууцлалын бодлого",
   "footer.rights": "© 2026 zyro.ai. Бүх эрх хуулиар хамгаалагдсан.",
-  "footer.slogan": "Өөрийн зургаар трэнд контент бүтээе.",
 
   // Categories
   "category.trending": "Эрэлттэй",
@@ -96,6 +78,10 @@ export const mn: Messages = {
   "category.photo": "Зураг",
 
   // Template card
+  "card.kindVideo": "Видео",
+  "card.kindImage": "Зураг",
+  "card.seconds_one": "{count} сек",
+  "card.seconds_other": "{count} сек",
   "card.trending": "ЭРЭЛТТЭЙ",
   "card.credit_one": "{amount} кредит",
   "card.credit_other": "{amount} кредит",

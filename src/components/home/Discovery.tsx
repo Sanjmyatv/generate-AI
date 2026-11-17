@@ -1,217 +1,101 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { FeaturedTemplate } from "@/components/home/FeaturedTemplate";
+import { useState } from "react";
 import { useLocale, useT } from "@/components/I18nProvider";
 import { Reveal } from "@/components/Reveal";
 import { TemplateCard } from "@/components/TemplateCard";
 import { categoryName } from "@/lib/i18n/content";
 import type { Category, Template } from "@/types";
 
-export type Media = "video" | "image";
-
-/** A scrolling row of template cards with its arrows (Figma: Row header + Template carousel). */
-function TemplateRow({
-  id,
-  title,
-  subtitle,
-  templates,
-}: {
-  id?: string;
-  title: string;
-  subtitle: string;
-  templates: Template[];
-}) {
-  const t = useT();
-  const scroller = useRef<HTMLDivElement>(null);
-
-  function scrollBy(direction: -1 | 1) {
-    const el = scroller.current;
-    if (el) el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: "smooth" });
-  }
-
-  return (
-    <Reveal as="section" id={id} className="flex flex-col gap-[22px] pb-3 pt-11">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-[6px] leading-[1.5]">
-          <h2 className="text-[22px] text-foreground md:text-[26px]">{title}</h2>
-          <p className="text-[14px] text-muted">{subtitle}</p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          {([-1, 1] as const).map((direction) => (
-            <button
-              key={direction}
-              type="button"
-              aria-label={direction === -1 ? t("disc.scrollLeft", { title }) : t("disc.scrollRight", { title })}
-              onClick={() => scrollBy(direction)}
-              className="flex size-[38px] items-center justify-center rounded-full border border-line bg-surface"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={direction === -1 ? "/brand/icon-chevron-left.svg" : "/brand/icon-chevron-right.svg"}
-                alt=""
-                className="size-4"
-              />
-            </button>
-          ))}
-        </div>
-      </div>
-      <div
-        ref={scroller}
-        // Runs to the screen edges while the first card lines up with the page content.
-        className="no-scrollbar -mx-5 flex snap-x gap-5 overflow-x-auto px-5 md:-mx-8 md:px-8 lg:-mx-16 lg:px-16"
-      >
-        {templates.map((template) => (
-          <TemplateCard key={template.id} template={template} />
-        ))}
-      </div>
-    </Reveal>
-  );
-}
-
-const MEDIA_OPTIONS = [
-  { value: "video", label: "disc.videos", icon: "/brand/icon-clapperboard.svg" },
-  { value: "image", label: "disc.images", icon: "/brand/icon-image.svg" },
-] as const;
-
-const ALL = "all";
-const TRENDING = "trending";
+export type DiscoveryTab = "all" | "video" | "image" | "trending";
 
 /**
- * Videos/Images switch, then chips: "Бүгд" (every template once), Trending (only while real use fills it) and one
- * chip per category. A template shows under every category it belongs to, but "Бүгд" lists it a single time.
+ * Design: zyro Home → Templates. One glass pill of filters (All, Videos, Images, Trending while real use fills it,
+ * then one per category) over a grid of template tiles. A template shows under every category it belongs to.
  */
 export function Discovery({
   templates,
   categories,
   trending: trendingInfo,
-  initialMedia,
+  initialTab,
 }: {
   templates: Template[];
   categories: Category[];
-  /** Null while too few templates qualify: the chip and the section are hidden. */
+  /** Null while too few templates qualify: the Trending filter is hidden. */
   trending: { label: string; ids: string[] } | null;
-  initialMedia: Media;
+  initialTab: DiscoveryTab;
 }) {
   const t = useT();
   const locale = useLocale();
-  const [media, setMedia] = useState<Media>(initialMedia);
-  const [selected, setSelected] = useState(ALL);
+  const [selected, setSelected] = useState<string>(initialTab);
 
-  const inMedia = templates.filter((t) => t.type === media);
   const order = new Map((trendingInfo?.ids ?? []).map((id, i) => [id, i]));
-  const trending = inMedia.filter((t) => order.has(t.id)).sort((a, b) => order.get(a.id)! - order.get(b.id)!);
-  const rows = categories
-    .map((category) => ({ category, templates: inMedia.filter((t) => t.categoryIds.includes(category.id)) }))
-    .filter((row) => row.templates.length > 0);
+  const trending = templates.filter((x) => order.has(x.id)).sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+  const usedCategories = categories.filter((c) => templates.some((x) => x.categoryIds.includes(c.id)));
 
-  // A chip chosen under one media type may not exist under the other.
-  const chipExists = (id: string) => id === ALL || (id === TRENDING && trending.length > 0) || rows.some((r) => r.category.id === id);
-  const active = chipExists(selected) ? selected : ALL;
-  const showAll = active === ALL;
-  const featured = showAll ? trending[0] : undefined;
-  const chips = [
-    { id: ALL, label: t("disc.all") },
-    ...(trending.length > 0 ? [{ id: TRENDING, label: trendingInfo?.label ?? t("disc.trendingChip") }] : []),
-    ...rows.map((r) => ({ id: r.category.id, label: categoryName(t, r.category, locale) })),
+  const tabs = [
+    { id: "all", label: t("disc.all") },
+    { id: "video", label: t("disc.videos") },
+    { id: "image", label: t("disc.images") },
+    ...(trending.length > 0 ? [{ id: "trending", label: trendingInfo?.label ?? t("disc.trendingChip") }] : []),
+    ...usedCategories.map((c) => ({ id: `c:${c.id}`, label: categoryName(t, c, locale) })),
   ];
+  const active = tabs.some((tab) => tab.id === selected) ? selected : "all";
+
+  const items =
+    active === "all"
+      ? templates
+      : active === "video" || active === "image"
+        ? templates.filter((x) => x.type === active)
+        : active === "trending"
+          ? trending
+          : templates.filter((x) => x.categoryIds.includes(active.slice(2)));
+
+  const empty = active === "video" ? t("disc.emptyVideo") : active === "image" ? t("disc.emptyImage") : t("disc.empty");
 
   return (
-    <div id="discover">
-      <div className="flex flex-col gap-[26px] pb-3 pt-16">
-        <div className="flex flex-col gap-3">
-          <h2 className="text-[30px] leading-[1.15] tracking-[-1.4px] text-foreground md:text-[40px]">
-            {t("disc.title")}
-          </h2>
-          <p className="text-[14px] leading-[1.5] text-muted md:text-[16px]">
-            {t("disc.subtitle")}
-          </p>
-          <div className="pt-[10px]">
-            <div
-              role="group"
-              aria-label={t("disc.typeLabel")}
-              className="inline-flex gap-1 rounded-full border border-line bg-surface p-[5px]"
-            >
-              {MEDIA_OPTIONS.map((option) => {
-                const on = media === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => setMedia(option.value)}
-                    className={`flex h-[46px] w-[145px] items-center justify-center gap-[9px] rounded-full border text-[14px] font-medium ${
-                      on ? "border-line bg-[rgba(255,255,255,0.07)] text-foreground" : "border-transparent text-muted"
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={option.icon} alt="" className="size-[18px]" />
-                    {t(option.label)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+    <section id="discover" className="flex flex-col gap-7 pb-[clamp(64px,10vw,104px)]">
+      <Reveal className="flex flex-wrap items-end justify-between gap-5">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-[clamp(30px,3.6vw,46px)] font-bold tracking-[-0.035em]">{t("disc.title")}</h2>
+          <p className="text-[16px] font-light text-foreground/62">{t("disc.subtitle")}</p>
         </div>
-
         <div
           role="group"
-          aria-label={t("disc.categories")}
-          className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 md:-mx-8 md:px-8 lg:-mx-16 lg:px-16"
+          aria-label={t("disc.filterLabel")}
+          className="no-scrollbar flex max-w-full overflow-x-auto rounded-full border border-white/12 bg-white/6 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur-[24px]"
         >
-          {chips.map((chip) => {
-            const on = chip.id === active;
+          {tabs.map((tab) => {
+            const on = tab.id === active;
             return (
               <button
-                key={chip.id}
+                key={tab.id}
                 type="button"
                 aria-pressed={on}
-                onClick={() => setSelected(chip.id)}
-                className={`h-11 shrink-0 whitespace-nowrap rounded-full border px-[18px] text-[13px] ${
-                  on
-                    ? "chip-brand border-transparent"
-                    : "border-line bg-surface text-muted"
+                onClick={() => setSelected(tab.id)}
+                className={`flex-none whitespace-nowrap rounded-full px-[clamp(12px,3vw,18px)] py-2.5 text-[14px] font-medium transition-all duration-300 ease-[cubic-bezier(.2,.8,.2,1)] ${
+                  on ? "chip-brand" : "text-foreground/62 hover:text-foreground"
                 }`}
               >
-                {chip.label}
+                {tab.label}
               </button>
             );
           })}
         </div>
-      </div>
+      </Reveal>
 
-      {inMedia.length === 0 ? (
-        <p className="py-20 text-center text-[14px] text-muted">
-          {media === "video" ? t("disc.emptyVideo") : t("disc.emptyImage")}
-        </p>
+      {items.length === 0 ? (
+        <p className="py-20 text-center text-[14px] text-muted">{empty}</p>
       ) : (
-        <>
-          {(showAll || active === TRENDING) && trending.length > 0 && (
-            <>
-              <TemplateRow
-                id="trending"
-                title={trendingInfo?.label ?? t("disc.trendingTitle")}
-                subtitle={t("disc.trendingSub")}
-                templates={trending}
-              />
-              {featured && <FeaturedTemplate template={featured} />}
-            </>
-          )}
-          {showAll && (
-            <TemplateRow title={t("disc.allTitle")} subtitle={t("disc.count", { count: inMedia.length })} templates={inMedia} />
-          )}
-          {rows
-            .filter((r) => r.category.id === active)
-            .map(({ category, templates: items }) => (
-              <TemplateRow
-                key={category.id}
-                title={categoryName(t, category, locale)}
-                subtitle={t("disc.count", { count: items.length })}
-                templates={items}
-              />
-            ))}
-        </>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(clamp(148px,40vw,220px),1fr))] gap-[clamp(10px,2.5vw,18px)]">
+          {items.map((template, i) => (
+            // Keyed by filter too, so switching filters plays the reveal again.
+            <Reveal key={`${active}-${template.id}`} delay={(i % 4) * 90}>
+              <TemplateCard template={template} />
+            </Reveal>
+          ))}
+        </div>
       )}
-    </div>
+    </section>
   );
 }

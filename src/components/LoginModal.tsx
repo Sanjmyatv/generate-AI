@@ -37,7 +37,7 @@ export function LoginModal({
       onClick={onClose}
     >
       <div
-        className="animate-pop-in relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-3xl glass-panel p-7 shadow-[0_0_60px_rgba(191,64,191,0.2)]"
+        className="animate-pop-in relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-3xl glass-panel p-7 shadow-[0_0_60px_rgba(47,91,255,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
         <button

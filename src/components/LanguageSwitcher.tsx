@@ -31,7 +31,7 @@ export function LanguageSwitcher() {
       role="group"
       aria-label={t("lang.label")}
       aria-busy={pending}
-      className="flex h-9 items-center gap-0.5 rounded-full border border-white/15 bg-white/5 p-1 backdrop-blur-md sm:h-[42px]"
+      className="flex items-center rounded-full border border-white/8 bg-black/30 p-[3px]"
     >
       {OPTIONS.map((option) => {
         const on = option.locale === current;
@@ -43,10 +43,8 @@ export function LanguageSwitcher() {
             title={option.name}
             aria-pressed={on}
             onClick={() => choose(option.locale)}
-            className={`flex h-full min-w-8 items-center justify-center rounded-full px-2 text-[12px] sm:min-w-9 sm:px-2.5 font-semibold transition-colors duration-200 ${
-              on
-                ? "chip-brand"
-                : "text-muted hover:text-foreground"
+            className={`flex min-h-8 min-w-9 items-center justify-center rounded-full px-[11px] py-1.5 text-[12px] font-semibold transition-all duration-200 ${
+              on ? "bg-white/16 text-white" : "text-foreground/55 hover:text-foreground"
             }`}
           >
             {option.label}
