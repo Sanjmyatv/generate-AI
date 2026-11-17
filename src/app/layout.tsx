@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import { Geist_Mono, Geologica } from "next/font/google";
 import { auth, emailLoginEnabled, enabledProviders } from "@/auth";
 import { AuthConfigProvider } from "@/components/AuthConfig";
 import { Footer } from "@/components/Footer";
 import { I18nProvider } from "@/components/I18nProvider";
 import { Nav } from "@/components/Nav";
+import { SiteMotion } from "@/components/SiteMotion";
 import { MESSAGES } from "@/lib/i18n/messages";
 import { getT } from "@/lib/i18n/server";
 import { getUserById } from "@/lib/users";
@@ -36,13 +38,22 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geologica.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="relative min-h-full flex flex-col">
-        {/* Soft brand-coloured light behind the hero and between sections: blurred discs, never a gradient fill. */}
+        {/* Soft blue lights behind the page that drift and move with scroll (data-speed, see SiteMotion). */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div className="ambient-glow left-[52%] top-[-3%] size-[640px] max-md:size-[360px]" />
-          <div className="ambient-glow left-[-14%] top-[34%] size-[560px] opacity-[0.11] max-md:size-[340px]" />
-          <div className="ambient-glow right-[-12%] top-[62%] size-[600px] opacity-[0.12] max-md:size-[340px]" />
-          <div className="ambient-glow left-[10%] bottom-[2%] size-[520px] opacity-[0.1] max-md:size-[320px]" />
+          <div data-speed="-0.15" className="absolute left-[-320px] top-[-360px] size-[1000px] opacity-[0.34] max-md:size-[640px]">
+            <div className="sky-blob" data-drift="" />
+          </div>
+          <div data-speed="-0.3" className="absolute right-[-300px] top-[40px] size-[900px] opacity-60 max-md:size-[560px]">
+            <div className="sky-blob" data-drift="reverse" style={{ "--c": "var(--brand-dark)" } as CSSProperties} />
+          </div>
+          <div data-speed="-0.2" className="absolute left-[calc(25%-120px)] top-[1380px] size-[840px] opacity-20">
+            <div className="sky-blob" />
+          </div>
+          <div data-speed="-0.12" className="absolute right-[calc(5%-120px)] top-[2380px] size-[860px] opacity-[0.13]">
+            <div className="sky-blob" style={{ "--c": "var(--brand-light)" } as CSSProperties} />
+          </div>
         </div>
+        <SiteMotion />
         <I18nProvider locale={locale} messages={MESSAGES[locale]}>
           <AuthConfigProvider value={{ providers: enabledProviders, emailLogin: emailLoginEnabled }}>
             <Nav user={user ? { name: user.name, email: user.email, credits: Number(user.credits) } : null} />

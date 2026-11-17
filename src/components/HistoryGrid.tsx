@@ -158,7 +158,7 @@ export function HistoryGrid({ items }: { items: HistoryItem[] }) {
       </ul>
 
       {selecting && selected.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-line bg-[rgba(20,8,28,0.85)] px-5 py-3 backdrop-blur-xl [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-line bg-[rgba(10,14,34,0.85)] px-5 py-3 backdrop-blur-xl [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]">
           <span className="font-semibold">{t("history.selected", { n: selected.length })}</span>
           <button type="button" onClick={() => setPending(selected)} className="btn-danger">
             {t("history.delete")}
@@ -174,7 +174,7 @@ export function HistoryGrid({ items }: { items: HistoryItem[] }) {
             aria-label={t("history.delete")}
             lang={locale}
             onClick={(e) => e.stopPropagation()}
-            className="animate-pop-in w-full max-w-sm rounded-3xl border border-line bg-[rgba(20,8,28,0.95)] p-6 shadow-[0_0_60px_rgba(191,64,191,0.2)] backdrop-blur-xl"
+            className="animate-pop-in w-full max-w-sm rounded-3xl border border-line bg-[rgba(10,14,34,0.95)] p-6 shadow-[0_0_60px_rgba(47,91,255,0.2)] backdrop-blur-xl"
           >
             <p className="text-[15px] leading-relaxed">
               {pending.length === 1 ? t("history.deleteConfirm") : t("history.deleteConfirmMany", { n: pending.length })}

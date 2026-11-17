@@ -3,14 +3,14 @@ import { Logo } from "@/components/Logo";
 import { getT } from "@/lib/i18n/server";
 import type { TKey } from "@/lib/i18n/translate";
 
-// Figma: zyro.ai / Footer.
+// Design: zyro Home → footer.
 const groups: { title: TKey; items: { label: TKey; href: string }[] }[] = [
   {
     title: "footer.explore",
     items: [
       { label: "footer.videos", href: "/?media=videos#discover" },
       { label: "footer.images", href: "/?media=images#discover" },
-      { label: "footer.trending", href: "/#trending" },
+      { label: "footer.trending", href: "/#discover" },
     ],
   },
   {
@@ -23,68 +23,53 @@ const groups: { title: TKey; items: { label: TKey; href: string }[] }[] = [
   },
 ];
 
-// The official accounts. The TikTok address follows the Instagram handle: change it here if the account differs.
+// The official accounts.
 const socials = [
-  { label: "Instagram", href: "https://www.instagram.com/zyroai_mn", icon: "/brand/icon-instagram.svg", framed: true },
+  { label: "Instagram", href: "https://www.instagram.com/zyroai_mn" },
   {
     label: "Facebook",
     href: "https://www.facebook.com/people/Zyro-AI-%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE-%D0%B7%D1%83%D1%80%D0%B0%D0%B3/61596146735212/",
-    icon: "/brand/icon-facebook.svg",
-    framed: true,
   },
-  { label: "TikTok", href: "https://www.tiktok.com/@zyroai_mn", icon: "/brand/icon-tiktok.svg", framed: false },
+  { label: "TikTok", href: "https://www.tiktok.com/@zyroai_mn" },
 ];
 
 export async function Footer() {
   const { t } = await getT();
   return (
-    <footer className="border-t border-line">
-      <div className="mx-auto max-w-[1440px] px-5 pb-8 pt-12 md:px-8 md:pt-[72px] lg:px-16">
-        <div className="flex flex-col gap-12 lg:flex-row lg:justify-between">
-          <div className="flex w-full max-w-[280px] flex-col gap-5">
+    <footer className="relative border-t border-white/8 bg-[rgba(4,6,15,0.4)] backdrop-blur-[20px]">
+      <div className="mx-auto grid max-w-[1180px] grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-10 px-5 pb-10 pt-[clamp(40px,7vw,56px)]">
+        <div className="col-span-full flex flex-col gap-4 md:col-span-2">
+          <Link href="/" className="self-start">
             <Logo />
-            <p className="text-[14px] leading-[1.5] text-muted">
-              {t("footer.tagline")}
-            </p>
-            <div className="flex gap-3">
-              {socials.map((s) => (
-                <a
-                  key={s.label}
-                  href={s.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={s.label}
-                  title={s.label}
-                  className={`flex size-10 items-center justify-center rounded-full opacity-80 transition duration-200 hover:scale-110 hover:opacity-100 hover:shadow-[0_0_18px_rgba(191,64,191,0.5)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[0_0_18px_rgba(191,64,191,0.5)] ${
-                    s.framed ? "border border-line bg-surface hover:border-brand" : ""
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.icon} alt="" className={s.framed ? "size-[18px]" : "size-10"} />
-                </a>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid w-full grid-cols-2 gap-x-12 gap-y-10 sm:grid-cols-3 lg:w-[660px]">
-            {groups.map((group) => (
-              <div key={group.title} className="flex flex-col gap-[14px] leading-[1.5]">
-                <p className="text-[13px] text-foreground">{t(group.title)}</p>
-                {group.items.map((item) => (
-                  <Link key={item.label} href={item.href} className="text-[12px] text-muted hover:text-foreground">
-                    {t(item.label)}
-                  </Link>
-                ))}
-              </div>
+          </Link>
+          <p className="max-w-[300px] text-[14px] font-light text-foreground/58">{t("footer.tagline")}</p>
+          <div className="flex flex-wrap gap-2">
+            {socials.map((s) => (
+              <a
+                key={s.label}
+                href={s.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-white/10 bg-white/7 px-3.5 py-[9px] text-[13px] font-medium transition-all duration-300 hover:border-brand-light/50 hover:bg-brand/35"
+              >
+                {s.label}
+              </a>
             ))}
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-2 border-t border-line pt-6 text-[10px] leading-[1.5] text-muted sm:flex-row sm:justify-between md:mt-16">
-          <p>{t("footer.rights")}</p>
-          <p>{t("footer.slogan")}</p>
-        </div>
+        {groups.map((group) => (
+          <div key={group.title} className="flex flex-col gap-3 text-[14px]">
+            <span className="font-semibold">{t(group.title)}</span>
+            {group.items.map((item) => (
+              <Link key={item.label} href={item.href} className="text-foreground/60 transition-colors duration-200 hover:text-white">
+                {t(item.label)}
+              </Link>
+            ))}
+          </div>
+        ))}
       </div>
+      <div className="mx-auto max-w-[1180px] p-5 text-[13px] text-foreground/45">{t("footer.rights")}</div>
     </footer>
   );
 }
