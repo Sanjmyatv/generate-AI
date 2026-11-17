@@ -11,6 +11,7 @@
     "db:seed": "prisma db seed",
     "lint": "eslint",
     "reprice": "tsx scripts/reprice-templates.ts",
+    "compress-previews": "tsx scripts/compress-previews.ts",
     "test": "node --import tsx --test src/lib/pricing.test.ts src/lib/ratio.test.ts"
   },
   "dependencies": {

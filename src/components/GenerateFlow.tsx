@@ -124,13 +124,40 @@ function PhotoSlot({
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
 
   return (
-    <label className="block cursor-pointer text-center">
-      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-foreground/30 text-xs text-foreground/60">
+    <label className="group block cursor-pointer text-center">
+      {/* A soft dark-blue glass tile; it lifts and glows on hover, and shows the keyboard focus ring. */}
+      <div
+        className={`relative flex aspect-square flex-col items-center justify-center gap-2.5 overflow-hidden rounded-[22px] border transition-all duration-300 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:-translate-y-0.5 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-white ${
+          url
+            ? "border-white/14 shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
+            : "border-brand-light/20 bg-[linear-gradient(160deg,rgba(47,91,255,0.2),rgba(12,26,122,0.32))] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_30px_rgba(4,8,30,0.45)] group-hover:border-brand-light/45 group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_14px_40px_rgba(47,91,255,0.3)]"
+        }`}
+      >
         {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={label} className="h-full w-full object-cover" />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt={label} className="h-full w-full object-cover" />
+            <span className="glass-chip absolute bottom-2 right-2 grid size-8 place-items-center rounded-full" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+            </span>
+          </>
         ) : (
-          <span className="px-2">{t("gen.slotUpload")}</span>
+          <>
+            <span className="grid size-12 place-items-center rounded-2xl bg-[linear-gradient(145deg,var(--brand-light),var(--brand)_55%,var(--brand-dark))] shadow-[inset_0_1px_1px_rgba(255,255,255,0.5),0_0_22px_rgba(47,91,255,0.55)] transition-transform duration-300 group-hover:scale-110">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12v6a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h6" />
+                <path d="m3 16 4.6-4.6a2 2 0 0 1 2.8 0L17 18" />
+                <path d="m14 15 1.6-1.6a2 2 0 0 1 2.8 0L21 15" />
+                <path d="M18 3v6M15 6h6" />
+              </svg>
+            </span>
+            <span className="px-2 text-[13px] font-medium text-foreground/80">{t("gen.slotUpload")}</span>
+          </>
         )}
         <input
           type="file"
@@ -143,7 +170,7 @@ function PhotoSlot({
           }}
         />
       </div>
-      <span className="mt-1 block text-xs font-medium">{label}</span>
+      <span className="mt-2 block text-[13px] font-semibold">{label}</span>
       {file && <span className="text-[11px] text-foreground/50">{t("gen.slotReplace")}</span>}
     </label>
   );
