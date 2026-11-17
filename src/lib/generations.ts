@@ -171,9 +171,11 @@ export async function completeGeneration(id: string, outputUrl: string | null) {
 export async function refreshGeneration(gen: Generation): Promise<Generation> {
   if (gen.status !== "QUEUED" && gen.status !== "PROCESSING") return gen;
 
-  if (Date.now() - gen.createdAt.getTime() > GENERATION_TIMEOUT_MS) {
-    await failGeneration(gen.id, "timeout");
-  } else if (gen.providerTaskId) {
+  // Jobs only advance while someone polls, so a job can be checked for the first time long after the provider
+  // finished it (the user closed the tab and came back later). Always ask the provider first: a finished job is
+  // delivered however old it is, and only one that is still unfinished after the timeout is failed and refunded.
+  let settled = false;
+  if (gen.providerTaskId) {
     try {
       // The template decides which provider owns this task id.
       const template = await prisma.template.findUnique({
@@ -186,13 +188,19 @@ export async function refreshGeneration(gen: Generation): Promise<Generation> {
       if (task.status === "completed") {
         // Only the call that flips the status copies the result, so polls can't duplicate it.
         if (await completeGeneration(gen.id, task.videoUrl)) await archiveVideo(gen.id, task.videoUrl);
+        settled = true;
       } else if (task.status === "failed") {
         await failGeneration(gen.id, task.error);
+        settled = true;
       }
     } catch (e) {
       // Transient provider/network errors: keep the job running and let the next call retry.
       console.error("[generations] provider poll failed", gen.id, e);
     }
+  }
+
+  if (!settled && Date.now() - gen.createdAt.getTime() > GENERATION_TIMEOUT_MS) {
+    await failGeneration(gen.id, "timeout");
   }
   return (await prisma.generation.findUnique({ where: { id: gen.id } })) ?? gen;
 }

@@ -160,7 +160,8 @@ async function listPriceEstimate(input: CostEstimateInput, light: boolean, cause
   const asset = assetId ? await prisma.asset.findUnique({ where: { id: assetId }, select: { duration: true } }) : null;
   if (!asset?.duration) return null;
   const resolution = input.videoResolution as keyof typeof GENJUTSU_LIST_USD_PER_SECOND;
-  const seconds = light ? Math.ceil(Math.min(asset.duration, GENJUTSU_LIGHT_MAX_SECONDS)) * 2 : Math.ceil(asset.duration);
+  // Light is billed per second of output, which is the source video trimmed to its first 30 seconds.
+  const seconds = light ? Math.ceil(Math.min(asset.duration, GENJUTSU_LIGHT_MAX_SECONDS)) : Math.ceil(asset.duration);
   const perSecond = (light ? GENJUTSU_LIGHT_LIST_USD_PER_SECOND : GENJUTSU_LIST_USD_PER_SECOND)[resolution];
   const why = cause instanceof HiggsfieldError ? cause.message : "lookup unavailable";
   return {

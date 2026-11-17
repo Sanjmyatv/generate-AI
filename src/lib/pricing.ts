@@ -52,7 +52,7 @@ export const DEFAULT_PRICING: PricingConfig = {
   priceSource: "MANUAL",
   imageQuality: "low",
   imageCostUsd1kLow: 0.075,
-  listUsdPerSecond: 0.10667,
+  listUsdPerSecond: 0.0739,
 };
 
 /** A credit pack as sold on the Pricing page. */

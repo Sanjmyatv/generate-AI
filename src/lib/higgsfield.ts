@@ -28,8 +28,11 @@ export class HiggsfieldError extends Error {
 
 /** List price per second (USD, before any account discount): Genjutsu per second of source video. */
 export const GENJUTSU_LIST_USD_PER_SECOND = { "480p": 0.318, "720p": 0.681, "1080p": 1.632 } as const;
-/** Genjutsu Light per billable second (output plus source video, source trimmed to GENJUTSU_LIGHT_MAX_SECONDS). */
-export const GENJUTSU_LIGHT_LIST_USD_PER_SECOND = { "480p": 0.05, "720p": 0.1, "1080p": 0.2 } as const;
+/**
+ * Genjutsu Light's published price per second of output video (Higgsfield, Nov 2026: $0.0739 at 480p to $0.2936 at
+ * 1080p; a 15 s 480p video was billed $1.11). 720p is 480p × 2.015, the 720p multiplier in the pricing settings.
+ */
+export const GENJUTSU_LIGHT_LIST_USD_PER_SECOND = { "480p": 0.0739, "720p": 0.1489, "1080p": 0.2936 } as const;
 export { GENJUTSU_LIGHT_MAX_SECONDS } from "@/config/pricing";
 
 /** Per-template settings stored in `Template.generationConfig`. */
