@@ -15,7 +15,7 @@ export const RESOLUTION_LABELS: Record<Resolution, { label: string; tagline: str
   "720p": { label: "720p HD", tagline: "HD / Pro" },
 };
 
-/** Longest source video Genjutsu Light uses (Higgsfield trims anything longer). It bills output plus source, so cost scales with this. */
+/** Longest source video Genjutsu Light uses (Higgsfield trims anything longer). It bills per second of output, so cost scales with this. */
 export const GENJUTSU_LIGHT_MAX_SECONDS = 30;
 
 /** Credits a new Google account starts with (₮1,000 worth). */
