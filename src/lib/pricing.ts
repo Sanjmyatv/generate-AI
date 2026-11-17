@@ -130,6 +130,35 @@ export function marginFor({ costUsd, credits, cfg }: { costUsd: number; credits:
   };
 }
 
+const LOSS_TIERS = [
+  { credits: "creditCost", cost: "costUsd", video: "480p", image: "1K" },
+  { credits: "creditCostHd", cost: "costUsdHd", video: "720p HD", image: "" },
+  { credits: "creditCost2k", cost: "costUsd2k", video: "", image: "2K" },
+  { credits: "creditCost4k", cost: "costUsd4k", video: "", image: "4K" },
+] as const;
+
+/**
+ * The prices that lose money: the provider cost on record for that quality, plus the retry buffer and the gateway
+ * fee, against the credits charged. A price with no cost on record is not checked.
+ */
+export function lossLines(data: { type: "VIDEO" | "IMAGE" } & Record<string, unknown>, config: Record<string, unknown>, cfg: PricingConfig) {
+  const lines: string[] = [];
+  for (const t of LOSS_TIERS) {
+    // Only the qualities this kind of template has (images have no 720p HD, videos no 2K / 4K), and only prices
+    // that are offered: an empty price is "not offered", not 0 credits.
+    const label = data.type === "VIDEO" ? t.video : t.image;
+    if (!label || data[t.credits] === null || data[t.credits] === undefined || data[t.credits] === "") continue;
+    const credits = Number(data[t.credits]);
+    const costUsd = config[t.cost];
+    if (!Number.isFinite(credits) || typeof costUsd !== "number" || !(costUsd > 0)) continue;
+    const m = marginFor({ costUsd, credits, cfg });
+    if (m.marginMnt < 0) {
+      lines.push(`${label}: ${credits} credits earn ${m.revenueMnt.toLocaleString("en-US")}₮ but cost ${Math.round(m.costMnt).toLocaleString("en-US")}₮ (margin ${m.marginPct.toFixed(0)}%)`);
+    }
+  }
+  return lines;
+}
+
 /** MNT per USD from the USD_MNT_RATE environment variable (the default when the admin has not set one). */
 export function usdMntRate() {
   const rate = Number(process.env.USD_MNT_RATE);
