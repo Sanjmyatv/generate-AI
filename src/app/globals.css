@@ -53,7 +53,7 @@ html {
 
 body {
   background:
-    radial-gradient(1200px 800px at 15% -10%, #0b1438 0%, transparent 60%),
+    radial-gradient(1200px 800px at 15% -10%, #0b1438 0%, transparent 60%) no-repeat,
     var(--background);
   -webkit-font-smoothing: antialiased;
   color: var(--foreground);

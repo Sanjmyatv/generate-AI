@@ -305,7 +305,7 @@ export const mn: Messages = {
   "gen.err.refunded": " Таны кредит буцаагдлаа.",
   "gen.err.tryAgain": " Дахин оролдоно уу.",
   "gen.err.creating": "Бүтээл үүсгэх явцад алдаа гарлаа.",
-  "gen.slotUpload": "+ Оруулах",
+  "gen.slotUpload": "Зураг оруулах",
   "gen.slotReplace": "Солихын тулд дарна уу",
   "gen.slotPhoto": "Зураг {n}",
   "gen.slotYourPhoto": "Таны зураг",

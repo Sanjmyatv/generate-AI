@@ -307,7 +307,7 @@ export const en = {
   "gen.err.refunded": " Your credits have been refunded.",
   "gen.err.tryAgain": " Please try again.",
   "gen.err.creating": "Something went wrong while creating your content.",
-  "gen.slotUpload": "+ Upload",
+  "gen.slotUpload": "Add photo",
   "gen.slotReplace": "Tap to replace",
   "gen.slotPhoto": "Photo {n}",
   "gen.slotYourPhoto": "Your photo",
