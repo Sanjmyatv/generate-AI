@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useLocale, useT } from "@/components/I18nProvider";
+import { LazyVideo } from "@/components/LazyVideo";
 import { formatCredits } from "@/config/pricing";
 import { templateName } from "@/lib/i18n/content";
 import type { Template } from "@/types";
@@ -17,7 +18,6 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
 export function TemplateCard({ template }: { template: Template }) {
   const t = useT();
   const name = templateName(template, useLocale());
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [hover, setHover] = useState(false);
 
   const isVideo = template.type === "video";
@@ -26,25 +26,13 @@ export function TemplateCard({ template }: { template: Template }) {
   const photos = template.requiredPhotoCount;
   const credits = t("card.credit", { count: Math.ceil(template.creditCost), amount: formatCredits(template.creditCost) });
 
-  function setHovering(next: boolean) {
-    setHover(next);
-    const video = videoRef.current;
-    if (!video) return;
-    if (next) {
-      void video.play().catch(() => {});
-    } else {
-      video.pause();
-      video.currentTime = 0.1;
-    }
-  }
-
   return (
     <Link
       href={`/templates/${template.id}`}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      onFocus={() => setHovering(true)}
-      onBlur={() => setHovering(false)}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
       className="flex w-[191px] shrink-0 snap-start flex-col gap-3 md:w-[227px] lg:w-[246px]"
     >
       <div
@@ -54,17 +42,8 @@ export function TemplateCard({ template }: { template: Template }) {
       >
         {src ? (
           previewIsVideo ? (
-            <video
-              ref={videoRef}
-              // "#t=0.1" makes browsers paint a real frame instead of a black box before play.
-              src={`${src}#t=0.1`}
-              aria-label={name}
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              className="absolute inset-0 size-full bg-black object-cover"
-            />
+            // Loads only while on screen (and, with a thumbnail, only while hovered): see LazyVideo.
+            <LazyVideo src={src} poster={template.posterUrl} label={name} playing={hover} fill />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt={name} loading="lazy" className="absolute inset-0 size-full object-cover" />
@@ -73,13 +52,13 @@ export function TemplateCard({ template }: { template: Template }) {
           <div
             role="img"
             aria-label={name}
-            className="absolute inset-0 bg-[linear-gradient(135deg,rgba(139,92,246,0.3),rgba(59,130,246,0.2))]"
+            className="absolute inset-0 bg-brand/25"
           />
         )}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,7,17,0)_50%,rgba(7,7,17,0.85)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,6,16,0)_50%,rgba(10,6,16,0.85)_100%)]" />
 
-        {template.trendingRank !== null && (
-          <div className="absolute left-[11px] top-[11px] flex items-start gap-[5px] rounded-lg border border-line bg-[rgba(7,7,17,0.53)] px-[10px] py-[6px]">
+        {template.trending && (
+          <div className="absolute left-[11px] top-[11px] flex items-start gap-[5px] rounded-lg border border-line bg-[rgba(10,6,16,0.53)] px-[10px] py-[6px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/icon-flame.svg" alt="" className="size-[13px]" />
             <span className="text-[10px] font-medium leading-[1.5] text-foreground">{t("card.trending")}</span>
@@ -107,8 +86,8 @@ export function TemplateCard({ template }: { template: Template }) {
             {isVideo ? t("card.aiVideo") : t("card.aiImage")} · {t("card.photo", { count: photos })}
           </p>
           <span
-            className={`flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-[10px] font-medium leading-[1.5] text-foreground ${
-              hover ? "btn-primary" : "border border-line bg-surface"
+            className={`flex min-h-8 shrink-0 items-center justify-center whitespace-nowrap px-3 text-[11px] leading-[1.5] ${
+              hover ? "chip-brand" : "chip-glass font-medium"
             }`}
           >
             {t("card.use")}

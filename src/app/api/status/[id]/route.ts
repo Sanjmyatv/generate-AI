@@ -14,7 +14,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   let gen = await prisma.generation.findUnique({ where: { id } });
   // 404 (not 403) so ids cannot be probed.
-  if (!gen || !canAccess(gen, actor)) return Response.json({ error: "not_found" }, { status: 404 });
+  if (!gen || gen.deletedAt || !canAccess(gen, actor)) return Response.json({ error: "not_found" }, { status: 404 });
   gen = await claimIfGuest(gen, actor);
 
   gen = await refreshGeneration(gen);

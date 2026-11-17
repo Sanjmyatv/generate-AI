@@ -48,11 +48,11 @@ export function ResolutionSelector({
               onClick={() => onChange(option.id)}
               className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition ${
                 on
-                  ? "border-[rgba(139,92,246,0.6)] bg-[rgba(139,92,246,0.13)]"
+                  ? "border-brand bg-brand/15"
                   : "border-line bg-surface hover:bg-[rgba(255,255,255,0.07)]"
               }`}
             >
-              <span className={`text-[15px] font-medium ${on ? "text-purple-soft" : "text-foreground"}`}>
+              <span className={`text-[15px] font-medium ${on ? "text-brand-light" : "text-foreground"}`}>
                 {option.label}
               </span>
               <span className="text-[11px] text-muted">{option.tagline}</span>

@@ -7,6 +7,34 @@ import { getHiggsfieldTask, isHiggsfieldConfig } from "@/lib/higgsfield";
 /** A job still running after this long is treated as failed (and refunded). */
 export const GENERATION_TIMEOUT_MS = 30 * 60 * 1000;
 
+/** Most items one delete request accepts. */
+export const MAX_BULK_DELETE = 100;
+
+/**
+ * Deletes history items for their owner: the generated media and the uploaded source photos are removed from storage
+ * at once, and one metadata row stays with no media (template, type, status, credits, timestamps), marked deleted so
+ * it leaves the user's history. Billing, admin analytics and Trending still need that row. Credits are not refunded.
+ * Only the caller's own, finished items are touched; anything else in `ids` is ignored. Returns how many were deleted.
+ */
+export async function deleteGenerations(userId: string, ids: string[]) {
+  const rows = await prisma.generation.findMany({
+    where: { id: { in: ids }, userId, deletedAt: null, status: { in: ["COMPLETED", "FAILED"] } },
+    select: { id: true, inputKeys: true },
+  });
+  if (rows.length === 0) return 0;
+  const generationIds = rows.map((r) => r.id);
+  await prisma.$transaction([
+    prisma.generationVideo.deleteMany({ where: { generationId: { in: generationIds } } }),
+    // The photos this generation was made from (their ids are unguessable and belong to it).
+    prisma.upload.deleteMany({ where: { id: { in: rows.flatMap((r) => r.inputKeys) } } }),
+    prisma.generation.updateMany({
+      where: { id: { in: generationIds } },
+      data: { deletedAt: new Date(), outputUrl: null, outputKey: null, previewKey: null, inputKeys: [] },
+    }),
+  ]);
+  return rows.length;
+}
+
 export function canAccess(gen: Pick<Generation, "userId" | "guestId">, actor: Actor) {
   if (actor.userId && gen.userId === actor.userId) return true;
   return Boolean(actor.guestId && gen.guestId === actor.guestId && !gen.userId);

@@ -11,20 +11,17 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { toPricingConfig } from "../src/lib/pricing-config";
-import { planRepricing } from "../src/lib/repricing";
+import { changeData, planRepricing, type PriceChange } from "../src/lib/repricing";
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
 const fmt = (n: number | null) => (n === null ? "-" : String(n));
-const table = (rows: { id: string; name: string; seconds: number; oldCredits: number; oldCreditsHd: number | null; newCredits: number; newCreditsHd: number | null }[]) =>
+const table = (rows: PriceChange[]) =>
   console.table(
     rows.map((r) => ({
       template: `${r.name} (${r.id})`,
-      seconds: r.seconds,
-      "480p old": fmt(r.oldCredits),
-      "480p new": fmt(r.newCredits),
-      "720p old": fmt(r.oldCreditsHd),
-      "720p new": fmt(r.newCreditsHd),
+      length: r.seconds === null ? "image" : `${r.seconds} s`,
+      "old → new credits": r.lines.map((l) => `${l.label} ${fmt(l.oldCredits)} → ${fmt(l.newCredits)}`).join(", "),
     })),
   );
 
@@ -33,11 +30,17 @@ async function main() {
   const include = new Set((process.argv.find((a) => a.startsWith("--include="))?.slice("--include=".length) ?? "").split(",").filter(Boolean));
 
   const cfg = toPricingConfig(await prisma.pricingSetting.findUnique({ where: { id: "default" } }));
-  console.log(`Settings: ${cfg.creditValueMnt}₮/credit, margin ${cfg.targetMarginPct}%, retry ${cfg.retryRate * 100}%, gateway ${cfg.gatewayFeeRate * 100}%, $${cfg.videoUsdPerSecond}/s, 720p x${cfg.hdMultiplier}, ${cfg.usdMnt}₮/$`);
+  console.log(`Settings: ${cfg.creditValueMnt}₮/credit, margin video ${cfg.targetMarginPct}% / images ${cfg.targetMarginImagesPct}%, retry ${cfg.retryRate * 100}%, gateway ${cfg.gatewayFeeRate * 100}%, $${cfg.videoUsdPerSecond}/s, 720p x${cfg.hdMultiplier}, ${cfg.usdMnt}₮/$`);
 
-  const templates = await prisma.template.findMany({ where: { type: "VIDEO" }, orderBy: { name: "asc" } });
+  const templates = await prisma.template.findMany({ orderBy: { name: "asc" } });
   const { auto, manual } = planRepricing(
-    templates.map((t) => ({ ...t, creditCost: Number(t.creditCost), creditCostHd: t.creditCostHd === null ? null : Number(t.creditCostHd) })),
+    templates.map((t) => ({
+      ...t,
+      creditCost: Number(t.creditCost),
+      creditCostHd: t.creditCostHd === null ? null : Number(t.creditCostHd),
+      creditCost2k: t.creditCost2k === null ? null : Number(t.creditCost2k),
+      creditCost4k: t.creditCost4k === null ? null : Number(t.creditCost4k),
+    })),
     cfg,
   );
 
@@ -54,7 +57,7 @@ async function main() {
     return;
   }
   for (const c of targets) {
-    await prisma.template.update({ where: { id: c.id }, data: { creditCost: c.newCredits, creditCostHd: c.newCreditsHd, autoCredits: true } });
+    await prisma.template.update({ where: { id: c.id }, data: { ...changeData(c), autoCredits: true } });
   }
   console.log(`\nApplied to ${targets.length} template(s).`);
 }

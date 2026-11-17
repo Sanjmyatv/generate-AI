@@ -134,7 +134,7 @@ export function VideoAnalysis({
           type="button"
           onClick={() => void analyze()}
           disabled={busy}
-          className="btn-primary px-5 py-2 text-sm font-semibold disabled:opacity-50"
+          className="btn-primary btn-compact disabled:opacity-50"
         >
           {busy ? "Gemini is watching the video…" : result ? "Analyze again" : "Analyze with Gemini"}
         </button>
@@ -270,7 +270,7 @@ export function VideoAnalysis({
               });
               setApplied(true);
             }}
-            className="btn-primary px-5 py-2 text-sm font-semibold"
+            className="btn-primary btn-compact"
           >
             Apply to this template
           </button>

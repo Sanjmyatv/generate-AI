@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/actor";
+import { readImageSize } from "@/lib/image-size";
 
 export const dynamic = "force-dynamic";
 
@@ -46,8 +47,10 @@ export async function POST(req: Request) {
   // Opportunistic cleanup keeps selfies from living longer than needed.
   await prisma.upload.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - RETENTION_MS) } } });
 
+  // The shown size (EXIF orientation applied) is what decides an image's Auto ratio later.
+  const size = readImageSize(bytes);
   const upload = await prisma.upload.create({
-    data: { ownerKey, contentType, data: bytes },
+    data: { ownerKey, contentType, data: bytes, width: size?.width ?? null, height: size?.height ?? null },
     select: { id: true },
   });
   return Response.json({ id: upload.id }, { status: 201 });

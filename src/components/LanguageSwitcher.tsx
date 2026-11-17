@@ -45,7 +45,7 @@ export function LanguageSwitcher() {
             onClick={() => choose(option.locale)}
             className={`flex h-full min-w-8 items-center justify-center rounded-full px-2 text-[12px] sm:min-w-9 sm:px-2.5 font-semibold transition-colors duration-200 ${
               on
-                ? "bg-linear-to-r from-violet-600 via-indigo-500 to-blue-500 text-white shadow-[0_0_14px_rgba(99,102,241,0.45)]"
+                ? "chip-brand"
                 : "text-muted hover:text-foreground"
             }`}
           >

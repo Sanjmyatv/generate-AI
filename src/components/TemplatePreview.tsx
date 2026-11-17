@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useState } from "react";
+import { LazyVideo } from "@/components/LazyVideo";
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
 
@@ -10,11 +11,14 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
  */
 export function TemplatePreview({
   src,
+  poster,
   alt,
   className = "",
   mode = "card",
 }: {
   src: string | null;
+  /** A small still of the video, so a card does not have to download the video. */
+  poster?: string | null;
   alt: string;
   className?: string;
   /**
@@ -23,14 +27,14 @@ export function TemplatePreview({
    */
   mode?: "card" | "detail";
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hovering, setHovering] = useState(false);
 
   if (!src) {
     return (
       <div
         role="img"
         aria-label={alt}
-        className={`bg-gradient-to-br from-violet-500/30 to-pink-500/30 ${className}`}
+        className={`bg-brand/25 ${className}`}
       />
     );
   }
@@ -40,32 +44,15 @@ export function TemplatePreview({
     return <img src={src} alt={alt} className={`object-cover ${className}`} />;
   }
 
-  const hover = mode === "card";
+  // The cards load their video only while on screen (and hovered when there is a thumbnail); the detail
+  // page plays its one video, still only while it is on screen.
   return (
-    <video
-      ref={videoRef}
-      // "#t=0.1" makes browsers paint a real frame instead of a black box before play.
-      src={hover ? `${src}#t=0.1` : src}
-      aria-label={alt}
-      muted
-      loop
-      playsInline
-      autoPlay={!hover}
-      preload={hover ? "metadata" : "auto"}
-      controls={!hover}
-      className={`bg-black object-cover ${className}`}
-      onMouseEnter={hover ? () => void videoRef.current?.play().catch(() => {}) : undefined}
-      onMouseLeave={
-        hover
-          ? () => {
-              const v = videoRef.current;
-              if (v) {
-                v.pause();
-                v.currentTime = 0.1;
-              }
-            }
-          : undefined
-      }
-    />
+    <div
+      className={`relative ${className}`}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <LazyVideo src={src} poster={poster} label={alt} playing={mode === "detail" || hovering} controls={mode === "detail"} fill />
+    </div>
   );
 }

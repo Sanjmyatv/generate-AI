@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { estimateCostAction } from "@/app/actions/admin";
-import { creditsForCostUsd, marginFor, type PricingConfig } from "@/lib/pricing";
+import { creditsForCostUsd, marginFor, targetMarginFor, type PricingConfig } from "@/lib/pricing";
 import { hasPriceLookup, type TemplateFormValues } from "@/lib/template-admin";
 
 const inputClass = "w-full rounded-xl border border-foreground/30 bg-transparent px-3 py-2";
@@ -68,8 +68,11 @@ export function CostMargin({
   const hasCredits = creditsValue !== "" && Number.isFinite(credits);
   const ready = costValue !== "" && Number.isFinite(costUsd) && hasCredits;
   const m = ready ? marginFor({ costUsd, credits, cfg: config }) : null;
-  const target = config.targetMarginPct;
-  const formulaCredits = costValue !== "" && Number.isFinite(costUsd) ? creditsForCostUsd(costUsd, config) : null;
+  const target = targetMarginFor(config, isVideo ? "video" : "image");
+  // Image costs are small ($0.075), so they show three decimals; video costs two.
+  const usd = (n: number) => `$${n.toFixed(isVideo ? 2 : 3)}`;
+  const formulaCredits =
+    costValue !== "" && Number.isFinite(costUsd) ? creditsForCostUsd(costUsd, config, isVideo ? "video" : "image") : null;
 
   // Cost inputs that are shown for typing; every other one still travels with the form as a hidden field.
   const visibleKeys: CostKey[] = auto ? (hasLookup ? [] : isVideo ? ["costUsd", "costUsdHd"] : ["costUsd"]) : [costKey];
@@ -85,7 +88,7 @@ export function CostMargin({
         prompt: values.prompt,
         imageResolution: isVideo ? values.imageResolution : tier.id,
         imageQuality: values.imageQuality,
-        imageAspect: values.imageAspect,
+        imageAspect: "auto", // the ratio never changes the price, so the lookup always asks for Auto
       });
       if (result.ok) {
         onChange(costKey, String(result.usd));
@@ -116,7 +119,7 @@ export function CostMargin({
             aria-pressed={tier.id === t.id}
             onClick={() => setView(t.id)}
             className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-              tier.id === t.id ? "btn-primary text-foreground" : "border-foreground/30"
+              tier.id === t.id ? "chip-brand" : "border-foreground/30"
             }`}
           >
             {t.label}
@@ -130,19 +133,19 @@ export function CostMargin({
             <p className="text-sm">
               Provider cost at {tier.label}:{" "}
               <span className="font-semibold">
-                {costValue !== "" && Number.isFinite(costUsd) ? `$${costUsd.toFixed(2)}` : "…"}
+                {costValue !== "" && Number.isFinite(costUsd) ? usd(costUsd) : "…"}
               </span>
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-semibold">Provider cost at 480p (USD)</label>
+                <label className="mb-1 block text-xs font-semibold">Provider cost at {isVideo ? "480p" : "1K"} (USD)</label>
                 <input
                   name="costUsd"
                   value={values.costUsd}
                   onChange={(e) => onChange("costUsd", e.target.value)}
                   inputMode="decimal"
-                  placeholder={`empty = $${config.videoUsdPerSecond}/s rate`}
+                  placeholder={isVideo ? `empty = $${config.videoUsdPerSecond}/s rate` : `empty = $${config.imageCostUsd1kLow.toFixed(3)} (1K Low)`}
                   className={inputClass}
                 />
               </div>
@@ -166,7 +169,8 @@ export function CostMargin({
             </div>
           )}
           <p className="text-xs text-foreground/60">
-            Rate: {mnt(config.usdMnt)} per $1, ${config.videoUsdPerSecond}/s at 480p (change these under Pricing settings).
+            Rate: {mnt(config.usdMnt)} per $1
+            {isVideo ? `, $${config.videoUsdPerSecond}/s at 480p` : ""} (change these under Pricing settings).
           </p>
         </>
       ) : (
@@ -181,7 +185,7 @@ export function CostMargin({
                 value={costValue}
                 onChange={(e) => onChange(costKey, e.target.value)}
                 inputMode="decimal"
-                placeholder="e.g. 1.11"
+                placeholder={isVideo ? "e.g. 1.11" : "e.g. 0.075"}
                 className={inputClass}
               />
             </div>
@@ -245,7 +249,7 @@ export function CostMargin({
             </div>
           </dl>
           <p className={`text-sm font-semibold ${m.marginPct < target ? "text-red-500" : ""}`}>
-            Margin at {tier.label}: {mnt(m.marginMnt)} ({m.marginPct.toFixed(1)}%)
+            Margin at {tier.label}: {mnt(m.marginMnt)} ({m.marginPct.toFixed(1)}%), target {target}%
           </p>
           {m.marginPct < target && (
             <p role="alert" className="text-xs font-semibold text-red-500">
@@ -253,7 +257,7 @@ export function CostMargin({
                 ? `Warning: at ${tier.label} this price loses money (${m.marginPct.toFixed(0)}%).`
                 : `Warning: the margin at ${tier.label} is ${m.marginPct.toFixed(1)}%, below the ${target}% target.`}{" "}
               {formulaCredits !== null && formulaCredits > credits ? `The formula would charge ${formulaCredits} credits. ` : ""}
-              You can still save.
+              {m.marginMnt < 0 ? "Saving needs an extra confirmation." : "You can still save."}
             </p>
           )}
         </>

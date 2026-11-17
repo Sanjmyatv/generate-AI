@@ -78,6 +78,20 @@ export function parseMarketingImageConfig(value: unknown): MarketingImageTemplat
   return c as unknown as MarketingImageTemplateConfig;
 }
 
+/**
+ * Ratios an image can be rendered at, besides the model's own "auto". Higgsfield publishes no list through this
+ * integration, so this is the fallback list; set HIGGSFIELD_IMAGE_RATIOS (comma separated) to change it without code.
+ */
+const FALLBACK_IMAGE_RATIOS = ["1:1", "3:4", "4:3", "2:3", "3:2", "9:16", "16:9"];
+
+export function supportedImageRatios(): string[] {
+  const fromEnv = (process.env.HIGGSFIELD_IMAGE_RATIOS ?? "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => /^\d+:\d+$/.test(r));
+  return fromEnv.length > 0 ? fromEnv : FALLBACK_IMAGE_RATIOS;
+}
+
 /** True for templates whose jobs run on Higgsfield (polled with getHiggsfieldTask). */
 export function isHiggsfieldConfig(value: unknown): boolean {
   return parseGenjutsuConfig(value) !== null || parseMarketingImageConfig(value) !== null;

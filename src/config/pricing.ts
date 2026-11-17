@@ -15,12 +15,6 @@ export const RESOLUTION_LABELS: Record<Resolution, { label: string; tagline: str
   "720p": { label: "720p HD", tagline: "HD / Pro" },
 };
 
-/** Image render qualities and what each costs by default. Image prices are not worked out by the formula. */
-export const IMAGE_TIER_CREDITS = { "1k": 3, "2k": 6, "4k": 10 } as const;
-
-/** Standard image price: the 1K render. */
-export const IMAGE_CREDITS: number = IMAGE_TIER_CREDITS["1k"];
-
 /** Longest source video Genjutsu Light uses (Higgsfield trims anything longer). It bills output plus source, so cost scales with this. */
 export const GENJUTSU_LIGHT_MAX_SECONDS = 30;
 

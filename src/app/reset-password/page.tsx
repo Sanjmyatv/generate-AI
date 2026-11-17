@@ -24,7 +24,7 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
       ) : (
         <div className="mt-4 space-y-4 text-center">
           <p className="text-foreground/70">{t("reset.expired")}</p>
-          <Link href="/forgot-password" className="inline-block btn-primary rounded-full px-6 py-3 font-semibold">
+          <Link href="/forgot-password" className="btn-primary">
             {t("reset.newLink")}
           </Link>
         </div>

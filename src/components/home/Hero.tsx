@@ -24,9 +24,7 @@ export async function Hero() {
           <h1 className="text-balance text-[34px] font-semibold leading-[1.1] tracking-[-1.5px] text-foreground md:text-[56px] md:tracking-[-2.8px] xl:text-[64px]">
             {t("hero.title1")}
             <br />
-            <span className="bg-linear-to-r from-violet-300 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
-              {t("hero.title2")}
-            </span>
+            <span className="text-brand-light">{t("hero.title2")}</span>
           </h1>
 
           <p className="text-[15px] leading-[1.5] text-muted md:text-[17px] lg:w-[580px]">
@@ -34,21 +32,10 @@ export async function Hero() {
           </p>
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row md:pt-2">
-            <Link
-              href="#discover"
-              className="btn-primary flex h-[54px] items-center justify-center gap-[10px] px-7 text-[14px] font-medium"
-            >
+            <Link href="#discover" className="btn-primary">
               {t("hero.explore")}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/icon-arrow-up-right.svg" alt="" className="size-4" />
-            </Link>
-            <Link
-              href="#trending"
-              className="btn-glass flex h-[54px] items-center justify-center gap-[10px] px-7 text-[14px] font-medium"
-            >
-              {t("hero.possible")}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/icon-play.svg" alt="" className="size-4" />
             </Link>
           </div>
 
@@ -60,7 +47,7 @@ export async function Hero() {
           <div className="absolute left-0 top-0 h-[460px] w-[530px] origin-top-left scale-[0.66] sm:scale-100">
             <div className="hs-layer left-[40px] top-[56px]" style={{ "--d": 30 } as CSSProperties}>
               <div className="hs-float" style={{ "--dur": "9s", "--delay": "-2s" } as CSSProperties}>
-                <div className="relative h-[310px] w-[184px] -rotate-[8deg] overflow-hidden rounded-3xl border border-white/25 shadow-[0_0_46px_rgba(99,102,241,0.45)]">
+                <div className="relative h-[310px] w-[184px] -rotate-[8deg] overflow-hidden rounded-3xl border border-white/25 shadow-[0_0_46px_var(--glow)]">
                   <Image
                     src="/brand/hero-cinematic.jpg"
                     alt=""
@@ -69,16 +56,14 @@ export async function Hero() {
                     priority
                     className="object-cover"
                   />
-                  <div className="absolute inset-0 bg-linear-to-tr from-indigo-500/10 via-transparent to-cyan-300/15" />
                 </div>
               </div>
             </div>
 
             <div className="hs-layer left-[290px] top-[24px]" style={{ "--d": 46 } as CSSProperties}>
               <div className="hs-float" style={{ "--dur": "11s", "--delay": "-6s" } as CSSProperties}>
-                <div className="relative h-[266px] w-[162px] rotate-[8deg] overflow-hidden rounded-3xl border border-white/25 shadow-[0_0_46px_rgba(59,130,246,0.45)]">
+                <div className="relative h-[266px] w-[162px] rotate-[8deg] overflow-hidden rounded-3xl border border-white/25 shadow-[0_0_46px_var(--glow)]">
                   <Image src="/brand/hero-fashion.jpg" alt="" fill sizes="162px" priority className="object-cover" />
-                  <div className="absolute inset-0 bg-linear-to-tl from-violet-500/15 via-transparent to-cyan-300/10" />
                 </div>
               </div>
             </div>

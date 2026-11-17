@@ -9,7 +9,9 @@ import { QPayModal } from "@/components/QPayModal";
 import { ResolutionSelector } from "@/components/ResolutionSelector";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { DEFAULT_RESOLUTION, RESOLUTION_LABELS, formatCredits, type Resolution } from "@/config/pricing";
+import { RatioSelector } from "@/components/RatioSelector";
 import { prepareImage } from "@/lib/image-client";
+import { snapRatio } from "@/lib/ratio";
 import { templateDescription, templateName } from "@/lib/i18n/content";
 import type { T } from "@/lib/i18n/translate";
 import type { CreditPackage, Template } from "@/types";
@@ -180,6 +182,9 @@ export function GenerateFlow({
   const [resolution, setResolution] = useState<Resolution>(DEFAULT_RESOLUTION);
   // Images priced at more than one quality (1K, 2K, 4K) let the user choose, 1K by default.
   const [imageTier, setImageTier] = useState("1k");
+  // Image ratio: "auto" follows the photo; a chip the user picked overrides it and survives a change of photo.
+  const [ratio, setRatio] = useState("auto");
+  const [detectedFor, setDetectedFor] = useState<{ file: File; ratio: string | null } | null>(null);
   // Kept locally so the balance stays right after paying for or being refunded a generation.
   const [balance, setBalance] = useState(credits);
   const charged = useRef(0);
@@ -215,6 +220,25 @@ export function GenerateFlow({
       : t("gen.generateVideo", { amount: formatCredits(cost) })
     : t("gen.generateImage", { amount: formatCredits(cost) });
   const allPhotosSelected = photos.every((p): p is File => p !== null);
+
+  // The browser reads the photo's shape only to preview what Auto will pick; the server decides the final ratio.
+  const ratioFile = photos[Math.min(template.ratioSource, photos.length - 1)] ?? null;
+  const detectsRatio = template.ratioMode === "auto";
+  useEffect(() => {
+    if (!detectsRatio || !ratioFile) return;
+    let cancelled = false;
+    createImageBitmap(ratioFile)
+      .then((bitmap) => {
+        const snapped = snapRatio(bitmap.width, bitmap.height, template.ratios);
+        bitmap.close();
+        if (!cancelled) setDetectedFor({ file: ratioFile, ratio: snapped });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [detectsRatio, ratioFile, template.ratios]);
+  const detectedRatio = detectedFor && detectedFor.file === ratioFile ? detectedFor.ratio : null;
   const hint = template.photoRequirement === "full-body" ? t("gen.hintFull") : t("gen.hintFace");
 
   const fail = useCallback((flowError: FlowError) => {
@@ -251,6 +275,7 @@ export function GenerateFlow({
         templateId: template.id,
         uploadIds,
         ...(isVideo ? { resolution: activeResolution } : imageTiers ? { resolution: activeTier } : {}),
+        ...(!isVideo && template.ratioMode === "auto" && template.userRatio && ratio !== "auto" ? { ratio } : {}),
       });
       charged.current = cost;
       setBalance((b) => (b === null ? b : b - cost));
@@ -358,16 +383,16 @@ export function GenerateFlow({
 
       {step === "detail" && locked && (
         // A video costs more than the balance: show what it needs and a way to add credits, instead of the upload.
-        <div className="mt-6 rounded-2xl border border-purple-500/40 bg-surface p-4 text-center">
+        <div className="mt-6 rounded-2xl border border-brand bg-surface p-4 text-center">
           <p className="flex items-center justify-center gap-2 font-semibold">
-            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-4 text-purple-400">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-4 text-brand-light">
               <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
             </svg>
             {t("gen.locked", { n: formatCredits(template.creditCost) })}
           </p>
           <button
             onClick={() => setShowPay(true)}
-            className="mt-3 w-full rounded-full btn-primary py-3 font-semibold text-foreground"
+            className="mt-3 w-full btn-primary"
           >
             {t("gen.buy")}
           </button>
@@ -377,7 +402,7 @@ export function GenerateFlow({
       {step === "detail" && !locked && (
         <button
           onClick={() => setStep("upload")}
-          className="mt-6 w-full rounded-full btn-primary py-3 font-semibold text-foreground"
+          className="mt-6 w-full btn-primary"
         >
           {t("gen.use")}
         </button>
@@ -424,10 +449,21 @@ export function GenerateFlow({
               }))}
             />
           )}
+          {!isVideo && template.ratioMode && (
+            <RatioSelector
+              mode={template.ratioMode}
+              ratios={template.ratios}
+              userRatio={template.userRatio}
+              fixed={template.ratioFixed}
+              value={ratio}
+              onChange={setRatio}
+              detected={detectedRatio}
+            />
+          )}
           <button
             disabled={!allPhotosSelected}
             onClick={generate}
-            className="w-full rounded-full btn-primary py-3 font-semibold text-foreground disabled:opacity-40"
+            className="w-full btn-primary disabled:opacity-40"
           >
             {generateLabel}
           </button>
@@ -444,14 +480,14 @@ export function GenerateFlow({
           {error.buyCredits ? (
             <Link
               href="/pricing"
-              className="block rounded-full btn-primary py-3 font-semibold text-foreground"
+              className="w-full btn-primary"
             >
               {t("gen.buy")}
             </Link>
           ) : (
             <button
               onClick={() => setStep("upload")}
-              className="w-full rounded-full btn-primary py-3 font-semibold text-foreground"
+              className="w-full btn-primary"
             >
               {t("gen.tryAgain")}
             </button>
@@ -486,7 +522,7 @@ export function GenerateFlow({
             <>
               <a
                 href={`${videoUrl}?download=1`}
-                className="block rounded-full btn-primary py-3 text-center font-semibold text-foreground"
+                className="w-full btn-primary"
               >
                 {t("gen.download")}
               </a>
@@ -502,7 +538,7 @@ export function GenerateFlow({
             // Guests can preview but must log in before downloading.
             <button
               onClick={() => setShowLogin(true)}
-              className="w-full rounded-full btn-primary py-3 font-semibold text-foreground"
+              className="w-full btn-primary"
             >
               {t("gen.download")}
             </button>

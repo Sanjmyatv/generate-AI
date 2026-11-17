@@ -10,8 +10,12 @@ export function templateDescription(template: { description: string; description
   return (locale === "mn" && template.descriptionMn?.trim()) || template.description;
 }
 
-/** A category's name: translated when the dictionary knows its id, otherwise as stored. */
-export function categoryName(t: T, category: { id: string; name: string }) {
+/**
+ * A category's name. Mongolian visitors see the name stored in /admin/categories (it is Mongolian and editable);
+ * English visitors see the dictionary's name when it has one, otherwise the stored name.
+ */
+export function categoryName(t: T, category: { id: string; name: string }, locale: Locale) {
+  if (locale === "mn") return category.name;
   const key = `category.${category.id}`;
   return t.has(key) ? t(key as TKey) : category.name;
 }

@@ -6,13 +6,18 @@
 
 export type PriceSource = "MANUAL" | "HIGGSFIELD";
 export type VideoResolution = "480p" | "720p";
+export type ImageQuality = "low" | "medium" | "high";
+/** Video and images each have their own target margin, so images can change without touching video. */
+export type PriceKind = "video" | "image";
 
 /** Everything the price depends on. Stored in the PricingSetting row and edited in /admin. */
 export interface PricingConfig {
   /** MNT one credit is worth, the same in every pack. */
   creditValueMnt: number;
-  /** Margin aimed for, in percent of revenue. */
+  /** Margin aimed for on video, in percent of revenue. */
   targetMarginPct: number;
+  /** The same for images. */
+  targetMarginImagesPct: number;
   /** Added on top of the provider cost, as a fraction (0.05 = 5%). */
   retryRate: number;
   /** Share of the revenue the payment gateway keeps, as a fraction (0.01 = 1%). */
@@ -26,6 +31,10 @@ export interface PricingConfig {
   /** Length of the video that a pack's "N videos" count refers to. */
   referenceSeconds: number;
   priceSource: PriceSource;
+  /** Quality tier new image templates start with. */
+  imageQuality: ImageQuality;
+  /** What one 1K image costs at the Low tier (USD), used when no cost is looked up or typed. Published price: about $0.075. */
+  imageCostUsd1kLow: number;
   /** Higgsfield's list price per second of 480p video, for the "if the discount ends" risk line. */
   listUsdPerSecond: number;
 }
@@ -33,6 +42,7 @@ export interface PricingConfig {
 export const DEFAULT_PRICING: PricingConfig = {
   creditValueMnt: 100,
   targetMarginPct: 55,
+  targetMarginImagesPct: 55,
   retryRate: 0.05,
   gatewayFeeRate: 0.01,
   usdMnt: 3500,
@@ -40,6 +50,8 @@ export const DEFAULT_PRICING: PricingConfig = {
   hdMultiplier: 2.015,
   referenceSeconds: 15,
   priceSource: "MANUAL",
+  imageQuality: "low",
+  imageCostUsd1kLow: 0.075,
   listUsdPerSecond: 0.10667,
 };
 
@@ -60,14 +72,18 @@ export function perCreditMnt(pack: Pick<PackagePrice, "credits" | "priceMnt">) {
  * K = (1 + retry) ÷ (1 − margin − gateway): what the provider cost in MNT is multiplied by to get
  * the selling price. The gateway fee is a share of the price, so it comes off the margin.
  */
-export function costFactor(cfg: PricingConfig) {
-  const keep = 1 - Math.min(Math.max(cfg.targetMarginPct, 0), 95) / 100 - cfg.gatewayFeeRate;
+export function targetMarginFor(cfg: PricingConfig, kind: PriceKind = "video") {
+  return kind === "image" ? cfg.targetMarginImagesPct : cfg.targetMarginPct;
+}
+
+export function costFactor(cfg: PricingConfig, kind: PriceKind = "video") {
+  const keep = 1 - Math.min(Math.max(targetMarginFor(cfg, kind), 0), 95) / 100 - cfg.gatewayFeeRate;
   return (1 + cfg.retryRate) / Math.max(keep, 0.05);
 }
 
 /** Credits to charge for a generation that costs `costUsd` at the provider. Rounded up once, on the total. */
-export function creditsForCostUsd(costUsd: number, cfg: PricingConfig) {
-  const credits = Math.ceil((costUsd * cfg.usdMnt * costFactor(cfg)) / cfg.creditValueMnt - 1e-9);
+export function creditsForCostUsd(costUsd: number, cfg: PricingConfig, kind: PriceKind = "video") {
+  const credits = Math.ceil((costUsd * cfg.usdMnt * costFactor(cfg, kind)) / cfg.creditValueMnt - 1e-9);
   return Math.max(1, credits);
 }
 
@@ -79,6 +95,11 @@ export function videoCostUsd(seconds: number, resolution: VideoResolution, cfg: 
 /** Credits for a video of this length, from the per-second rate. */
 export function videoCredits(seconds: number, resolution: VideoResolution, cfg: PricingConfig) {
   return creditsForCostUsd(videoCostUsd(seconds, resolution, cfg), cfg);
+}
+
+/** Credits for one 1K image at the default (Low) tier: what pack counts and the pricing page use. */
+export function imageCredits1k(cfg: PricingConfig) {
+  return creditsForCostUsd(cfg.imageCostUsd1kLow, cfg, "image");
 }
 
 /** What the same video would cost at Higgsfield's list price (no account discount), in USD. */

@@ -52,7 +52,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const actor = await getActor();
 
   const gen = await prisma.generation.findUnique({ where: { id } });
-  if (!gen || !canAccess(gen, actor) || gen.status !== "COMPLETED") {
+  if (!gen || gen.deletedAt || !canAccess(gen, actor) || gen.status !== "COMPLETED") {
     return new Response("Not found", { status: 404 });
   }
   if (download && !actor.userId) return new Response("Login required", { status: 401 });

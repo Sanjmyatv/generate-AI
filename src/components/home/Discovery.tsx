@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { FeaturedTemplate } from "@/components/home/FeaturedTemplate";
-import { useT } from "@/components/I18nProvider";
+import { useLocale, useT } from "@/components/I18nProvider";
 import { Reveal } from "@/components/Reveal";
 import { TemplateCard } from "@/components/TemplateCard";
 import { categoryName } from "@/lib/i18n/content";
@@ -74,38 +74,47 @@ const MEDIA_OPTIONS = [
   { value: "image", label: "disc.images", icon: "/brand/icon-image.svg" },
 ] as const;
 
+const ALL = "all";
+const TRENDING = "trending";
+
 /**
- * Figma: Video template discovery. Videos/Images switch, category chips, a "Trending Now"
- * row, the featured template and one row per category. "Trending" shows everything; a
- * category chip narrows the page to that category.
+ * Videos/Images switch, then chips: "Бүгд" (every template once), Trending (only while real use fills it) and one
+ * chip per category. A template shows under every category it belongs to, but "Бүгд" lists it a single time.
  */
 export function Discovery({
   templates,
   categories,
+  trending: trendingInfo,
   initialMedia,
 }: {
   templates: Template[];
   categories: Category[];
+  /** Null while too few templates qualify: the chip and the section are hidden. */
+  trending: { label: string; ids: string[] } | null;
   initialMedia: Media;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [media, setMedia] = useState<Media>(initialMedia);
-  const [selected, setSelected] = useState("trending");
+  const [selected, setSelected] = useState(ALL);
 
   const inMedia = templates.filter((t) => t.type === media);
-  const trending = inMedia
-    .filter((t) => t.trendingRank !== null)
-    .sort((a, b) => (a.trendingRank ?? 0) - (b.trendingRank ?? 0));
+  const order = new Map((trendingInfo?.ids ?? []).map((id, i) => [id, i]));
+  const trending = inMedia.filter((t) => order.has(t.id)).sort((a, b) => order.get(a.id)! - order.get(b.id)!);
   const rows = categories
-    .filter((c) => c.id !== "trending")
-    .map((category) => ({ category, templates: inMedia.filter((t) => t.categoryId === category.id) }))
+    .map((category) => ({ category, templates: inMedia.filter((t) => t.categoryIds.includes(category.id)) }))
     .filter((row) => row.templates.length > 0);
 
   // A chip chosen under one media type may not exist under the other.
-  const active = selected === "trending" || rows.some((r) => r.category.id === selected) ? selected : "trending";
-  const showAll = active === "trending";
-  const visibleRows = showAll ? rows : rows.filter((r) => r.category.id === active);
-  const featured = trending[0];
+  const chipExists = (id: string) => id === ALL || (id === TRENDING && trending.length > 0) || rows.some((r) => r.category.id === id);
+  const active = chipExists(selected) ? selected : ALL;
+  const showAll = active === ALL;
+  const featured = showAll ? trending[0] : undefined;
+  const chips = [
+    { id: ALL, label: t("disc.all") },
+    ...(trending.length > 0 ? [{ id: TRENDING, label: trendingInfo?.label ?? t("disc.trendingChip") }] : []),
+    ...rows.map((r) => ({ id: r.category.id, label: categoryName(t, r.category, locale) })),
+  ];
 
   return (
     <div id="discover">
@@ -150,7 +159,7 @@ export function Discovery({
           aria-label={t("disc.categories")}
           className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 md:-mx-8 md:px-8 lg:-mx-16 lg:px-16"
         >
-          {[{ id: "trending", name: t("disc.trendingChip") }, ...rows.map((r) => r.category)].map((chip) => {
+          {chips.map((chip) => {
             const on = chip.id === active;
             return (
               <button
@@ -160,11 +169,11 @@ export function Discovery({
                 onClick={() => setSelected(chip.id)}
                 className={`h-11 shrink-0 whitespace-nowrap rounded-full border px-[18px] text-[13px] ${
                   on
-                    ? "border-[rgba(139,92,246,0.5)] bg-[rgba(139,92,246,0.13)] text-purple-soft"
+                    ? "chip-brand border-transparent"
                     : "border-line bg-surface text-muted"
                 }`}
               >
-                {categoryName(t, chip)}
+                {chip.label}
               </button>
             );
           })}
@@ -177,25 +186,30 @@ export function Discovery({
         </p>
       ) : (
         <>
-          {showAll && trending.length > 0 && (
+          {(showAll || active === TRENDING) && trending.length > 0 && (
             <>
               <TemplateRow
                 id="trending"
-                title={t("disc.trendingTitle")}
+                title={trendingInfo?.label ?? t("disc.trendingTitle")}
                 subtitle={t("disc.trendingSub")}
                 templates={trending}
               />
               {featured && <FeaturedTemplate template={featured} />}
             </>
           )}
-          {visibleRows.map(({ category, templates: items }) => (
-            <TemplateRow
-              key={category.id}
-              title={categoryName(t, category)}
-              subtitle={t("disc.count", { count: items.length })}
-              templates={items}
-            />
-          ))}
+          {showAll && (
+            <TemplateRow title={t("disc.allTitle")} subtitle={t("disc.count", { count: inMedia.length })} templates={inMedia} />
+          )}
+          {rows
+            .filter((r) => r.category.id === active)
+            .map(({ category, templates: items }) => (
+              <TemplateRow
+                key={category.id}
+                title={categoryName(t, category, locale)}
+                subtitle={t("disc.count", { count: items.length })}
+                templates={items}
+              />
+            ))}
         </>
       )}
     </div>

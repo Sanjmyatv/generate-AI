@@ -4,13 +4,16 @@ import { assetPath, mp4Duration, sniffMedia } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
 
-const MAX_PREVIEW_BYTES = 30 * 1024 * 1024;
+/** A preview plays on every visitor's phone, so it has to be light: a short, small clip, not a camera original. */
+const MAX_PREVIEW_BYTES = 8 * 1024 * 1024;
+/** The thumbnail made from a preview video (about 480 px wide, tens of kilobytes). */
+const MAX_POSTER_BYTES = 1024 * 1024;
 const MAX_SOURCE_BYTES = 60 * 1024 * 1024;
 /** Genjutsu needs at least 4 s of source video and trims anything past 30 s. */
 const MIN_SOURCE_SECONDS = 4;
 
 /**
- * POST /api/admin/assets  (multipart: file, purpose = "preview" | "source")
+ * POST /api/admin/assets  (multipart: file, purpose = "preview" | "source" | "poster")
  *
  * Admin only. Stores an uploaded preview (image or video) or source video (MP4/MOV) and
  * returns the public path to save on a template.
@@ -25,15 +28,17 @@ export async function POST(req: Request) {
     return Response.json({ error: "invalid_request" }, { status: 400 });
   }
   const file = form.get("file");
-  const purpose = form.get("purpose") === "source" ? "source" : "preview";
+  const purpose = form.get("purpose") === "source" ? "source" : form.get("purpose") === "poster" ? "poster" : "preview";
   if (!(file instanceof File) || file.size === 0) return Response.json({ error: "invalid_request" }, { status: 400 });
 
-  const limit = purpose === "source" ? MAX_SOURCE_BYTES : MAX_PREVIEW_BYTES;
+  const limit = purpose === "source" ? MAX_SOURCE_BYTES : purpose === "poster" ? MAX_POSTER_BYTES : MAX_PREVIEW_BYTES;
   if (file.size > limit) return Response.json({ error: "too_large", maxMb: limit / 1024 / 1024 }, { status: 413 });
 
   const bytes = new Uint8Array(await file.arrayBuffer());
   const media = sniffMedia(bytes);
   if (!media) return Response.json({ error: "unsupported_type" }, { status: 400 });
+
+  if (purpose === "poster" && media.kind !== "image") return Response.json({ error: "unsupported_type" }, { status: 400 });
 
   let duration: number | null = null;
   if (media.kind === "video") duration = mp4Duration(bytes);

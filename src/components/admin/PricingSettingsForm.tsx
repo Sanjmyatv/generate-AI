@@ -67,13 +67,24 @@ function Form({
 
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
         {field("creditValueMnt", "Credit value (₮)", String(config.creditValueMnt), "Price of 1 credit in every pack.")}
-        {field("targetMarginPct", "Target margin (%)", String(config.targetMarginPct))}
+        {field("targetMarginPct", "Target margin, video (%)", String(config.targetMarginPct))}
+        {field("targetMarginImagesPct", "Target margin, images (%)", String(config.targetMarginImagesPct), "Separate, so images can change without touching video.")}
         {field("retryPct", "Retry buffer (%)", pct(config.retryRate), "Added on top of the provider cost.")}
         {field("feePct", "Payment gateway fee (%)", pct(config.gatewayFeeRate), "Taken from revenue.")}
         {field("usdMnt", "USD → MNT rate", String(config.usdMnt), "Default: USD_MNT_RATE on the server.")}
         {field("videoUsdPerSecond", "Video cost, 480p ($ per second)", String(config.videoUsdPerSecond), "Real rate on our account (manual).")}
         {field("hdMultiplier", "720p cost multiplier", String(config.hdMultiplier), "Verify with one real 720p render.")}
         {field("referenceSeconds", "Reference video length (s)", String(config.referenceSeconds), "What a pack's “N videos” counts.")}
+        {field("imageCostUsd1kLow", "Image cost, 1K Low ($ per image)", String(config.imageCostUsd1kLow), "Published price. Used when no cost is looked up or typed.")}
+        <label className="block text-xs font-semibold">
+          Default image quality tier
+          <select name="imageQuality" defaultValue={config.imageQuality} className={inputClass}>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <span className="mt-1 block font-normal text-foreground/60">New image templates start here.</span>
+        </label>
         {field("listUsdPerSecond", "Higgsfield list price, 480p ($ per second)", String(config.listUsdPerSecond), "Only for the risk line below.")}
         <label className="block text-xs font-semibold">
           Price source
@@ -113,20 +124,22 @@ function Form({
                 <tr>
                   <th className="py-1 pr-2 font-medium">Template</th>
                   <th className="py-1 pr-2 font-medium">Length</th>
-                  <th className="py-1 pr-2 font-medium">480p credits</th>
-                  <th className="py-1 font-medium">720p credits</th>
+                  <th className="py-1 font-medium">Credits, old → new</th>
                 </tr>
               </thead>
               <tbody>
                 {state.changes.map((c) => (
                   <tr key={c.id} className="border-t border-foreground/10">
                     <td className="py-1 pr-2">{c.name}</td>
-                    <td className="py-1 pr-2">{c.seconds} s</td>
-                    <td className="py-1 pr-2">
-                      {fmtCredits(c.oldCredits)} → <span className="font-semibold">{fmtCredits(c.newCredits)}</span>
-                    </td>
+                    <td className="py-1 pr-2">{c.seconds === null ? "image" : `${c.seconds} s`}</td>
                     <td className="py-1">
-                      {fmtCredits(c.oldCreditsHd)} → <span className="font-semibold">{fmtCredits(c.newCreditsHd)}</span>
+                      {c.lines
+                        .filter((l) => l.oldCredits !== l.newCredits)
+                        .map((l) => (
+                          <span key={l.key} className="mr-3 inline-block">
+                            {l.label}: {fmtCredits(l.oldCredits)} → <span className="font-semibold">{fmtCredits(l.newCredits)}</span>
+                          </span>
+                        ))}
                     </td>
                   </tr>
                 ))}
@@ -135,7 +148,7 @@ function Form({
           </div>
           <p className="mt-2 text-xs text-foreground/60">Templates priced by hand are not changed.</p>
           <div className="mt-3 flex gap-2">
-            <button name="intent" value="confirm" disabled={pending} className="rounded-full btn-primary px-4 py-2 text-sm font-semibold text-foreground disabled:opacity-50">
+            <button name="intent" value="confirm" disabled={pending} className="btn-primary btn-compact disabled:opacity-50">
               Confirm and apply
             </button>
             <button type="button" onClick={onCancel} className="rounded-full border border-foreground/30 px-4 py-2 text-sm font-semibold">
@@ -146,7 +159,7 @@ function Form({
       )}
 
       {!state.changes && (
-        <button disabled={pending} className="mt-4 rounded-full btn-primary px-4 py-2 text-sm font-semibold text-foreground disabled:opacity-50">
+        <button disabled={pending} className="mt-4 btn-primary btn-compact disabled:opacity-50">
           {pending ? "Checking…" : "Save settings"}
         </button>
       )}

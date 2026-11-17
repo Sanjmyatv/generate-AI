@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { TemplateForm } from "@/components/admin/TemplateForm";
 import { prisma } from "@/lib/db";
+import { supportedImageRatios } from "@/lib/higgsfield";
 import { getPricingConfig } from "@/lib/pricing-settings";
 import { templateToFormValues } from "@/lib/template-admin";
 
@@ -9,8 +10,8 @@ export const dynamic = "force-dynamic";
 export default async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [template, categories, config] = await Promise.all([
-    prisma.template.findUnique({ where: { id } }),
-    prisma.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
+    prisma.template.findUnique({ where: { id }, include: { categories: { select: { categoryId: true } } } }),
+    prisma.category.findMany({ where: { system: false }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
     getPricingConfig(),
   ]);
   if (!template) notFound();
@@ -21,7 +22,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
       <TemplateForm
         initial={templateToFormValues(template)}
         categories={categories}
-        config={config}
+        config={config} ratios={supportedImageRatios()}
         templateId={template.id}
       />
     </>

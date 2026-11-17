@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { savePackAction } from "@/app/actions/admin";
-import { IMAGE_CREDITS } from "@/config/pricing";
 import { packCounts, packWarnings, referenceCredits } from "@/lib/packs";
 import { marginFor, videoCostUsd, type PricingConfig } from "@/lib/pricing";
 
@@ -30,7 +29,7 @@ export function PackEditor({ pack, config }: { pack: PackRow; config: PricingCon
   const valid = Number.isInteger(priceMnt) && priceMnt >= config.creditValueMnt && priceMnt % config.creditValueMnt === 0;
   const credits = valid ? priceMnt / config.creditValueMnt : null;
 
-  const counts = credits === null ? null : packCounts(credits, config, IMAGE_CREDITS);
+  const counts = credits === null ? null : packCounts(credits, config);
   const warnings = counts ? packWarnings(pack.id, counts, config.referenceSeconds) : [];
   const ref = referenceCredits(config);
   // Margin on the reference video when this pack's credits are paid for at this pack's price.
@@ -103,7 +102,7 @@ export function PackEditor({ pack, config }: { pack: PackRow; config: PricingCon
         </div>
       )}
 
-      <button className="mt-3 rounded-full btn-primary px-4 py-2 text-sm font-semibold text-foreground">Save pack</button>
+      <button className="mt-3 btn-primary btn-compact">Save pack</button>
     </form>
   );
 }

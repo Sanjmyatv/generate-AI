@@ -187,7 +187,7 @@ export function QPayModal({
               {t("qpay.paid.added", { amount: formatCredits(payment.credits) })}
               {newBalance !== null && t("qpay.paid.balance", { amount: formatCredits(newBalance) })}
             </p>
-            <button type="button" onClick={onClose} className="btn-primary mt-6 w-full py-3 text-[14px] font-medium">
+            <button type="button" onClick={onClose} className="btn-primary mt-6 w-full">
               {t("qpay.paid.done")}
             </button>
           </div>
@@ -220,7 +220,7 @@ export function QPayModal({
                       key={bank.name}
                       href={bank.link}
                       title={bank.description}
-                      className="flex flex-col items-center gap-1 rounded-xl border border-line bg-surface px-1 py-2 text-center text-[10px] leading-tight text-foreground hover:border-purple-500/40"
+                      className="flex flex-col items-center gap-1 rounded-xl border border-line bg-surface px-1 py-2 text-center text-[10px] leading-tight text-foreground hover:border-brand"
                     >
                       {bank.logo && (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -238,7 +238,7 @@ export function QPayModal({
                 href={payment.shortUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-4 block text-center text-xs text-purple-300 underline underline-offset-2"
+                className="mt-4 block text-center text-xs text-brand-light underline underline-offset-2"
               >
                 {t("qpay.pay.page")}
               </a>
@@ -249,7 +249,7 @@ export function QPayModal({
               type="button"
               onClick={() => void checkNow()}
               disabled={checking}
-              className="btn-primary mt-5 w-full py-3 text-[14px] font-medium disabled:opacity-50"
+              className="btn-primary mt-5 w-full disabled:opacity-50"
             >
               {checking ? t("qpay.pay.checking") : t("qpay.pay.paid")}
             </button>
@@ -285,14 +285,14 @@ export function QPayModal({
                     aria-checked={on}
                     onClick={() => setSelectedId(p.id)}
                     className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left ${
-                      on ? "border-[rgba(139,92,246,0.6)] bg-[rgba(139,92,246,0.13)]" : "border-line bg-surface"
+                      on ? "border-brand bg-brand/15" : "border-line bg-surface"
                     }`}
                   >
                     <span>
                       <span className="flex items-center gap-2 text-[15px] font-medium text-foreground">
                         {packName(t, p, locale)}
                         {p.highlighted && (
-                          <span className="btn-primary rounded-full px-2 py-0.5 text-[10px] font-medium">{t("qpay.select.popular")}</span>
+                          <span className="chip-brand px-2 py-0.5 text-[10px]">{t("qpay.select.popular")}</span>
                         )}
                       </span>
                       <span className="text-[12px] text-muted">
@@ -311,7 +311,7 @@ export function QPayModal({
               type="button"
               disabled={!selected || phase === "creating"}
               onClick={() => void start()}
-              className="btn-primary mt-5 w-full py-3 text-[14px] font-medium disabled:opacity-50"
+              className="btn-primary mt-5 w-full disabled:opacity-50"
             >
               {phase === "creating"
                 ? t("qpay.select.creating")

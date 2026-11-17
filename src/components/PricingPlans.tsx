@@ -18,7 +18,7 @@ export interface Plan {
 /** Heroicons "CheckIcon" (20 solid). */
 function CheckIcon({ label }: { label: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="currentColor" role="img" aria-label={label} className="mt-0.5 size-4 shrink-0 text-purple-400">
+    <svg viewBox="0 0 20 20" fill="currentColor" role="img" aria-label={label} className="mt-0.5 size-4 shrink-0 text-brand-light">
       <path
         fillRule="evenodd"
         d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
@@ -77,12 +77,12 @@ export function PricingPlans({ plans, referenceSeconds }: { plans: Plan[]; refer
               delay={index * 90}
               className={`relative row-span-12 grid grid-rows-subgrid gap-y-0 rounded-3xl border p-6 ${
                 pkg.highlighted
-                  ? "border-purple-500/50 bg-[linear-gradient(180deg,rgba(139,92,246,0.16),rgba(139,92,246,0.04))] shadow-[0_0_40px_rgba(168,85,247,0.15)]"
+                  ? "border-brand bg-surface shadow-[0_0_40px_var(--glow)]"
                   : "border-line bg-surface"
               }`}
             >
               {pkg.highlighted && (
-                <span className="btn-primary absolute -top-3 left-6 rounded-full px-3 py-1 text-[11px] font-medium">
+                <span className="chip-brand absolute -top-3 left-6 px-3 py-1 text-[11px]">
                   {t("plans.popular")}
                 </span>
               )}
@@ -106,7 +106,7 @@ export function PricingPlans({ plans, referenceSeconds }: { plans: Plan[]; refer
               <button
                 type="button"
                 onClick={() => setBuying(pkg.id)}
-                className={`mt-5 w-full self-end py-3 text-[14px] font-medium text-foreground ${
+                className={`mt-5 w-full self-end ${
                   pkg.highlighted ? "btn-primary" : "btn-glass"
                 }`}
               >

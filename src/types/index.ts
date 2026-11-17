@@ -17,7 +17,10 @@ export interface Template {
   nameMn: string | null;
   descriptionMn: string | null;
   previewUrl: string | null;
-  categoryId: string;
+  /** A small still image of a video preview, so cards need not load the video itself. */
+  posterUrl: string | null;
+  /** Every category the template belongs to; it shows under each. */
+  categoryIds: string[];
   type: OutputType;
   /** Credits are always validated server-side; never trust this value from the client. For video this is the 480p price. */
   creditCost: number;
@@ -34,7 +37,17 @@ export interface Template {
   photoLabels: string[];
   photoRequirement: PhotoRequirement;
   active: boolean;
-  trendingRank: number | null;
+  /** In the automatic Trending list right now. */
+  trending: boolean;
+  /** Image templates: "auto" follows the photo, "fixed" always uses ratioFixed; null for videos. */
+  ratioMode: "auto" | "fixed" | null;
+  /** The ratios the image model supports, for an Auto template (used to snap the photo's shape and as the user's choices). */
+  ratios: string[];
+  /** Auto mode: may the user pick another ratio instead of Auto. */
+  userRatio: boolean;
+  ratioFixed: string | null;
+  /** Auto mode: which photo's shape is used (0-based). */
+  ratioSource: number;
   createdAt: string;
 }
 

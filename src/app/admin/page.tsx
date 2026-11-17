@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PricingSettingsForm } from "@/components/admin/PricingSettingsForm";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { prisma } from "@/lib/db";
+import { assetIdFromUrl } from "@/lib/media";
 import { deleteTemplateAction, setTemplateActiveAction } from "@/app/actions/admin";
 import { marginFor, videoListCostUsd } from "@/lib/pricing";
 import { getPricingConfig } from "@/lib/pricing-settings";
@@ -26,10 +27,16 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const [templates, cfg] = await Promise.all([
     prisma.template.findMany({
       orderBy: [{ active: "desc" }, { createdAt: "desc" }],
-      include: { category: { select: { name: true } } },
+      include: { categories: { include: { category: { select: { name: true } } } } },
     }),
     getPricingConfig(),
   ]);
+
+  // How heavy each uploaded preview is: every visitor's phone downloads it, so a big one is flagged.
+  const previewIds = templates.flatMap((t) => assetIdFromUrl(t.previewUrl) ?? []);
+  const previewSizes = new Map(
+    (await prisma.asset.findMany({ where: { id: { in: previewIds } }, select: { id: true, size: true } })).map((a) => [a.id, a.size]),
+  );
 
   // If the discount on our Higgsfield account ever ended, what the reference video would earn at list price.
   const reference = referenceCredits(cfg);
@@ -44,10 +51,13 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Templates</h1>
         <div className="flex items-center gap-2">
-          <Link href="/admin/packs" className="rounded-full border border-foreground/30 px-4 py-2 text-sm font-semibold">
+          <Link href="/admin/categories" className="btn-glass btn-compact">
+            Categories
+          </Link>
+          <Link href="/admin/packs" className="btn-glass btn-compact">
             Credit packs
           </Link>
-          <Link href="/admin/templates/new" className="rounded-full btn-primary px-4 py-2 text-sm font-semibold text-foreground">
+          <Link href="/admin/templates/new" className="btn-primary btn-compact">
             New template
           </Link>
         </div>
@@ -71,19 +81,34 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
           return (
             <li key={t.id} className="flex gap-3 rounded-2xl border border-foreground/15 p-3">
               <div className="h-24 w-16 shrink-0 overflow-hidden rounded-lg">
-                <TemplatePreview src={t.previewUrl} alt={t.name} className="h-full w-full" />
+                <TemplatePreview src={t.previewUrl} poster={t.previewPosterUrl} alt={t.name} className="h-full w-full" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{t.name}</span>
                   {!t.active && <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs">Hidden</span>}
                   {t.autoCredits && <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs">Automatic credits</span>}
+                  {t.categories.length === 0 && (
+                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs">No category</span>
+                  )}
+                  {(() => {
+                    const bytes = previewSizes.get(assetIdFromUrl(t.previewUrl) ?? "");
+                    if (bytes === undefined || (bytes < 6 * 1024 * 1024 && t.previewPosterUrl)) return null;
+                    const mb = (bytes / 1024 / 1024).toFixed(1);
+                    return (
+                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs">
+                        Preview {mb} MB{bytes >= 6 * 1024 * 1024 ? ": too heavy, upload a lighter clip" : ""}
+                        {t.previewPosterUrl ? "" : ", no thumbnail"}
+                      </span>
+                    );
+                  })()}
+                  {t.excludeFromTrending && <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs">Not in Trending</span>}
                   {!configured && (
                     <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs">Not set up: cannot generate yet</span>
                   )}
                 </div>
                 <p className="text-xs text-foreground/60">
-                  {t.category.name} · {t.type === "VIDEO" ? "Video" : "Image"} · {credits(t.creditCost)}
+                  {t.categories.map((c) => c.category.name).join(", ") || "-"} · {t.type === "VIDEO" ? "Video" : "Image"} · {credits(t.creditCost)}
                   {t.creditCostHd ? ` / ${credits(t.creditCostHd)}` : ""} credits ·{" "}
                   {configured ? engine?.label : "No method chosen"}
                 </p>

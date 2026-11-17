@@ -47,14 +47,14 @@ export default async function ProfilePage() {
             <dt className="text-foreground/60">{t("profile.credits")}</dt>
             <dd className="flex items-center gap-3">
               <span className="font-semibold">{formatCredits(Number(user.credits))}</span>
-              <Link href="/pricing" className="btn-primary rounded-full px-3 py-1 text-xs font-medium">
+              <Link href="/pricing" className="btn-primary btn-compact">
                 {t("profile.buy")}
               </Link>
             </dd>
           </div>
         </dl>
         {user.isAdmin && (
-          <Link href="/admin" className="btn-primary mt-6 block rounded-full py-3 text-center font-medium">
+          <Link href="/admin" className="btn-primary mt-6 w-full">
             {t("profile.admin")}
           </Link>
         )}
@@ -73,7 +73,7 @@ export default async function ProfilePage() {
           </div>
         </dl>
         <form action={signOutAction}>
-          <button className="btn-glass mt-6 w-full rounded-full py-3 font-medium text-red-300">{t("profile.logOut")}</button>
+          <button className="btn-glass mt-6 w-full text-red-300">{t("profile.logOut")}</button>
         </form>
       </Reveal>
     </div>

@@ -55,8 +55,8 @@ export async function Footer() {
                   rel="noopener noreferrer"
                   aria-label={s.label}
                   title={s.label}
-                  className={`flex size-10 items-center justify-center rounded-full opacity-80 transition duration-200 hover:scale-110 hover:opacity-100 hover:shadow-[0_0_18px_rgba(99,102,241,0.45)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[0_0_18px_rgba(99,102,241,0.45)] ${
-                    s.framed ? "border border-line bg-surface hover:border-indigo-400/60" : ""
+                  className={`flex size-10 items-center justify-center rounded-full opacity-80 transition duration-200 hover:scale-110 hover:opacity-100 hover:shadow-[0_0_18px_rgba(191,64,191,0.5)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[0_0_18px_rgba(191,64,191,0.5)] ${
+                    s.framed ? "border border-line bg-surface hover:border-brand" : ""
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}

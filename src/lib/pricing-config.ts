@@ -7,6 +7,7 @@ export function toPricingConfig(row: PricingSetting | null): PricingConfig {
   return {
     creditValueMnt: row.creditValueMnt,
     targetMarginPct: Number(row.targetMarginPct),
+    targetMarginImagesPct: Number(row.targetMarginImagesPct),
     retryRate: Number(row.retryBufferRate),
     gatewayFeeRate: Number(row.gatewayFeeRate),
     usdMnt: row.usdMntRate === null ? usdMntRate() : Number(row.usdMntRate),
@@ -14,6 +15,8 @@ export function toPricingConfig(row: PricingSetting | null): PricingConfig {
     hdMultiplier: Number(row.hdMultiplier),
     referenceSeconds: row.referenceSeconds,
     priceSource: row.priceSource === "HIGGSFIELD" ? "HIGGSFIELD" : "MANUAL",
+    imageQuality: row.imageQuality === "medium" || row.imageQuality === "high" ? row.imageQuality : "low",
+    imageCostUsd1kLow: Number(row.imageCostUsd1kLow),
     listUsdPerSecond: Number(row.listUsdPerSecond),
   };
 }

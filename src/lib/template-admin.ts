@@ -1,5 +1,6 @@
 import type { Template as DbTemplate } from "@/generated/prisma/client";
 import { parseGenjutsuConfig, parseMarketingImageConfig } from "@/lib/higgsfield";
+import { ratioSettings } from "@/lib/ratio";
 import { parseSeedanceConfig } from "@/lib/seedance";
 
 /** How a template produces its result. Stored in `Template.generationConfig.provider`/`mode`. */
@@ -76,8 +77,8 @@ export interface TemplateFormValues {
   /** Optional Mongolian versions, shown when the visitor browses in Mongolian. */
   nameMn: string;
   descriptionMn: string;
-  categoryId: string;
-  newCategory: string;
+  /** Every category the template sits in (any number, none allowed). */
+  categoryIds: string[];
   type: "VIDEO" | "IMAGE";
   engine: Engine;
   prompt: string;
@@ -98,8 +99,11 @@ export interface TemplateFormValues {
   active: boolean;
   /** Credits worked out by the pricing formula; a settings change may reprice the template. */
   autoCredits: boolean;
-  trendingRank: string;
+  /** Never counted for Trending, however popular. */
+  excludeFromTrending: boolean;
   previewUrl: string;
+  /** A small still of a video preview, made in the browser when the preview is uploaded. */
+  previewPosterUrl: string;
   sourceVideoUrl: string;
   videoResolution: string;
   duration: string;
@@ -107,7 +111,14 @@ export interface TemplateFormValues {
   generateAudio: boolean;
   imageResolution: string;
   imageQuality: string;
+  /** The ratio of a fixed-ratio image template (used only when imageRatioMode is "fixed"). */
   imageAspect: string;
+  /** "auto" follows the source photo (recommended); "fixed" always uses imageAspect. */
+  imageRatioMode: "auto" | "fixed";
+  /** Auto mode with several photo slots: which photo's shape is used, 1-based. */
+  ratioSourcePhoto: string;
+  /** Auto mode: may the user pick another ratio. */
+  userRatio: boolean;
   /** What one generation costs us, in USD. Used for margin math only; providers never see it. */
   costUsd: string;
   /** The same, at 720p HD. */
@@ -123,8 +134,7 @@ export function defaultFormValues(): TemplateFormValues {
     description: "",
     nameMn: "",
     descriptionMn: "",
-    categoryId: "",
-    newCategory: "",
+    categoryIds: [],
     type: "VIDEO",
     engine: "genjutsu",
     prompt: "",
@@ -139,16 +149,20 @@ export function defaultFormValues(): TemplateFormValues {
     photoRequirement: "FACE",
     active: true,
     autoCredits: true,
-    trendingRank: "",
+    excludeFromTrending: false,
     previewUrl: "",
+    previewPosterUrl: "",
     sourceVideoUrl: "",
     videoResolution: "480p",
     duration: "8",
     ratio: "9:16",
     generateAudio: true,
-    imageResolution: "2k",
-    imageQuality: "high",
-    imageAspect: "auto",
+    imageResolution: "1k",
+    imageQuality: "low",
+    imageAspect: "1:1",
+    imageRatioMode: "auto",
+    ratioSourcePhoto: "1",
+    userRatio: true,
     costUsd: "",
     costUsdHd: "",
     costUsd2k: "",
@@ -166,7 +180,7 @@ function engineOf(config: unknown): Engine | null {
 }
 
 /** Fills the form from a saved template (and the settings inside its generationConfig). */
-export function templateToFormValues(t: DbTemplate): TemplateFormValues {
+export function templateToFormValues(t: DbTemplate & { categories: { categoryId: string }[] }): TemplateFormValues {
   const v = defaultFormValues();
   const config = (t.generationConfig ?? {}) as Record<string, unknown>;
   const engine = engineOf(config) ?? (t.type === "IMAGE" ? "marketing-image" : "genjutsu");
@@ -176,7 +190,7 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   v.description = t.description;
   v.nameMn = t.nameMn ?? "";
   v.descriptionMn = t.descriptionMn ?? "";
-  v.categoryId = t.categoryId;
+  v.categoryIds = t.categories.map((c) => c.categoryId);
   v.type = t.type;
   v.engine = engine;
   v.prompt = str(config.prompt);
@@ -191,8 +205,9 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   v.photoRequirement = t.photoRequirement;
   v.active = t.active;
   v.autoCredits = t.autoCredits;
-  v.trendingRank = t.trendingRank === null ? "" : String(t.trendingRank);
+  v.excludeFromTrending = t.excludeFromTrending;
   v.previewUrl = t.previewUrl ?? "";
+  v.previewPosterUrl = t.previewPosterUrl ?? "";
   v.sourceVideoUrl = str(config.templateVideoUrl);
   if (typeof config.costUsd === "number") v.costUsd = String(config.costUsd);
   if (typeof config.costUsdHd === "number") v.costUsdHd = String(config.costUsdHd);
@@ -201,7 +216,11 @@ export function templateToFormValues(t: DbTemplate): TemplateFormValues {
   if (isImageEngine(engine)) {
     v.imageResolution = str(config.resolution) || v.imageResolution;
     v.imageQuality = str(config.quality) || v.imageQuality;
-    v.imageAspect = str(config.aspectRatio) || v.imageAspect;
+    const ratio = ratioSettings(config);
+    v.imageRatioMode = ratio.mode;
+    v.imageAspect = ratio.fixed ?? v.imageAspect;
+    v.ratioSourcePhoto = String(ratio.sourcePhoto + 1);
+    v.userRatio = ratio.userRatio;
   } else {
     v.videoResolution = str(config.resolution) || v.videoResolution;
     v.ratio = str(config.ratio) || v.ratio;
@@ -225,8 +244,7 @@ export function readForm(form: FormData): TemplateFormValues {
     description: text("description").trim(),
     nameMn: text("nameMn").trim(),
     descriptionMn: text("descriptionMn").trim(),
-    categoryId: text("categoryId"),
-    newCategory: text("newCategory").trim(),
+    categoryIds: form.getAll("categoryIds").map(String),
     type,
     engine: ENGINES.some((e) => e.value === engine) ? engine : d.engine,
     prompt: text("prompt").trim(),
@@ -241,8 +259,9 @@ export function readForm(form: FormData): TemplateFormValues {
     photoRequirement: text("photoRequirement") === "FULL_BODY" ? "FULL_BODY" : "FACE",
     active: form.get("active") === "on",
     autoCredits: form.get("autoCredits") === "on",
-    trendingRank: text("trendingRank").trim(),
+    excludeFromTrending: form.get("excludeFromTrending") === "on",
     previewUrl: text("previewUrl").trim(),
+    previewPosterUrl: text("previewPosterUrl").trim(),
     sourceVideoUrl: text("sourceVideoUrl").trim(),
     videoResolution: text("videoResolution"),
     duration: text("duration").trim(),
@@ -251,6 +270,9 @@ export function readForm(form: FormData): TemplateFormValues {
     imageResolution: text("imageResolution"),
     imageQuality: text("imageQuality"),
     imageAspect: text("imageAspect"),
+    imageRatioMode: form.get("imageRatioMode") === "fixed" ? "fixed" : "auto",
+    ratioSourcePhoto: text("ratioSourcePhoto"),
+    userRatio: form.get("userRatio") === "on",
     costUsd: text("costUsd").trim(),
     costUsdHd: text("costUsdHd").trim(),
     costUsd2k: text("costUsd2k").trim(),
@@ -265,8 +287,7 @@ export interface TemplateData {
   description: string;
   nameMn: string | null;
   descriptionMn: string | null;
-  categoryId: string;
-  newCategory: string;
+  categoryIds: string[];
   type: "VIDEO" | "IMAGE";
   creditCost: number;
   creditCostHd: number | null;
@@ -279,8 +300,9 @@ export interface TemplateData {
   photoRequirement: "FACE" | "FULL_BODY";
   active: boolean;
   autoCredits: boolean;
-  trendingRank: number | null;
+  excludeFromTrending: boolean;
   previewUrl: string | null;
+  previewPosterUrl: string | null;
   generationConfig: Record<string, unknown>;
 }
 
@@ -304,6 +326,8 @@ export function buildTemplateData(
   v: TemplateFormValues,
   baseUrl: string,
   existingConfig: unknown,
+  /** The ratios the image model supports (from the integration), for a fixed-ratio template. */
+  supportedRatios: readonly string[] = [],
 ): { ok: true; data: TemplateData } | { ok: false; errors: FieldErrors } {
   const errors: FieldErrors = {};
   const engineInfo = ENGINES.find((e) => e.value === v.engine)!;
@@ -313,8 +337,6 @@ export function buildTemplateData(
   if (!v.description || v.description.length > 500) errors.description = "Enter a description (up to 500 characters).";
   if (v.nameMn.length > 80) errors.nameMn = "The Mongolian name can be up to 80 characters.";
   if (v.descriptionMn.length > 500) errors.descriptionMn = "The Mongolian description can be up to 500 characters.";
-  if (!v.categoryId && !v.newCategory) errors.categoryId = "Choose a category or enter a new one.";
-  if (v.newCategory.length > 40) errors.newCategory = "Category names can be up to 40 characters.";
 
   const creditCost = Number(v.creditCost);
   if (!v.creditCost || !isCreditPrice(creditCost)) errors.creditCost = CREDITS_HINT;
@@ -358,12 +380,6 @@ export function buildTemplateData(
   while (photoLabels.length > 0 && !photoLabels[photoLabels.length - 1]) photoLabels.pop();
   if (photoLabels.some((l) => l.length > 60)) errors.photoLabels = "Labels can be up to 60 characters.";
 
-  let trendingRank: number | null = null;
-  if (v.trendingRank) {
-    trendingRank = Number(v.trendingRank);
-    if (!Number.isInteger(trendingRank) || trendingRank < 0) errors.trendingRank = "Enter 0 or a positive number, or leave empty.";
-  }
-
   let previewUrl: string | null = null;
   if (v.previewUrl) {
     const checked = resolveUrl(v.previewUrl, baseUrl);
@@ -403,15 +419,26 @@ export function buildTemplateData(
   }
 
   if (v.engine === "marketing-image") {
-    if (!oneOf(IMAGE_RESOLUTIONS, v.imageResolution)) errors.imageResolution = "Choose a resolution.";
     if (!oneOf(IMAGE_QUALITIES, v.imageQuality)) errors.imageQuality = "Choose a quality.";
-    if (!oneOf(IMAGE_ASPECTS, v.imageAspect)) errors.imageAspect = "Choose an aspect ratio.";
+    const fixedRatio = v.imageRatioMode === "fixed";
+    if (fixedRatio && !supportedRatios.includes(v.imageAspect)) errors.imageAspect = "Choose a ratio from the list.";
+    // The photo picker only exists for an Auto template with several photos; otherwise the first photo is used.
+    const photoCount = Math.max(Number(v.requiredPhotoCount) || 1, 1);
+    const sourcePhoto = !fixedRatio && photoCount > 1 && v.ratioSourcePhoto !== "" ? Number(v.ratioSourcePhoto) : 1;
+    if (!Number.isInteger(sourcePhoto) || sourcePhoto < 1 || sourcePhoto > photoCount) {
+      errors.ratioSourcePhoto = "Choose one of the photos.";
+    }
     Object.assign(config, {
       provider: "marketing-image",
       prompt: v.prompt,
       quality: v.imageQuality,
-      resolution: v.imageResolution,
-      aspectRatio: v.imageAspect,
+      // The base price is the 1K render; larger sizes are separate, separately priced tiers.
+      resolution: "1k",
+      // Auto follows the source photo; a fixed template always renders at its ratio and users cannot change it.
+      aspectRatio: fixedRatio ? v.imageAspect : "auto",
+      ratioMode: v.imageRatioMode,
+      userRatio: fixedRatio ? false : v.userRatio,
+      ratioSourcePhoto: (Number.isInteger(sourcePhoto) ? sourcePhoto : 1) - 1,
     });
   } else {
     if (!oneOf(VIDEO_RESOLUTIONS, v.videoResolution)) errors.videoResolution = "Choose a resolution.";
@@ -456,8 +483,7 @@ export function buildTemplateData(
       description: v.description,
       nameMn: v.nameMn || null,
       descriptionMn: v.descriptionMn || null,
-      categoryId: v.categoryId,
-      newCategory: v.newCategory,
+      categoryIds: [...new Set(v.categoryIds)],
       type: v.type,
       creditCost,
       creditCostHd,
@@ -470,8 +496,10 @@ export function buildTemplateData(
       photoRequirement: v.photoRequirement,
       active: v.active,
       autoCredits: v.autoCredits,
-      trendingRank,
+      excludeFromTrending: v.excludeFromTrending,
       previewUrl,
+      // The thumbnail only means something next to a preview.
+      previewPosterUrl: previewUrl && v.previewPosterUrl && resolveUrl(v.previewPosterUrl, baseUrl) ? v.previewPosterUrl : null,
       generationConfig: config,
     },
   };

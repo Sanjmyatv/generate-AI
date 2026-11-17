@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { packCounts, packWarnings, referenceCredits } from "./packs";
-import { DEFAULT_PRICING, costFactor, marginFor, videoCostUsd, videoCredits } from "./pricing";
+import { DEFAULT_PRICING, costFactor, creditsForCostUsd, imageCredits1k, marginFor, videoCostUsd, videoCredits } from "./pricing";
 
 const cfg = DEFAULT_PRICING;
 
@@ -51,18 +51,36 @@ test("the reference video costs 93 / 187 credits", () => {
   assert.deepEqual(referenceCredits(cfg), { video480: 93, video720: 187 });
 });
 
+// Images (brief B4): the 1K Low tier costs about $0.075.
+test("a 1K Low image is 7 credits at about 60% margin", () => {
+  assert.equal(imageCredits1k(cfg), 7);
+  assert.equal(creditsForCostUsd(0.075, cfg, "image"), 7);
+  const m = marginFor({ costUsd: 0.075, credits: 7, cfg });
+  assert.ok(m.marginPct > 59 && m.marginPct < 61, `${m.marginPct.toFixed(1)}%`);
+});
+
+test("a High tier image ($0.18) is priced far higher, so it can never silently share the Low price", () => {
+  assert.ok(creditsForCostUsd(0.18, cfg, "image") >= 16);
+});
+
+test("images use their own target margin", () => {
+  const dearer = { ...cfg, targetMarginImagesPct: 70 };
+  assert.ok(imageCredits1k(dearer) > 7);
+  assert.equal(videoCredits(15, "480p", dearer), 93);
+});
+
 // Section 5 of the brief.
 const PACKS: [string, number, number, number, number][] = [
-  // id, credits, images, 15 s 480p videos, 15 s 720p videos
-  ["trial", 50, 16, 0, 0],
-  ["light", 100, 33, 1, 0],
-  ["pro", 230, 76, 2, 1],
-  ["business", 450, 150, 4, 2],
+  // id, credits, images (7 credits each), 15 s 480p videos, 15 s 720p videos
+  ["trial", 50, 7, 0, 0],
+  ["light", 100, 14, 1, 0],
+  ["pro", 230, 32, 2, 1],
+  ["business", 450, 64, 4, 2],
 ];
 
 for (const [id, credits, images, v480, v720] of PACKS) {
   test(`${id} (${credits} credits) covers ${images} images, ${v480} videos, ${v720} HD videos`, () => {
-    const counts = packCounts(credits, cfg, 3);
+    const counts = packCounts(credits, cfg);
     assert.deepEqual(counts, { images, video480: v480, video720: v720 });
     assert.deepEqual(packWarnings(id, counts, 15), []);
   });
@@ -70,16 +88,16 @@ for (const [id, credits, images, v480, v720] of PACKS) {
 
 test("pack validation fails when a pack is out of range", () => {
   // Starter with enough credits for a video.
-  assert.equal(packWarnings("trial", packCounts(100, cfg, 3), 15).length, 1);
+  assert.equal(packWarnings("trial", packCounts(100, cfg), 15).length, 1);
   // Lite too small for one video.
-  assert.equal(packWarnings("light", packCounts(90, cfg, 3), 15).length, 1);
+  assert.equal(packWarnings("light", packCounts(90, cfg), 15).length, 1);
   // Pro and Business below their minimum.
-  assert.equal(packWarnings("pro", packCounts(180, cfg, 3), 15).length, 1);
-  assert.equal(packWarnings("business", packCounts(370, cfg, 3), 15).length, 1);
+  assert.equal(packWarnings("pro", packCounts(180, cfg), 15).length, 1);
+  assert.equal(packWarnings("business", packCounts(370, cfg), 15).length, 1);
   // A pack without a rule never warns.
-  assert.deepEqual(packWarnings("custom", packCounts(10, cfg, 3), 15), []);
+  assert.deepEqual(packWarnings("custom", packCounts(10, cfg), 15), []);
 });
 
 test("the old Lite pack (9,000₮ / 90 credits) no longer covers a video", () => {
-  assert.equal(packCounts(90, cfg, 3).video480, 0);
+  assert.equal(packCounts(90, cfg).video480, 0);
 });

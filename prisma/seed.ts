@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { IMAGE_CREDITS, IMAGE_TIER_CREDITS, PACKAGES } from "../src/config/pricing";
-import { DEFAULT_PRICING, videoCredits } from "../src/lib/pricing";
+import { PACKAGES } from "../src/config/pricing";
+import { DEFAULT_PRICING, imageCredits1k, videoCredits } from "../src/lib/pricing";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -15,12 +15,19 @@ const videoPrice = (seconds: number) => ({
   autoCredits: true,
 });
 
+/** Credits for one 1K image at the default (Low) tier from the pricing formula. */
+const imagePrice = () => ({ creditCost: imageCredits1k(DEFAULT_PRICING), autoCredits: true });
+
 async function main() {
+  // Templates that already exist keep whatever categories an admin gave them; only new ones get their seed category.
+  const existingTemplateIds = new Set((await prisma.template.findMany({ select: { id: true } })).map((t) => t.id));
+
+  // Category names are Mongolian (English visitors get the dictionary's). Trending is a system category that fills itself.
   const categories = [
-    { id: "trending", name: "Trending", sortOrder: 0 },
-    { id: "dance", name: "Dance", sortOrder: 1 },
-    { id: "horoscope", name: "Horoscope", sortOrder: 2 },
-    { id: "photo", name: "Photo", sortOrder: 3 },
+    { id: "trending", name: "Эрэлттэй", sortOrder: 0, system: true },
+    { id: "dance", name: "Бүжиг", sortOrder: 1 },
+    { id: "horoscope", name: "Зурхай", sortOrder: 2 },
+    { id: "photo", name: "Зураг", sortOrder: 3 },
   ];
 
   const templates = [
@@ -35,7 +42,6 @@ async function main() {
       aspectRatio: "9:16",
       requiredPhotoCount: 1,
       photoRequirement: "FULL_BODY" as const,
-      trendingRank: 1,
     },
     {
       id: "street-dance",
@@ -48,7 +54,6 @@ async function main() {
       aspectRatio: "9:16",
       requiredPhotoCount: 1,
       photoRequirement: "FULL_BODY" as const,
-      trendingRank: null,
     },
     {
       id: "zodiac-portrait",
@@ -56,11 +61,10 @@ async function main() {
       description: "A mystical portrait styled after your zodiac sign.",
       categoryId: "horoscope",
       type: "IMAGE" as const,
-      creditCost: IMAGE_CREDITS,
+      ...imagePrice(),
       aspectRatio: "3:4",
       requiredPhotoCount: 1,
       photoRequirement: "FACE" as const,
-      trendingRank: 2,
     },
     {
       id: "celestial-couple",
@@ -68,11 +72,10 @@ async function main() {
       description: "A cosmic portrait of two people under the stars.",
       categoryId: "horoscope",
       type: "IMAGE" as const,
-      creditCost: IMAGE_CREDITS,
+      ...imagePrice(),
       aspectRatio: "3:4",
       requiredPhotoCount: 2,
       photoRequirement: "FACE" as const,
-      trendingRank: 3,
     },
   ];
 
@@ -121,7 +124,6 @@ async function main() {
     requiredPhotoCount: 3,
     photoLabels: ["First guy (opening dance)", "Second guy (with glasses)", "Third guy (sunset close-up)"],
     photoRequirement: "FACE" as const,
-    trendingRank: 0,
     generationConfig: threeGuysConfig,
   };
 
@@ -139,7 +141,6 @@ async function main() {
     requiredPhotoCount: 1,
     photoLabels: ["Your photo"],
     photoRequirement: "FACE" as const,
-    trendingRank: 1,
     generationConfig: {
       version: 1,
       provider: "seedance",
@@ -176,7 +177,6 @@ async function main() {
     requiredPhotoCount: 1,
     photoLabels: ["Your photo"],
     photoRequirement: "FULL_BODY" as const,
-    trendingRank: 4,
     generationConfig: {
       version: 1,
       provider: "genjutsu",
@@ -220,7 +220,6 @@ async function main() {
     requiredPhotoCount: 1,
     photoLabels: ["Your photo (full body)"],
     photoRequirement: "FULL_BODY" as const,
-    trendingRank: 2,
     generationConfig: {
       version: 1,
       provider: "genjutsu",
@@ -236,7 +235,7 @@ async function main() {
 
   // Bump when the colorize definition below changes; applied to the existing row only when the
   // stored version is older.
-  const COLORIZE_VERSION = 3;
+  const COLORIZE_VERSION = 4;
 
   // Image edit on Higgsfield Marketing Studio (direct mode, no preset): restores, sharpens and
   // colorizes an old photo at high resolution. Public pricing for this model isn't listed, so
@@ -247,14 +246,11 @@ async function main() {
     description: "Colorize an old photo, repair its damage and sharpen it into a high-resolution picture.",
     categoryId: "photo",
     type: "IMAGE" as const,
-    creditCost: IMAGE_TIER_CREDITS["1k"],
-    creditCost2k: IMAGE_TIER_CREDITS["2k"],
-    creditCost4k: IMAGE_TIER_CREDITS["4k"],
+    ...imagePrice(),
     aspectRatio: "3:4",
     requiredPhotoCount: 1,
     photoLabels: ["Old photo"],
     photoRequirement: "FACE" as const,
-    trendingRank: 5,
     generationConfig: {
       version: COLORIZE_VERSION,
       provider: "marketing-image",
@@ -268,8 +264,8 @@ async function main() {
         "Preserve identity exactly: the same people, faces, expressions, age, poses, clothing, objects and composition. " +
         "Do not change the framing or crop, do not add or remove anything, and do not beautify or alter facial features. " +
         "No plastic or over-smoothed skin, no artificial filters, no heavy stylization.",
-      quality: "high",
-      resolution: "4k",
+      quality: "low",
+      resolution: "1k",
       aspectRatio: "auto",
     },
   };
@@ -315,8 +311,9 @@ async function main() {
         name: colorize.name,
         description: colorize.description,
         creditCost: colorize.creditCost,
-        creditCost2k: colorize.creditCost2k,
-        creditCost4k: colorize.creditCost4k,
+        creditCost2k: null,
+        creditCost4k: null,
+        autoCredits: true,
         photoLabels: colorize.photoLabels,
         generationConfig: colorize.generationConfig,
       },
@@ -330,6 +327,14 @@ async function main() {
   if (genjutsuVideoUrl) {
     await prisma.template.upsert({ where: { id: characterSwap.id }, update: {}, create: characterSwap });
   }
+  // File the templates this deploy created under their category (the join table). Trending is automatic, so nothing is
+  // ever filed there by hand.
+  const createdNow = new Set((await prisma.template.findMany({ select: { id: true } })).map((t) => t.id));
+  for (const t of [...templates, threeGuys, goldenHour, colorize, characterSwap, ...(shine ? [shine] : [])]) {
+    if (existingTemplateIds.has(t.id) || !createdNow.has(t.id) || !t.categoryId || t.categoryId === "trending") continue;
+    await prisma.templateCategory.createMany({ data: [{ templateId: t.id, categoryId: t.categoryId }], skipDuplicates: true });
+  }
+
   // Mongolian names for the built-in templates. Only filled where nobody has written one, so an
   // admin's own Mongolian wording is never overwritten.
   const mongolian: Record<string, [string, string]> = {

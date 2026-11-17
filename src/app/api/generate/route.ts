@@ -2,12 +2,14 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { getActor, getBaseUrl } from "@/lib/actor";
 import { DEFAULT_RESOLUTION, type Resolution } from "@/config/pricing";
+import { chooseRatio, ratioSettings, snapRatio } from "@/lib/ratio";
 import { failGeneration, refreshGeneration } from "@/lib/generations";
 import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
 import {
   parseGenjutsuConfig,
   parseMarketingImageConfig,
   submitImageEdit,
+  supportedImageRatios,
   submitMotionTransfer,
 } from "@/lib/higgsfield";
 
@@ -30,7 +32,7 @@ function guestLimit() {
 }
 
 /**
- * POST /api/generate  { templateId, uploadIds: string[], resolution?: "480p" | "720p" | "1k" | "2k" | "4k" }
+ * POST /api/generate  { templateId, uploadIds: string[], resolution?: "480p" | "720p" | "1k" | "2k" | "4k", ratio?: "auto" | "3:4" | ... }
  *
  * The client only chooses a template, its own photos and (for video) 480p or 720p. The
  * template video, the hidden prompt and the price come from the database, so callers cannot
@@ -40,7 +42,7 @@ function guestLimit() {
 export async function POST(req: Request) {
   const actor = await getActor({ createGuest: true });
 
-  let body: { templateId?: unknown; uploadIds?: unknown; resolution?: unknown };
+  let body: { templateId?: unknown; uploadIds?: unknown; resolution?: unknown; ratio?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -94,7 +96,9 @@ export async function POST(req: Request) {
       cost = price;
       imageRenderSize = requested as "1k" | "2k" | "4k";
     } else {
-      resolution = imageEdit?.resolution ?? "image";
+      // One price: the 1K render at the template's quality tier, which is what that price was worked out for.
+      resolution = "1k";
+      imageRenderSize = "1k";
     }
   }
   const videoResolution = resolution as Resolution;
@@ -102,10 +106,23 @@ export async function POST(req: Request) {
   // Photos must belong to this caller (or their guest session before login).
   const uploads = await prisma.upload.findMany({
     where: { id: { in: uploadIds }, ownerKey: { in: actor.keys } },
-    select: { id: true },
+    select: { id: true, width: true, height: true },
   });
   if (new Set(uploadIds).size !== uploadIds.length || uploads.length !== uploadIds.length) {
     return Response.json({ error: "invalid_image" }, { status: 400 });
+  }
+
+  // An image's ratio never changes its price. The server decides it: from the source photo's real size in Auto,
+  // or the template's fixed ratio, and refuses a ratio the template does not allow.
+  let imageRatio = "auto";
+  if (imageEdit) {
+    const allowed = supportedImageRatios();
+    const settings = ratioSettings(template.generationConfig);
+    const source = uploads.find((u) => u.id === uploadIds[Math.min(settings.sourcePhoto, uploadIds.length - 1)]);
+    const detected = source?.width && source.height ? snapRatio(source.width, source.height, allowed) : null;
+    const choice = chooseRatio(settings, body.ratio, detected, allowed);
+    if (!choice.ok) return Response.json({ error: choice.error }, { status: 400 });
+    imageRatio = choice.ratio;
   }
 
   const owner = actor.userId ? { userId: actor.userId } : { guestId: actor.guestId, userId: null };
@@ -193,7 +210,7 @@ export async function POST(req: Request) {
           prompt: imageEdit.prompt,
           quality: imageEdit.quality,
           resolution: imageRenderSize ?? imageEdit.resolution,
-          aspectRatio: imageEdit.aspectRatio,
+          aspectRatio: imageRatio,
         })
       : genjutsu
       ? await submitMotionTransfer({

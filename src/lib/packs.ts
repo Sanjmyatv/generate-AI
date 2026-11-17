@@ -1,4 +1,4 @@
-import { videoCredits, type PricingConfig } from "./pricing";
+import { imageCredits1k, videoCredits, type PricingConfig } from "./pricing";
 
 /** What a pack's credits cover, counted from the price list: always rounded down, so a card never overpromises. */
 export interface PackCounts {
@@ -17,10 +17,10 @@ export function referenceCredits(cfg: PricingConfig) {
   };
 }
 
-export function packCounts(credits: number, cfg: PricingConfig, imageCredits: number): PackCounts {
+export function packCounts(credits: number, cfg: PricingConfig): PackCounts {
   const ref = referenceCredits(cfg);
   return {
-    images: Math.floor(credits / imageCredits),
+    images: Math.floor(credits / imageCredits1k(cfg)),
     video480: Math.floor(credits / ref.video480),
     video720: Math.floor(credits / ref.video720),
   };

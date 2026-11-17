@@ -6,13 +6,12 @@ import { saveTemplateAction, suggestPriceAction, type TemplateFormState } from "
 import { CostMargin } from "@/components/admin/CostMargin";
 import { VideoAnalysis } from "@/components/admin/VideoAnalysis";
 import { TemplatePreview } from "@/components/TemplatePreview";
+import { posterFromVideo } from "@/lib/poster-client";
 import type { PricingConfig } from "@/lib/pricing";
 import {
   CARD_SHAPES,
   ENGINES,
-  IMAGE_ASPECTS,
   IMAGE_QUALITIES,
-  IMAGE_RESOLUTIONS,
   MAX_PHOTOS,
   VIDEO_RATIOS,
   hasPriceLookup,
@@ -65,7 +64,7 @@ interface UploadState {
 }
 
 const UPLOAD_ERRORS: Record<string, string> = {
-  too_large: "That file is too large.",
+  too_large: "That file is too large. A preview plays on every visitor's phone: keep it under 8 MB (a short, small clip).",
   unsupported_type: "Use an MP4/MOV/WebM video or a JPG/PNG/WebP image.",
   source_must_be_mp4: "The source video must be an MP4 or MOV file.",
   source_too_short: "The source video must be at least 4 seconds long.",
@@ -76,12 +75,15 @@ export function TemplateForm({
   initial,
   categories,
   config,
+  ratios,
   templateId,
 }: {
   initial: TemplateFormValues;
   categories: { id: string; name: string }[];
   /** The pricing settings: what a credit is worth, the target margin, the retry buffer and the gateway fee. */
   config: PricingConfig;
+  /** The ratios the image model supports (from the integration). */
+  ratios: string[];
   templateId?: string;
 }) {
   const [v, setV] = useState(initial);
@@ -89,6 +91,7 @@ export function TemplateForm({
   const [previewUpload, setPreviewUpload] = useState<UploadState>({ busy: false, error: null });
   const [sourceUpload, setSourceUpload] = useState<UploadState>({ busy: false, error: null });
   const [sourceSeconds, setSourceSeconds] = useState<number | null>(null);
+  const [posterBusy, setPosterBusy] = useState(false);
   // A new template is priced automatically; an existing one stays as it was saved (priced by hand unless it was automatic).
   const [autoPrice, setAutoPrice] = useState(initial.autoCredits);
   const [priceStatus, setPriceStatus] = useState<{ error: boolean; note: string | null }>({ error: false, note: null });
@@ -112,6 +115,23 @@ export function TemplateForm({
   const needsVideo = isGenjutsuEngine(v.engine) || v.engine === "seedance-edit";
   const engines = ENGINES.filter((e) => e.type === v.type);
 
+  /** Makes and uploads the thumbnail of a video preview (a File just picked, or the saved preview's URL). */
+  async function makePoster(source: File | string) {
+    setPosterBusy(true);
+    try {
+      const blob = await posterFromVideo(source);
+      if (!blob) return;
+      const body = new FormData();
+      body.append("file", new File([blob], "poster.jpg", { type: "image/jpeg" }));
+      body.append("purpose", "poster");
+      const res = await fetch("/api/admin/assets", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && typeof data.url === "string") set("previewPosterUrl", data.url);
+    } finally {
+      setPosterBusy(false);
+    }
+  }
+
   async function upload(file: File, purpose: "preview" | "source") {
     const setState = purpose === "preview" ? setPreviewUpload : setSourceUpload;
     setState({ busy: true, error: null });
@@ -122,8 +142,12 @@ export function TemplateForm({
       const res = await fetch("/api/admin/assets", { method: "POST", body });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(UPLOAD_ERRORS[data.error] ?? "Upload failed. Try again.");
-      if (purpose === "preview") set("previewUrl", data.url);
-      else {
+      if (purpose === "preview") {
+        set("previewUrl", data.url);
+        set("previewPosterUrl", "");
+        // A video preview gets a small thumbnail so cards never have to download the video itself.
+        if (data.kind === "video") await makePoster(file);
+      } else {
         set("sourceVideoUrl", data.url);
         setSourceSeconds(typeof data.duration === "number" ? data.duration : null);
         // The uploaded video's length is the template's length (it picks the price tier).
@@ -136,7 +160,7 @@ export function TemplateForm({
   }
 
   // Video credits follow the pricing formula (settings in /admin) and the template's length, for 480p and 720p.
-  // Images keep their standard credits; only their provider cost is looked up, for the margin panel.
+  // Videos and images follow the formula; the provider cost of each quality feeds the margin panel.
   // Methods without a price API (Seedance) may have a cost typed in; empty means the per-second rate.
   const hasLookup = hasPriceLookup(v.engine);
   const typedCost = hasLookup ? "" : v.costUsd;
@@ -161,7 +185,7 @@ export function TemplateForm({
           prompt: "",
           imageResolution: "2k",
           imageQuality: v.imageQuality,
-          imageAspect: v.imageAspect,
+          imageAspect: "auto",
           manualCostUsd: Number(typedCost) || undefined,
           manualCostUsdHd: Number(typedCostHd) || undefined,
         });
@@ -175,17 +199,16 @@ export function TemplateForm({
       }
       if (result.imageTiers) {
         const { credits, costUsd } = result.imageTiers;
-        setV((prev) => {
-          // A new image template starts at the standard credits; an existing price is never changed for you.
-          const fresh = !prev.creditCost && !prev.creditCost2k && !prev.creditCost4k;
-          return {
-            ...prev,
-            ...(fresh ? { creditCost: String(credits["1k"]), creditCost2k: String(credits["2k"]), creditCost4k: String(credits["4k"]) } : {}),
-            ...(costUsd["1k"] !== undefined ? { costUsd: String(costUsd["1k"]) } : {}),
-            ...(costUsd["2k"] !== undefined ? { costUsd2k: String(costUsd["2k"]) } : {}),
-            ...(costUsd["4k"] !== undefined ? { costUsd4k: String(costUsd["4k"]) } : {}),
-          };
-        });
+        // Images follow the formula too (image margin). A quality with no verified cost gets no price: the field stays empty.
+        setV((prev) => ({
+          ...prev,
+          creditCost: String(credits["1k"]),
+          creditCost2k: credits["2k"] === null ? "" : String(credits["2k"]),
+          creditCost4k: credits["4k"] === null ? "" : String(credits["4k"]),
+          ...(costUsd["1k"] !== undefined ? { costUsd: String(costUsd["1k"]) } : {}),
+          ...(costUsd["2k"] !== undefined ? { costUsd2k: String(costUsd["2k"]) } : { costUsd2k: "" }),
+          ...(costUsd["4k"] !== undefined ? { costUsd4k: String(costUsd["4k"]) } : { costUsd4k: "" }),
+        }));
       } else {
         setV((prev) => ({
           ...prev,
@@ -202,7 +225,7 @@ export function TemplateForm({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [autoPrice, needsVideo, typedCost, typedCostHd, v.engine, v.type, v.sourceVideoUrl, v.durationSeconds, v.imageQuality, v.imageAspect]);
+  }, [autoPrice, needsVideo, typedCost, typedCostHd, v.engine, v.type, v.sourceVideoUrl, v.durationSeconds, v.imageQuality]);
 
   // Switching between a method with a price lookup and one without makes the old cost meaningless.
   function chooseEngine(next: Engine, type: TemplateFormValues["type"] = v.type) {
@@ -219,7 +242,7 @@ export function TemplateForm({
       onSubmit={(e) => {
         // Submit by hand so React doesn't clear the fields when the action reports an error.
         e.preventDefault();
-        const data = new FormData(e.currentTarget);
+        const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
         startTransition(() => formAction(data));
       }}
       className="mx-auto max-w-2xl space-y-6 py-6"
@@ -227,6 +250,7 @@ export function TemplateForm({
       {templateId && <input type="hidden" name="templateId" value={templateId} />}
       <input type="hidden" name="autoCredits" value={autoPrice ? "on" : ""} />
       <input type="hidden" name="previewUrl" value={v.previewUrl} />
+      <input type="hidden" name="previewPosterUrl" value={v.previewPosterUrl} />
       <input type="hidden" name="sourceVideoUrl" value={v.sourceVideoUrl} />
 
       {needsVideo && (
@@ -257,7 +281,7 @@ export function TemplateForm({
             <VideoAnalysis
               sourceVideoUrl={v.sourceVideoUrl}
               engine={v.engine}
-              priceContext={{ type: v.type, imageResolution: v.imageResolution, imageQuality: v.imageQuality, imageAspect: v.imageAspect }}
+              priceContext={{ type: v.type, imageResolution: v.imageResolution, imageQuality: v.imageQuality, imageAspect: "auto" }}
               onApply={(setup) =>
                 setV((prev) => ({
                   ...prev,
@@ -302,21 +326,38 @@ export function TemplateForm({
             <textarea {...text("descriptionMn")} rows={2} maxLength={500} className={inputClass} />
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Category" error={err.categoryId}>
-            <select {...text("categoryId")} className={inputClass}>
-              <option value="">Choose…</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
+        <fieldset>
+          <legend className="mb-1 text-xs font-semibold">Categories</legend>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((c) => {
+              const on = v.categoryIds.includes(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className={`flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm ${on ? "chip-brand" : "chip-glass"}`}
+                >
+                  <input
+                    type="checkbox"
+                    name="categoryIds"
+                    value={c.id}
+                    checked={on}
+                    onChange={(e) =>
+                      set("categoryIds", e.target.checked ? [...v.categoryIds, c.id] : v.categoryIds.filter((id) => id !== c.id))
+                    }
+                    className="sr-only"
+                  />
                   {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="…or a new category" error={err.newCategory}>
-            <input {...text("newCategory")} maxLength={40} placeholder="e.g. Fashion" className={inputClass} />
-          </Field>
-        </div>
+                </label>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-xs text-foreground/60">
+            {v.categoryIds.length === 0
+              ? "No category: the template still shows under “Бүгд”, and gets a warning badge in the admin."
+              : "It shows under every category you pick. Trending fills itself from real use."}{" "}
+            Add or reorder categories on the Categories page.
+          </p>
+        </fieldset>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Card shape" error={err.aspectRatio}>
             <select {...text("aspectRatio")} className={inputClass}>
@@ -325,9 +366,15 @@ export function TemplateForm({
               ))}
             </select>
           </Field>
-          <Field label="Trending order" error={err.trendingRank} hint="Empty = not in Trending. 0 comes first.">
-            <input {...text("trendingRank")} inputMode="numeric" className={inputClass} />
-          </Field>
+          <label className="flex items-center gap-2 self-end pb-2 text-sm">
+            <input
+              type="checkbox"
+              name="excludeFromTrending"
+              checked={v.excludeFromTrending}
+              onChange={(e) => set("excludeFromTrending", e.target.checked)}
+            />
+            Exclude from Trending
+          </label>
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -348,7 +395,7 @@ export function TemplateForm({
               <label
                 key={t}
                 className={`flex-1 cursor-pointer rounded-xl border px-3 py-2 text-center text-sm font-semibold ${
-                  v.type === t ? "btn-primary text-foreground" : "border-foreground/30"
+                  v.type === t ? "chip-brand" : "border-foreground/30"
                 }`}
               >
                 <input
@@ -407,11 +454,36 @@ export function TemplateForm({
           {v.previewUrl && (
             <div className="mt-2 flex items-center gap-3">
               <div className="h-40 w-24 overflow-hidden rounded-lg">
-                <TemplatePreview src={v.previewUrl} alt="Preview" className="h-full w-full" />
+                <TemplatePreview src={v.previewUrl} poster={v.previewPosterUrl || null} alt="Preview" className="h-full w-full" />
               </div>
-              <button type="button" onClick={() => set("previewUrl", "")} className="text-xs text-foreground/60 underline">
-                Remove
-              </button>
+              <div className="space-y-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    set("previewUrl", "");
+                    set("previewPosterUrl", "");
+                  }}
+                  className="text-foreground/60 underline"
+                >
+                  Remove
+                </button>
+                {/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(v.previewUrl) &&
+                  (v.previewPosterUrl ? (
+                    <p className="text-foreground/60">Thumbnail made: cards show it and only load the video on hover.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-amber-500">No thumbnail: every card has to load this video. Make one.</p>
+                      <button
+                        type="button"
+                        disabled={posterBusy}
+                        onClick={() => void makePoster(v.previewUrl)}
+                        className="btn-glass btn-compact disabled:opacity-50"
+                      >
+                        {posterBusy ? "Making…" : "Create thumbnail"}
+                      </button>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
         </Field>
@@ -419,30 +491,64 @@ export function TemplateForm({
 
       <Section title="Quality">
         {v.type === "IMAGE" ? (
-          <div className="grid grid-cols-3 gap-4">
-            <Field label="Resolution" error={err.imageResolution}>
-              <select {...text("imageResolution")} className={inputClass}>
-                {IMAGE_RESOLUTIONS.map((r) => (
-                  <option key={r}>{r}</option>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Quality tier" error={err.imageQuality} hint="Low is the default. The credits are worked out for this tier at 1K.">
+              <select {...text("imageQuality")} className={inputClass}>
+                {IMAGE_QUALITIES.map((q) => (
+                  <option key={q} value={q}>
+                    {q[0].toUpperCase() + q.slice(1)}
+                  </option>
                 ))}
               </select>
             </Field>
-            {(
-              <Field label="Quality" error={err.imageQuality}>
-                <select {...text("imageQuality")} className={inputClass}>
-                  {IMAGE_QUALITIES.map((q) => (
-                    <option key={q}>{q}</option>
+            <Field label="Image ratio" error={err.imageAspect} hint="Auto follows the user's photo (recommended).">
+              <select
+                name="imageRatioMode"
+                value={v.imageRatioMode}
+                onChange={(e) => {
+                  const mode = e.target.value === "fixed" ? "fixed" : "auto";
+                  set("imageRatioMode", mode);
+                  // A fixed template is locked: users cannot change its ratio.
+                  if (mode === "fixed") set("userRatio", false);
+                  else set("userRatio", true);
+                }}
+                className={inputClass}
+              >
+                <option value="auto">Auto (recommended)</option>
+                <option value="fixed">Fixed</option>
+              </select>
+            </Field>
+            {v.imageRatioMode === "fixed" ? (
+              <Field label="Fixed ratio" error={err.imageAspect}>
+                <select {...text("imageAspect")} className={inputClass}>
+                  {ratios.map((a) => (
+                    <option key={a}>{a}</option>
                   ))}
                 </select>
               </Field>
+            ) : (
+              Number(v.requiredPhotoCount) > 1 && (
+                <Field label="Ratio source photo" error={err.ratioSourcePhoto} hint="Whose shape sets the ratio.">
+                  <select {...text("ratioSourcePhoto")} className={inputClass}>
+                    {Array.from({ length: Math.min(Number(v.requiredPhotoCount), 5) }, (_, i) => (
+                      <option key={i} value={String(i + 1)}>
+                        Photo {i + 1}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )
             )}
-            <Field label="Aspect ratio" error={err.imageAspect} hint="auto keeps the photo's shape.">
-              <select {...text("imageAspect")} className={inputClass}>
-                {IMAGE_ASPECTS.map((a) => (
-                  <option key={a}>{a}</option>
-                ))}
-              </select>
-            </Field>
+            <label className="flex items-center gap-2 self-end pb-2 text-sm">
+              <input
+                type="checkbox"
+                name="userRatio"
+                checked={v.imageRatioMode === "auto" && v.userRatio}
+                disabled={v.imageRatioMode === "fixed"}
+                onChange={(e) => set("userRatio", e.target.checked)}
+              />
+              Let users change the ratio {v.imageRatioMode === "fixed" && "(locked)"}
+            </label>
           </div>
         ) : (
           <>
@@ -526,8 +632,7 @@ export function TemplateForm({
             <span>
               <span className="font-semibold">Work out the credits automatically</span>
               <span className="block text-xs text-foreground/60">
-                Videos follow the pricing formula and their length (480p and 720p each get their own price) and aim for about{" "}
-                {config.targetMarginPct}% margin. Images keep their standard credits.
+                Videos follow the pricing formula and their length (480p and 720p each get their own price); images follow it per quality tier (2K and 4K only once a verified cost exists). Margin targets: video {config.targetMarginPct}%, images {config.targetMarginImagesPct}%.
               </span>
             </span>
           </label>
@@ -541,7 +646,7 @@ export function TemplateForm({
               </Field>
             )}
             <Field label={v.type === "VIDEO" ? "Credits at 480p" : "Credits at 1K"} error={err.creditCost}>
-              <input {...text("creditCost")} inputMode="decimal" readOnly={autoPrice && v.type === "VIDEO"} className={`${inputClass} ${autoPrice && v.type === "VIDEO" ? "opacity-70" : ""}`} />
+              <input {...text("creditCost")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
             </Field>
             {v.type === "VIDEO" ? (
               <Field label="Credits at 720p HD" error={err.creditCostHd} hint="Empty = 480p only.">
@@ -550,10 +655,10 @@ export function TemplateForm({
             ) : (
               <>
                 <Field label="Credits at 2K (HD)" error={err.creditCost2k} hint="Empty = not offered.">
-                  <input {...text("creditCost2k")} inputMode="decimal" className={inputClass} />
+                  <input {...text("creditCost2k")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
                 </Field>
                 <Field label="Credits at 4K (Ultra HD)" error={err.creditCost4k} hint="Empty = not offered.">
-                  <input {...text("creditCost4k")} inputMode="decimal" className={inputClass} />
+                  <input {...text("creditCost4k")} inputMode="decimal" readOnly={autoPrice} className={`${inputClass} ${autoPrice ? "opacity-70" : ""}`} />
                 </Field>
               </>
             )}
@@ -567,11 +672,26 @@ export function TemplateForm({
           {state.message}
         </p>
       )}
+      {state.lossWarning && (
+        // A price below cost is never saved by accident: it needs this extra, deliberate click.
+        <div role="alert" className="space-y-2 rounded-xl border border-red-500/60 p-3 text-sm">
+          <p className="font-semibold text-red-500">This price loses money on every generation:</p>
+          <ul className="list-disc pl-5 text-red-500">
+            {state.lossWarning.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <p className="text-foreground/70">Raise the credits (or tick the automatic price), or save it anyway.</p>
+          <button type="submit" name="confirmLoss" value="yes" disabled={pending} className="btn-danger btn-compact disabled:opacity-50">
+            Save anyway
+          </button>
+        </div>
+      )}
       <div className="flex gap-3">
         <button
           type="submit"
           disabled={pending || previewUpload.busy || sourceUpload.busy}
-          className="flex-1 rounded-full btn-primary py-3 font-semibold text-foreground disabled:opacity-50"
+          className="flex-1 btn-primary btn-compact disabled:opacity-50"
         >
           {pending ? "Saving…" : templateId ? "Save changes" : "Create template"}
         </button>

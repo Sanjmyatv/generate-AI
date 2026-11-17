@@ -1,22 +1,40 @@
 @import "tailwindcss";
 
-/* zyro.ai design tokens (Figma: ZYRO AI / Color). The site is dark only. */
+/*
+ * zyro design tokens. One brand colour, #BF40BF, used as a solid fill everywhere: no purple-to-blue
+ * gradients on buttons, badges, cards or text. The site is dark only.
+ */
 :root {
-  --background: #070711; /* Canvas */
-  --foreground: #f8fafc; /* Text primary */
+  --brand: #bf40bf; /* primary buttons, active states, focus, glows */
+  --brand-light: #d468d4; /* hover, highlights, small accents */
+  --brand-dark: #8f2e8f; /* pressed state and the lip under glossy buttons */
+  --glow: rgba(191, 64, 191, 0.55); /* glow shadow of buttons and highlighted cards */
+  --bg: #0a0610; /* page background (deep dark with a purple tint) */
+  --surface: rgba(255, 255, 255, 0.05); /* glass cards and panels */
+  --border: rgba(255, 255, 255, 0.12); /* card, input and menu borders */
+  --text: #ffffff;
+  --text-muted: #b9a8c4;
+  --danger: #e5484d; /* delete buttons and error states */
+
+  --background: var(--bg);
+  --foreground: var(--text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-secondary: #0d0d1b;
-  --color-card: #121225;
-  --color-purple: #8b5cf6;
-  --color-purple-soft: #c4aeff;
-  --color-purple-label: #bda5fc;
-  --color-muted: #a1a1b8; /* Text secondary */
-  --color-line: rgba(255, 255, 255, 0.09);
-  --color-surface: rgba(255, 255, 255, 0.04);
+  --color-brand: var(--brand);
+  --color-brand-light: var(--brand-light);
+  --color-brand-dark: var(--brand-dark);
+  --color-danger: var(--danger);
+  --color-secondary: #130a1c;
+  --color-card: #190e24;
+  --color-purple: var(--brand);
+  --color-purple-soft: var(--brand-light);
+  --color-purple-label: var(--brand-light);
+  --color-muted: var(--text-muted); /* Text secondary */
+  --color-line: var(--border);
+  --color-surface: var(--surface);
   --font-sans: var(--font-geologica);
   --font-mono: var(--font-geist-mono);
 }
@@ -34,7 +52,7 @@ body {
   overflow-x: clip;
 }
 
-/* Anchored sections stop below the sticky navigation. */
+/* Anchored sections stop below the floating navigation. */
 [id] {
   scroll-margin-top: 104px;
 }
@@ -47,40 +65,211 @@ body {
 }
 
 /*
- * Buttons: every button on the site is a pill. Primary is a purple-to-blue gradient with a
- * soft glow; glass is the translucent dark sibling for secondary actions. Both glow, lift and
- * scale up a touch on hover, and settle back when pressed. Reduced-motion users get the glow
- * but no movement.
+ * Buttons: every button is a fully rounded pill, bold, at least 16px (white on the brand colour is only
+ * about 4.5:1, so the label stays big and bold) and at least 44px high. The gloss comes from shadows, not a
+ * gradient: a bright top edge, a darker bubble underside, a glow and a lip under the button. Plain CSS in the
+ * components layer, so a utility on the element (width, margin) can still override it.
  */
-@utility btn-primary {
-  @apply rounded-full border border-white/20 bg-linear-to-r from-violet-600 via-indigo-500 to-blue-500 text-foreground shadow-[0_0_22px_rgba(99,102,241,0.35)] transition duration-300 ease-out hover:scale-[1.03] hover:shadow-[0_0_36px_rgba(99,102,241,0.65)] active:scale-[0.98] focus-visible:shadow-[0_0_36px_rgba(99,102,241,0.65)] focus-visible:outline-none disabled:hover:scale-100 disabled:hover:shadow-[0_0_22px_rgba(99,102,241,0.35)] motion-reduce:transition-shadow motion-reduce:hover:scale-100 motion-reduce:active:scale-100;
+@layer components {
+  .btn-primary,
+  .btn-glass,
+  .btn-danger {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 14px 28px;
+    border-radius: 999px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #fff;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .btn-primary:focus-visible,
+  .btn-glass:focus-visible,
+  .btn-danger:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+  }
+  .btn-primary:disabled,
+  .btn-glass:disabled,
+  .btn-danger:disabled {
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-primary {
+    border: 0;
+    background: var(--brand);
+    box-shadow:
+      inset 0 2px 1px rgba(255, 255, 255, 0.45),
+      inset 0 -4px 8px rgba(0, 0, 0, 0.22),
+      0 8px 24px var(--glow),
+      0 2px 0 var(--brand-dark);
+  }
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 2px 1px rgba(255, 255, 255, 0.5),
+      inset 0 -4px 8px rgba(0, 0, 0, 0.22),
+      0 12px 32px rgba(191, 64, 191, 0.75),
+      0 2px 0 var(--brand-dark);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
+    box-shadow:
+      inset 0 2px 1px rgba(255, 255, 255, 0.35),
+      inset 0 -2px 6px rgba(0, 0, 0, 0.25),
+      0 4px 12px rgba(191, 64, 191, 0.4),
+      0 1px 0 var(--brand-dark);
+  }
+  /* A small white ellipse near the top: white on purple, never a colored gradient. */
+  .btn-primary::before,
+  .btn-danger::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: 3px;
+    left: 14%;
+    right: 14%;
+    height: 40%;
+    border-radius: 999px;
+    background: #fff;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  /* Secondary: dark glass pill, same size and radius. */
+  .btn-glass {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  .btn-glass:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(191, 64, 191, 0.6);
+    box-shadow: 0 8px 24px rgba(191, 64, 191, 0.3);
+  }
+  .btn-glass:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
+  }
+
+  /* Danger (delete): the same glossy construction in the danger colour. */
+  .btn-danger {
+    border: 0;
+    background: var(--danger);
+    box-shadow:
+      inset 0 2px 1px rgba(255, 255, 255, 0.45),
+      inset 0 -4px 8px rgba(0, 0, 0, 0.22),
+      0 8px 24px rgba(229, 72, 77, 0.5),
+      0 2px 0 #a82e32;
+  }
+  .btn-danger:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 2px 1px rgba(255, 255, 255, 0.5),
+      inset 0 -4px 8px rgba(0, 0, 0, 0.22),
+      0 12px 32px rgba(229, 72, 77, 0.7),
+      0 2px 0 #a82e32;
+  }
+  .btn-danger:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
+  }
+
+  /* Dense variant for the admin portal: same look, smaller. */
+  .btn-primary.btn-compact,
+  .btn-glass.btn-compact,
+  .btn-danger.btn-compact {
+    min-height: 36px;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  /* Badges, tabs and chips: solid brand pill with a small glow (selected) or dark glass (not). */
+  .chip-brand {
+    border-radius: 999px;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 700;
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.4),
+      0 0 14px var(--glow);
+  }
+  .chip-glass {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: #fff;
+  }
 }
 
-/* The quieter sibling for secondary actions. */
-@utility btn-glass {
-  @apply rounded-full border border-white/15 bg-white/5 text-foreground backdrop-blur-md transition duration-300 ease-out hover:scale-[1.03] hover:border-violet-400/50 hover:bg-white/10 hover:shadow-[0_0_28px_rgba(99,102,241,0.3)] active:scale-[0.98] focus-visible:border-violet-400/50 focus-visible:shadow-[0_0_28px_rgba(99,102,241,0.3)] focus-visible:outline-none disabled:hover:scale-100 motion-reduce:transition-shadow motion-reduce:hover:scale-100 motion-reduce:active:scale-100;
+/*
+ * Glass: translucent dark fill, a blur of what is behind, a 1px border and a soft shadow. The top bar starts light
+ * and gets stronger once the page scrolls; browsers without backdrop-filter get an almost opaque fill instead.
+ */
+.glass-bar {
+  background: rgba(20, 8, 28, 0.45);
+  border: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    backdrop-filter 0.3s ease,
+    -webkit-backdrop-filter 0.3s ease;
+}
+.glass-bar-wrap[data-scrolled="true"] .glass-bar {
+  background: rgba(20, 8, 28, 0.72);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.45);
+}
+.glass-panel {
+  background: rgba(20, 8, 28, 0.78);
+  border: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-bar,
+  .glass-bar-wrap[data-scrolled="true"] .glass-bar,
+  .glass-panel {
+    background: rgba(20, 8, 28, 0.96);
+  }
 }
 
-/* Hero backdrop (see HeroScene): colour fields, glass objects, particles and waves. */
-.hs-field {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 60% 70% at 78% 18%, rgba(37, 99, 235, 0.22), transparent 70%),
-    radial-gradient(ellipse 55% 65% at 12% 88%, rgba(124, 58, 237, 0.22), transparent 70%),
-    radial-gradient(ellipse 40% 45% at 52% 52%, rgba(14, 165, 233, 0.09), transparent 70%),
-    linear-gradient(180deg, #060a1c 0%, #0a0820 55%, var(--background) 100%);
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn-glass,
+  .btn-danger {
+    transition: box-shadow 0.15s ease;
+  }
+  .btn-primary:hover:not(:disabled),
+  .btn-primary:active:not(:disabled),
+  .btn-glass:hover:not(:disabled),
+  .btn-glass:active:not(:disabled),
+  .btn-danger:hover:not(:disabled),
+  .btn-danger:active:not(:disabled) {
+    transform: none;
+  }
 }
-.hs-glow {
-  position: absolute;
-  border-radius: 9999px;
-}
-/* Parallax: the section's --mx/--my (set from the mouse) shift each layer by its own depth. */
+
+/* The hero's two example cards float gently; HeroScene draws the dots behind them. */
 .hs-layer {
   position: absolute;
-  transform: translate3d(calc(var(--mx, 0) * var(--d, 10) * -1px), calc(var(--my, 0) * var(--d, 10) * -1px), 0);
-  transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
-  will-change: transform;
 }
 .hs-float {
   animation: hs-float var(--dur, 10s) ease-in-out var(--delay, 0s) infinite alternate;
@@ -96,135 +285,23 @@ body {
     opacity: 1;
   }
 }
-.hs-pulse {
-  animation: hs-pulse 9s ease-in-out infinite alternate;
-}
-@keyframes hs-pulse {
-  from {
-    opacity: 0.55;
-    transform: scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-}
-.hs-twinkle {
-  opacity: 0.2;
-  animation: hs-twinkle 4s ease-in-out infinite alternate;
-}
-@keyframes hs-twinkle {
-  from {
-    opacity: 0.15;
-    transform: scale(0.7);
-  }
-  to {
-    opacity: 0.95;
-    transform: scale(1.25);
-  }
-}
-.hs-wave {
-  animation: hs-wave 16s ease-in-out infinite alternate;
-  opacity: 0.8;
-}
-@keyframes hs-wave {
-  from {
-    transform: translate3d(-3%, 0, 0);
-  }
-  to {
-    transform: translate3d(3%, -10px, 0);
-  }
-}
-.hs-spin {
-  animation: hs-spin 40s linear infinite;
-}
-.hs-spin-slow {
-  animation: hs-spin 26s linear infinite;
-}
-@keyframes hs-spin {
-  to {
-    rotate: 360deg;
-  }
-}
-.hs-tumble {
-  animation: hs-tumble 24s linear infinite;
-}
-@keyframes hs-tumble {
-  from {
-    transform: rotateX(20deg) rotateY(0deg) rotateZ(10deg);
-  }
-  to {
-    transform: rotateX(20deg) rotateY(360deg) rotateZ(10deg);
-  }
-}
-
-/* Glass sphere: a bright highlight, a cool rim and an inner glow. */
-.hs-sphere {
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background:
-    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.07) 28%, transparent 46%),
-    radial-gradient(circle at 70% 78%, rgba(34, 211, 238, 0.4), transparent 52%),
-    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.32), rgba(30, 27, 75, 0.35) 70%);
-  box-shadow:
-    inset -10px -14px 28px rgba(56, 189, 248, 0.22),
-    inset 8px 10px 22px rgba(255, 255, 255, 0.14),
-    0 0 56px rgba(99, 102, 241, 0.4);
-}
-@media (min-width: 768px) {
-  .hs-sphere {
-    backdrop-filter: blur(6px);
-  }
-}
-/* Orbit ring: a thin gradient band, tilted back so it reads as 3D. */
-.hs-orbit {
-  perspective: 700px;
-  transform: rotateX(68deg) rotateZ(-18deg);
-}
-.hs-ring {
-  border-radius: 9999px;
-  background: conic-gradient(from 0deg, #8b5cf6, #22d3ee, #3b82f6, #a78bfa, #8b5cf6);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-  opacity: 0.7;
-}
-/* Glass cube face. */
-.hs-cube {
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(99, 102, 241, 0.14) 45%, rgba(34, 211, 238, 0.2));
-  box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.12), 0 0 40px rgba(99, 102, 241, 0.4);
-}
-/* Faceted crystal and prism. */
-.hs-gem-glow {
-  filter: drop-shadow(0 0 18px rgba(99, 102, 241, 0.6));
-}
-.hs-gem {
-  clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%);
-  background: linear-gradient(145deg, rgba(196, 181, 253, 0.85), rgba(79, 70, 229, 0.55) 55%, rgba(34, 211, 238, 0.7));
-}
-.hs-prism {
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
-  background: linear-gradient(160deg, rgba(103, 232, 249, 0.85), rgba(99, 102, 241, 0.55) 60%, rgba(139, 92, 246, 0.7));
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .hs-float,
-  .hs-pulse,
-  .hs-twinkle,
-  .hs-wave,
-  .hs-spin,
-  .hs-spin-slow,
-  .hs-tumble {
+  .hs-float {
     animation: none;
   }
-  .hs-twinkle {
-    opacity: 0.6;
-  }
-  .hs-layer {
-    transform: none;
-    transition: none;
-  }
+}
+
+/*
+ * Ambient light: large, blurred, solid brand-coloured discs at low opacity behind the hero and between sections.
+ * It reads as light in the room, never as a gradient fill on a button or text. Blur only, no gradients.
+ */
+.ambient-glow {
+  position: absolute;
+  border-radius: 9999px;
+  /* A soft falloff of the brand colour, not a blur filter: blurring a 600px disc is slow to paint and to scroll over. */
+  background: radial-gradient(closest-side, rgba(191, 64, 191, 0.55), rgba(191, 64, 191, 0) 100%);
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 /* Dialogs and dropdowns ease in. */
@@ -247,59 +324,52 @@ body {
   }
 }
 
-/* Generation progress: a frame whose edge glows and slowly rotates through purple, cyan and pink. */
-@property --glow-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
+/* Generation progress: a frame whose edge glows and slowly pulses in the brand colour. */
 .glow-box {
   position: relative;
   isolation: isolate;
   border-radius: 1.5rem;
   padding: 1.5px;
-  background: conic-gradient(from var(--glow-angle), #8b5cf6, #22d3ee, #ec4899, #f59e0b, #8b5cf6);
-  animation: glow-spin 6s linear infinite;
-}
-.glow-box::before {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  z-index: -1;
-  border-radius: inherit;
-  background: inherit;
-  filter: blur(18px);
-  opacity: 0.55;
+  background: var(--brand);
+  box-shadow: 0 0 22px var(--glow);
+  animation: glow-pulse 2.4s ease-in-out infinite alternate;
 }
 .glow-inner {
   border-radius: calc(1.5rem - 1.5px);
   background: var(--background);
   padding: 1.25rem;
 }
-@keyframes glow-spin {
+@keyframes glow-pulse {
+  from {
+    box-shadow: 0 0 12px rgba(191, 64, 191, 0.35);
+  }
   to {
-    --glow-angle: 360deg;
+    box-shadow: 0 0 34px rgba(191, 64, 191, 0.7);
   }
 }
-/* The bar itself: a gradient with a soft highlight sliding along it. */
+/* The bar itself: solid brand with a glow and a soft white highlight sliding along it (no gradient). */
 .progress-fill {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(90deg, #7c3aed, #6366f1, #22d3ee);
-  box-shadow: 0 0 14px rgba(99, 102, 241, 0.7);
+  background: var(--brand);
+  box-shadow: 0 0 14px var(--glow);
   transition: width 0.8s ease-out;
 }
 .progress-fill::after {
   content: "";
   position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-  transform: translateX(-100%);
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 28%;
+  background: rgba(255, 255, 255, 0.35);
+  filter: blur(6px);
+  transform: translateX(-120%);
   animation: progress-shine 1.8s ease-in-out infinite;
 }
 @keyframes progress-shine {
   to {
-    transform: translateX(100%);
+    transform: translateX(460%);
   }
 }
 @media (prefers-reduced-motion: reduce) {

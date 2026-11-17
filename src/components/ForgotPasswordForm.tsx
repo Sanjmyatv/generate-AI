@@ -46,7 +46,7 @@ export function ForgotPasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-full btn-primary py-3 font-semibold text-foreground disabled:opacity-50"
+        className="w-full btn-primary disabled:opacity-50"
       >
         {pending ? t("email.wait") : t("forgot.send")}
       </button>
