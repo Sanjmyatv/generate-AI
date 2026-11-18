@@ -100,6 +100,21 @@ export async function saveTemplateAction(_prev: TemplateFormState, form: FormDat
   redirect("/admin?notice=saved");
 }
 
+/**
+ * Makes a template the home page's hero (the big card at the top), or removes it. Only one template is the hero:
+ * choosing one clears the others. With none chosen the home page picks one automatically.
+ */
+export async function setHeroTemplateAction(form: FormData) {
+  await requireAdmin();
+  const id = String(form.get("templateId") ?? "");
+  const on = form.get("hero") === "true";
+  await prisma.$transaction([
+    prisma.template.updateMany({ where: { heroFeatured: true }, data: { heroFeatured: false } }),
+    ...(on ? [prisma.template.updateMany({ where: { id }, data: { heroFeatured: true } })] : []),
+  ]);
+  redirect(on ? "/admin?notice=hero_set" : "/admin?notice=hero_cleared");
+}
+
 /** Shows or hides a template on the site without deleting it. */
 export async function setTemplateActiveAction(form: FormData) {
   await requireAdmin();

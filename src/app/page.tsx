@@ -8,10 +8,12 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const { categories, templates, trending } = await getDiscoveryData();
 
-  // The hero's big card shows a real template: the top trending video, else any video with a preview, else any template.
+  // The hero's big card: the template chosen in /admin ("Set as hero"). With none chosen (or it is hidden), the top
+  // trending video, else any video with a preview, else any template.
   const withPreview = templates.filter((t) => t.previewUrl);
   const trendingIds = trending?.ids ?? [];
   const featured =
+    templates.find((t) => t.heroFeatured) ??
     trendingIds.map((id) => withPreview.find((t) => t.id === id && t.type === "video")).find(Boolean) ??
     withPreview.find((t) => t.type === "video") ??
     withPreview[0];
