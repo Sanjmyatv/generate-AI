@@ -33,6 +33,7 @@ function toTemplate(t: DbTemplateWithCategories, trending: Set<string>): Templat
     photoRequirement: t.photoRequirement === "FULL_BODY" ? "full-body" : "face",
     active: t.active,
     trending: trending.has(t.id),
+    heroFeatured: t.heroFeatured,
     createdAt: t.createdAt.toISOString(),
     ...imageRatioOptions(t),
   };

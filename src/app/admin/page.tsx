@@ -3,7 +3,7 @@ import { PricingSettingsForm } from "@/components/admin/PricingSettingsForm";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { prisma } from "@/lib/db";
 import { assetIdFromUrl } from "@/lib/media";
-import { deleteTemplateAction, setTemplateActiveAction } from "@/app/actions/admin";
+import { deleteTemplateAction, setHeroTemplateAction, setTemplateActiveAction } from "@/app/actions/admin";
 import { marginFor, videoListCostUsd } from "@/lib/pricing";
 import { getPricingConfig } from "@/lib/pricing-settings";
 import { referenceCredits } from "@/lib/packs";
@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 const NOTICES: Record<string, string> = {
   saved: "Template saved.",
+  hero_set: "Hero template set: the home page's big card now shows it.",
+  hero_cleared: "Hero template removed: the home page picks one automatically again.",
   deleted: "Template deleted.",
   has_generations: "This template has been used to generate content, so it can't be deleted. Hide it instead.",
   pricing_saved: "Pricing settings saved. No template with automatic credits changed.",
@@ -86,6 +88,11 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{t.name}</span>
+                  {t.heroFeatured && (
+                    <span className="rounded-full bg-brand px-2 py-0.5 text-xs font-semibold text-white">
+                      ★ Hero{t.active ? "" : " (hidden, so not shown)"}
+                    </span>
+                  )}
                   {!t.active && <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs">Hidden</span>}
                   {t.autoCredits && <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs">Automatic credits</span>}
                   {t.categories.length === 0 && (
@@ -123,6 +130,18 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                   <Link href={`/admin/templates/${t.id}`} className="rounded-full border border-foreground/30 px-3 py-1">
                     Edit
                   </Link>
+                  <form action={setHeroTemplateAction}>
+                    <input type="hidden" name="templateId" value={t.id} />
+                    <input type="hidden" name="hero" value={String(!t.heroFeatured)} />
+                    <button
+                      className={`rounded-full px-3 py-1 ${
+                        t.heroFeatured ? "border border-brand-light/60 bg-brand/20" : "border border-foreground/30"
+                      }`}
+                      title={t.heroFeatured ? "Stop showing this template in the home page's hero" : "Show this template in the home page's hero"}
+                    >
+                      {t.heroFeatured ? "★ Remove from hero" : "☆ Set as hero"}
+                    </button>
+                  </form>
                   <form action={setTemplateActiveAction}>
                     <input type="hidden" name="templateId" value={t.id} />
                     <input type="hidden" name="active" value={String(!t.active)} />
