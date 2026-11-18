@@ -1,13 +1,12 @@
-import { Discovery, type DiscoveryTab } from "@/components/home/Discovery";
+import { Discovery } from "@/components/home/Discovery";
 import { Hero } from "@/components/home/Hero";
 import { HowItWorks, PricingTeaser } from "@/components/home/HowItWorks";
 import { getDiscoveryData } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ media?: string }> }) {
-  const [{ media }, { categories, templates, trending }] = await Promise.all([searchParams, getDiscoveryData()]);
-  const initialTab: DiscoveryTab = media === "images" ? "image" : media === "videos" ? "video" : "all";
+export default async function Home() {
+  const { categories, templates, trending } = await getDiscoveryData();
 
   // The hero's big card shows a real template: the top trending video, else any video with a preview, else any template.
   const withPreview = templates.filter((t) => t.previewUrl);
@@ -21,8 +20,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ m
     <div className="mx-auto w-full max-w-[1140px]">
       <Hero featured={featured} />
       <HowItWorks />
-      {/* Keyed so the nav's Videos/Images links switch the filter even while already on this page. */}
-      <Discovery key={initialTab} templates={templates} categories={categories} trending={trending} initialTab={initialTab} />
+      {/* Videos and images, each in its own section (the nav links to #videos and #images). */}
+      <Discovery templates={templates} categories={categories} trending={trending} />
       <PricingTeaser />
     </div>
   );

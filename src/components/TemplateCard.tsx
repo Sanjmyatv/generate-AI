@@ -10,6 +10,12 @@ import type { Template } from "@/types";
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
 
+/** The template's own shape ("9:16", "16:9", …) as CSS; "auto" and anything unreadable fall back to 3:4. */
+function shapeOf(ratio: string) {
+  const [w, h] = ratio.split(":").map(Number);
+  return w > 0 && h > 0 ? { css: `${w} / ${h}`, wide: w > h } : { css: "3 / 4", wide: false };
+}
+
 /**
  * Design: zyro Home → template tile. A tall glass frame that leans toward the pointer; the kind sits top-left, and a
  * glass panel at the bottom carries the name, length or photo count, and the price. A video preview plays on hover.
@@ -28,6 +34,8 @@ export function TemplateCard({ template }: { template: Template }) {
       ? t("card.seconds", { count: template.durationSeconds })
       : t("card.photo", { count: template.requiredPhotoCount });
   const credits = t("card.credit", { count: Math.ceil(template.creditCost), amount: formatCredits(template.creditCost) });
+  // The card takes the template's real shape, so a landscape video shows as landscape.
+  const shape = shapeOf(template.aspectRatio);
 
   return (
     <Link
@@ -37,7 +45,8 @@ export function TemplateCard({ template }: { template: Template }) {
       onFocus={() => setHover(true)}
       onBlur={() => setHover(false)}
       data-tilt="12"
-      className="glass-frame group block aspect-[9/14] rounded-[26px] border-white/10 bg-white/6 p-[5px] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_20px_40px_rgba(0,0,0,0.35)] hover:border-brand-light/55 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_26px_60px_rgba(47,91,255,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      style={{ aspectRatio: shape.css }}
+      className="glass-frame group block rounded-[26px] border-white/10 bg-white/6 p-[5px] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_20px_40px_rgba(0,0,0,0.35)] hover:border-brand-light/55 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_26px_60px_rgba(47,91,255,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
     >
       <div className="relative size-full overflow-hidden rounded-[21px] bg-brand/20">
         {src ? (
@@ -54,7 +63,8 @@ export function TemplateCard({ template }: { template: Template }) {
       </div>
       <div className="tilt-glow" style={{ "--glow-size": "260px" } as CSSProperties} />
 
-      <div className="pointer-events-none absolute left-4 top-4 flex gap-1.5">
+      {/* A wide card is short on a phone: the badges only show from tablet width up. */}
+      <div className={`pointer-events-none absolute left-4 top-4 gap-1.5 ${shape.wide ? "hidden sm:flex" : "flex"}`}>
         <span className="glass-chip rounded-full px-2.5 py-[5px] text-[11px] font-semibold">{kind}</span>
         {template.trending && (
           <span className="rounded-full bg-[linear-gradient(135deg,var(--brand-light),var(--brand))] px-2.5 py-[5px] text-[11px] font-semibold shadow-[0_0_14px_rgba(47,91,255,0.6)]">
@@ -63,12 +73,19 @@ export function TemplateCard({ template }: { template: Template }) {
         )}
       </div>
 
-      <div className="glass-chip pointer-events-none absolute inset-x-3 bottom-3 flex flex-col gap-1.5 rounded-[18px] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
-        <span className="line-clamp-2 text-[14px] font-semibold leading-[1.25]">{name}</span>
-        <div className="flex items-center justify-between gap-2 text-[12px]">
-          <span className="truncate text-foreground/65">
-            {kind} · {detail}
-          </span>
+      {/* On a wide (landscape) card the panel is one slim line, so it does not cover the picture. */}
+      <div
+        className={`glass-chip pointer-events-none absolute inset-x-3 bottom-3 flex rounded-[18px] shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] ${
+          shape.wide ? "items-center justify-between gap-3 px-3 py-2" : "flex-col gap-1.5 px-3.5 py-3"
+        }`}
+      >
+        <span className={`text-[14px] font-semibold leading-[1.25] ${shape.wide ? "truncate" : "line-clamp-2"}`}>{name}</span>
+        <div className={`items-center justify-between gap-2 text-[12px] ${shape.wide ? "hidden shrink-0 sm:flex" : "flex"}`}>
+          {!shape.wide && (
+            <span className="truncate text-foreground/65">
+              {kind} · {detail}
+            </span>
+          )}
           <span className="shrink-0 font-semibold text-brand-light">{credits}</span>
         </div>
       </div>

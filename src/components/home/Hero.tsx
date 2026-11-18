@@ -89,8 +89,8 @@ export async function Hero({ featured }: { featured?: Template }) {
       </div>
 
       <Reveal delay={200} className="relative h-[clamp(440px,118vw,580px)]">
-        <SideCard src="/brand/hero-cinematic.jpg" speed={0.14} className="left-[3%] top-[12%]" rotate="-rotate-[7deg]" />
-        <SideCard src="/brand/hero-fashion.jpg" speed={0.24} className="right-[3%] top-[17%]" rotate="rotate-[7deg]" />
+        <SideCard src="/brand/hero-left.jpg" speed={0.14} className="left-[3%] top-[12%]" rotate="-rotate-[7deg]" />
+        <SideCard src="/brand/hero-right.jpg" speed={0.24} className="right-[3%] top-[17%]" rotate="rotate-[7deg]" />
         <div data-speed="0.06" className="absolute left-[24%] top-[3%] h-[88%] w-[52%]">
           {featured ? (
             <Link href={`/templates/${featured.id}`} aria-label={name} className="block size-full rounded-[36px]">

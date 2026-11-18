@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useT } from "@/components/I18nProvider";
 import { GenerationProgress } from "@/components/GenerationProgress";
 import { LoginModal } from "@/components/LoginModal";
+import { SaveButton } from "@/components/SaveButton";
 import { QPayModal } from "@/components/QPayModal";
 import { ResolutionSelector } from "@/components/ResolutionSelector";
 import { TemplatePreview } from "@/components/TemplatePreview";
@@ -575,12 +576,7 @@ export function GenerateFlow({
           )}
           {isAuthenticated ? (
             <>
-              <a
-                href={`${videoUrl}?download=1`}
-                className="w-full btn-primary"
-              >
-                {t("gen.download")}
-              </a>
+              <SaveButton href={`${videoUrl}?download=1`} label={t("gen.download")} prefetch className="w-full" />
               <p className="text-center text-xs text-foreground/60">
                 {t("gen.savedPre")}
                 <Link href="/history" className="underline">

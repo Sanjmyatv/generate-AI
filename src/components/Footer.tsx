@@ -8,9 +8,9 @@ const groups: { title: TKey; items: { label: TKey; href: string }[] }[] = [
   {
     title: "footer.explore",
     items: [
-      { label: "footer.videos", href: "/?media=videos#discover" },
-      { label: "footer.images", href: "/?media=images#discover" },
-      { label: "footer.trending", href: "/#discover" },
+      { label: "footer.videos", href: "/#videos" },
+      { label: "footer.images", href: "/#images" },
+      { label: "footer.trending", href: "/#videos" },
     ],
   },
   {

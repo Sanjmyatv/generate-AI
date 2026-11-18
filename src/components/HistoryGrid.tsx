@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SaveButton } from "@/components/SaveButton";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLocale, useT } from "@/components/I18nProvider";
@@ -132,9 +133,7 @@ export function HistoryGrid({ items }: { items: HistoryItem[] }) {
                   </div>
                   <div className="mt-2 flex gap-2 px-1 pb-1">
                     {g.status === "COMPLETED" ? (
-                      <a href={`/api/generations/${g.id}/video?download=1`} className="btn-primary btn-compact flex-1">
-                        {t("history.download")}
-                      </a>
+                      <SaveButton href={`/api/generations/${g.id}/video?download=1`} label={t("history.download")} compact className="flex-1" />
                     ) : g.status === "FAILED" ? (
                       <Link href={`/templates/${g.templateId}`} className="btn-glass btn-compact flex-1">
                         {t("history.tryAgain")}
