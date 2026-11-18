@@ -270,18 +270,22 @@ async function main() {
     },
   };
 
-  // Idempotent and non-destructive: rows that already exist (and any admin edits to
-  // them) are left alone, so new seed entries can ship with every deploy.
+  // Idempotent and non-destructive: rows that already exist (and any admin edits to them) are left alone.
+  // The sample templates are only created in a brand-new database (no templates at all). Once the site has its own
+  // templates, a sample an admin deleted stays deleted: a deploy never brings it back.
+  const freshDatabase = existingTemplateIds.size === 0;
   for (const c of categories) {
     await prisma.category.upsert({ where: { id: c.id }, update: {}, create: c });
   }
-  for (const t of templates) {
-    await prisma.template.upsert({ where: { id: t.id }, update: {}, create: t });
+  if (freshDatabase) {
+    for (const t of templates) {
+      await prisma.template.upsert({ where: { id: t.id }, update: {}, create: t });
+    }
   }
   const existing = await prisma.template.findUnique({ where: { id: threeGuys.id } });
   const storedVersion = (existing?.generationConfig as { version?: number } | null)?.version ?? 0;
   if (!existing) {
-    await prisma.template.create({ data: threeGuys });
+    if (freshDatabase) await prisma.template.create({ data: threeGuys });
   } else if (storedVersion < THREE_GUYS_VERSION && process.env.THREE_GUYS_TEMPLATE_VIDEO_URL) {
     // Only upgrade once a real template video URL is provided.
     await prisma.template.update({
@@ -299,11 +303,11 @@ async function main() {
       },
     });
   }
-  await prisma.template.upsert({ where: { id: goldenHour.id }, update: {}, create: goldenHour });
+  if (freshDatabase) await prisma.template.upsert({ where: { id: goldenHour.id }, update: {}, create: goldenHour });
   const existingColorize = await prisma.template.findUnique({ where: { id: colorize.id } });
   const colorizeVersion = (existingColorize?.generationConfig as { version?: number } | null)?.version ?? 0;
   if (!existingColorize) {
-    await prisma.template.create({ data: colorize });
+    if (freshDatabase) await prisma.template.create({ data: colorize });
   } else if (colorizeVersion < COLORIZE_VERSION) {
     await prisma.template.update({
       where: { id: colorize.id },
@@ -320,11 +324,11 @@ async function main() {
     });
   }
   if (shine) {
-    await prisma.template.upsert({ where: { id: shine.id }, update: {}, create: shine });
-  } else {
+    if (freshDatabase) await prisma.template.upsert({ where: { id: shine.id }, update: {}, create: shine });
+  } else if (freshDatabase) {
     console.warn("[seed] Shine template skipped: set APP_URL (https) or SHINE_TEMPLATE_VIDEO_URL");
   }
-  if (genjutsuVideoUrl) {
+  if (genjutsuVideoUrl && freshDatabase) {
     await prisma.template.upsert({ where: { id: characterSwap.id }, update: {}, create: characterSwap });
   }
   // File the templates this deploy created under their category (the join table). Trending is automatic, so nothing is
