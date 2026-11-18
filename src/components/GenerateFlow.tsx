@@ -16,7 +16,7 @@ import { templateDescription, templateName } from "@/lib/i18n/content";
 import type { T } from "@/lib/i18n/translate";
 import type { CreditPackage, Template } from "@/types";
 
-type Step = "detail" | "upload" | "processing" | "result" | "error";
+type Step = "upload" | "processing" | "result" | "error";
 
 interface StatusResponse {
   status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
@@ -195,7 +195,7 @@ export function GenerateFlow({
   const t = useT();
   const locale = useLocale();
   const name = templateName(template, locale);
-  const [step, setStep] = useState<Step>(resumeId ? "processing" : "detail");
+  const [step, setStep] = useState<Step>(resumeId ? "processing" : "upload");
   // One entry per required photo; null until the user picks that photo.
   const [photos, setPhotos] = useState<(File | null)[]>(() =>
     Array.from({ length: template.requiredPhotoCount }, () => null),
@@ -278,7 +278,7 @@ export function GenerateFlow({
     setGenerationId(null);
     setVideoUrl(null);
     setError(null);
-    setStep("detail");
+    setStep("upload");
     window.history.replaceState(null, "", window.location.pathname);
   }, [needed]);
 
@@ -383,32 +383,68 @@ export function GenerateFlow({
   }, [step, generationId, fail, reset, t]);
 
 
+  const tagClass = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium";
+  const iconProps = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
+
   return (
-    <div className="mx-auto max-w-md py-8">
+    // Phones: one column. Desktop: the preview on the left, everything else on the right.
+    <div
+      className={`mx-auto max-w-md py-8 ${
+        step === "result" ? "" : "lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:items-start lg:gap-12"
+      }`}
+    >
       {step !== "result" && (
         // Height-limited so tall (9:16) previews fit on a phone without scrolling forever.
-        <div
-          className="mx-auto overflow-hidden rounded-2xl"
-          style={{ aspectRatio: aspectCss(template.aspectRatio), height: "min(60vh, 520px)", maxWidth: "100%" }}
-        >
-          <TemplatePreview
-            src={template.previewUrl}
-            alt={name}
-            mode="detail"
-            className="h-full w-full"
-          />
+        <div className="lg:sticky lg:top-24">
+          <div
+            className="mx-auto overflow-hidden rounded-2xl"
+            style={{ aspectRatio: aspectCss(template.aspectRatio), height: "min(60vh, 520px)", maxWidth: "100%" }}
+          >
+            <TemplatePreview
+              src={template.previewUrl}
+              alt={name}
+              mode="detail"
+              className="h-full w-full"
+            />
+          </div>
         </div>
       )}
-      <h1 className="mt-4 text-2xl font-bold">{name}</h1>
+      <div className="min-w-0">
+      <h1 className="mt-4 text-2xl font-bold lg:mt-0 lg:text-3xl">{name}</h1>
       <p className="mt-1 text-foreground/70">{templateDescription(template, locale)}</p>
-      <p className="mt-2 text-sm text-foreground/60">
-        {isVideo ? t("gen.video") : t("gen.image")}
-        {isVideo && seconds ? ` · ${t("gen.secondsShort", { n: seconds })}` : ""} ·{" "}
-        {t("gen.cost", { count: Math.ceil(cost), amount: formatCredits(cost) })}
-        {balance !== null && ` · ${t("gen.youHave", { amount: formatCredits(balance) })}`}
-      </p>
+      {/* Type, length, price and balance as tags. */}
+      <ul className="mt-3 flex flex-wrap gap-2">
+        <li className={`${tagClass} border-white/12 bg-white/6 text-foreground/85`}>
+          {isVideo ? (
+            <svg {...iconProps}><rect x="2" y="5" width="15" height="14" rx="2" /><path d="m17 10 5-3v10l-5-3z" /></svg>
+          ) : (
+            <svg {...iconProps}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-5-5L5 21" /></svg>
+          )}
+          {isVideo ? t("gen.video") : t("gen.image")}
+        </li>
+        {isVideo && seconds ? (
+          <li className={`${tagClass} border-white/12 bg-white/6 text-foreground/85`}>
+            <svg {...iconProps}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+            {t("gen.secondsShort", { n: seconds })}
+          </li>
+        ) : null}
+        <li className={`${tagClass} border-brand-light/40 bg-brand/20 text-white shadow-[0_0_16px_rgba(47,91,255,0.25)]`}>
+          <svg {...iconProps}><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z" /></svg>
+          {t("gen.cost", { count: Math.ceil(cost), amount: formatCredits(cost) })}
+        </li>
+        {balance !== null && (
+          <li
+            className={`${tagClass} ${
+              balance < cost ? "border-danger/50 bg-danger/12 text-red-200" : "border-emerald-400/35 bg-emerald-400/10 text-emerald-200"
+            }`}
+          >
+            <svg {...iconProps}><rect x="2" y="6" width="20" height="14" rx="2" /><path d="M16 13h2M2 10h20" /></svg>
+            {t("gen.youHave", { amount: formatCredits(balance) })}
+          </li>
+        )}
+      </ul>
 
-      {step === "detail" && locked && (
+      {step === "upload" && locked && (
         // A video costs more than the balance: show what it needs and a way to add credits, instead of the upload.
         <div className="mt-6 rounded-2xl border border-brand bg-surface p-4 text-center">
           <p className="flex items-center justify-center gap-2 font-semibold">
@@ -426,19 +462,11 @@ export function GenerateFlow({
         </div>
       )}
 
-      {step === "detail" && !locked && (
-        <button
-          onClick={() => setStep("upload")}
-          className="mt-6 w-full btn-primary"
-        >
-          {t("gen.use")}
-        </button>
-      )}
-
-      {step === "upload" && (
+      {step === "upload" && !locked && (
         <div className="mt-6 space-y-3">
-          {/* One slot per required photo, in the order the AI maps them to the template. */}
-          <div className={needed > 1 ? "grid grid-cols-3 gap-3" : ""}>
+          {/* One slot per required photo, in the order the AI maps them to the template. On desktop a single slot
+              keeps a tile's size instead of filling the column. */}
+          <div className={needed > 1 ? "grid grid-cols-3 gap-3" : "lg:grid lg:grid-cols-3 lg:gap-3"}>
             {photos.map((file, i) => (
               <PhotoSlot
                 key={i}
@@ -578,6 +606,7 @@ export function GenerateFlow({
           </button>
         </div>
       )}
+      </div>
 
       {showPay && (
         <QPayModal

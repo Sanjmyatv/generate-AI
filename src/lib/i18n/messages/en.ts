@@ -319,7 +319,6 @@ export const en = {
   "gen.cost_one": "Cost: {amount} credit",
   "gen.cost_other": "Cost: {amount} credits",
   "gen.youHave": "You have {amount}",
-  "gen.use": "Use This Template",
   "gen.addPhotos": "Add {count} photos, one per person. ",
   "gen.hintFull": "Use a full-body photo.",
   "gen.hintFace": "Use a clear photo with your face visible.",
