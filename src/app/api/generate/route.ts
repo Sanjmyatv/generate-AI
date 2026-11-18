@@ -201,6 +201,7 @@ export async function POST(req: Request) {
     throw e;
   }
 
+  const submitStart = Date.now();
   try {
     const base = getBaseUrl(req);
     const imageUrls = uploadIds.map((id) => `${base}/api/uploads/${id}`);
@@ -234,6 +235,9 @@ export async function POST(req: Request) {
       where: { id: generation.id },
       data: { providerTaskId: taskId, status: "PROCESSING" },
     });
+    console.log(
+      `[generate] ${generation.id} submitted in ${Date.now() - submitStart}ms (template ${template.id}, ${resolution}, ${uploadIds.length} photo(s))`,
+    );
   } catch (e) {
     console.error("[generate] submit failed", e);
     const code = e instanceof SeedanceError ? e.code ?? "" : "";
