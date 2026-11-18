@@ -21,8 +21,8 @@ export interface NavUser {
 // Figma: zyro.ai / Navigation. The profile lives in the user menu, not in this row.
 const links = [
   { href: "/", label: "nav.explore" },
-  { href: "/?media=videos#discover", label: "nav.videos" },
-  { href: "/?media=images#discover", label: "nav.images" },
+  { href: "/#videos", label: "nav.videos" },
+  { href: "/#images", label: "nav.images" },
   { href: "/pricing", label: "nav.pricing" },
   { href: "/history", label: "nav.history" },
 ] as const;

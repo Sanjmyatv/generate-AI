@@ -109,6 +109,32 @@ function resultContentType(header: string | null, data: Uint8Array) {
   return "video/mp4";
 }
 
+/**
+ * The file name a download is saved under: "zyro-<template title>-<date>.<ext>", e.g. "zyro-Hotline Bling бүжиг-2026-11-18.mp4".
+ * Characters that file systems reject are removed. `ascii` is the fallback for clients that cannot read a UTF-8 name.
+ */
+export function downloadFileName(title: string, createdAt: Date, ext: string) {
+  const date = createdAt.toISOString().slice(0, 10);
+  const clean = title
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+  const name = `zyro-${clean || "creation"}-${date}.${ext}`;
+  const asciiTitle = clean
+    .normalize("NFKD")
+    .replace(/[^A-Za-z0-9 -]+/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+  const ascii = `zyro-${asciiTitle || "creation"}-${date}.${ext}`;
+  return { name, ascii };
+}
+
+/** A Content-Disposition header that saves the file under `downloadFileName`'s name (RFC 6266 / 5987). */
+export function attachmentHeader(file: { name: string; ascii: string }) {
+  return `attachment; filename="${file.ascii}"; filename*=UTF-8''${encodeURIComponent(file.name)}`;
+}
+
 /** File extension for a stored result's media type. */
 export function resultExtension(contentType: string) {
   if (contentType === "image/png") return "png";

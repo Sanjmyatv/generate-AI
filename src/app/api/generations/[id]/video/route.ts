@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/actor";
-import { canAccess, resultExtension } from "@/lib/generations";
+import { attachmentHeader, canAccess, downloadFileName, resultExtension } from "@/lib/generations";
+import { templateName } from "@/lib/i18n/content";
+import { getLocale } from "@/lib/i18n/server";
 import { serveBlob } from "@/lib/blob-response";
 
 export const dynamic = "force-dynamic";
@@ -61,8 +63,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     "X-Content-Type-Options": "nosniff",
     "Cache-Control": "private, max-age=3600",
   };
+  // Saved as "zyro-<template title>-<date>", in the visitor's language.
+  let title = "";
+  if (download) {
+    const [template, locale] = await Promise.all([
+      prisma.template.findUnique({ where: { id: gen.templateId }, select: { name: true, nameMn: true } }),
+      getLocale(),
+    ]);
+    title = template ? templateName(template, locale) : "";
+  }
   const disposition = (contentType: string) =>
-    download ? `attachment; filename="creation-${gen.id}.${resultExtension(contentType)}"` : undefined;
+    download ? attachmentHeader(downloadFileName(title, gen.createdAt, resultExtension(contentType))) : undefined;
 
   const stored = await serveStored(id, req.headers.get("range"), baseHeaders, disposition);
   if (stored) return stored;
