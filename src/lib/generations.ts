@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import type { Generation } from "@/generated/prisma/client";
 import type { Actor } from "@/lib/actor";
@@ -212,8 +213,23 @@ export async function refreshGeneration(gen: Generation): Promise<Generation> {
         ? await getHiggsfieldTask(gen.providerTaskId)
         : await getTask(gen.providerTaskId);
       if (task.status === "completed") {
-        // Only the call that flips the status copies the result, so polls can't duplicate it.
-        if (await completeGeneration(gen.id, task.videoUrl)) await archiveVideo(gen.id, task.videoUrl);
+        // Only the call that flips the status copies the result, so polls can't duplicate it. The copy runs after
+        // the response: the user sees the result at once (the media route streams the provider's file until our
+        // copy exists) instead of waiting for the whole video to be downloaded into the database first.
+        if (await completeGeneration(gen.id, task.videoUrl)) {
+          const seconds = Math.round((Date.now() - gen.createdAt.getTime()) / 1000);
+          console.log(`[generations] ${gen.id} completed ${seconds}s after start (template ${gen.templateId}, ${gen.resolution})`);
+          const archive = async () => {
+            const t0 = Date.now();
+            const ok = await archiveVideo(gen.id, task.videoUrl);
+            console.log(`[generations] ${gen.id} archived=${ok} in ${Math.round((Date.now() - t0) / 1000)}s`);
+          };
+          try {
+            after(archive);
+          } catch {
+            await archive(); // called outside a request (no `after` scope): archive inline
+          }
+        }
         settled = true;
       } else if (task.status === "failed") {
         await failGeneration(gen.id, task.error);
