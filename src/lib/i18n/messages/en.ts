@@ -43,6 +43,7 @@ export const en = {
   "disc.imagesTitle": "Image templates",
   "disc.imagesSub": "New looks and portraits from a single photo.",
   "disc.filterLabel": "Filter templates",
+  "disc.seeAll": "See all ({count})",
   "disc.all": "All",
   "disc.trendingChip": "Trending",
   "disc.emptyVideo": "No video templates yet. Check back soon.",

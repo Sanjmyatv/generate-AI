@@ -37,7 +37,7 @@ export async function Footer() {
   const { t } = await getT();
   return (
     <footer className="relative border-t border-white/8 bg-[rgba(4,6,15,0.4)] backdrop-blur-[20px]">
-      <div className="mx-auto grid max-w-[1180px] grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-10 px-5 pb-10 pt-[clamp(40px,7vw,56px)]">
+      <div className="mx-auto grid max-w-[1760px] grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-10 px-3 pb-10 pt-[clamp(40px,7vw,56px)] sm:px-4 md:px-6 lg:px-8">
         <div className="col-span-full flex flex-col gap-4 md:col-span-2">
           <Link href="/" className="self-start">
             <Logo />
@@ -69,7 +69,7 @@ export async function Footer() {
           </div>
         ))}
       </div>
-      <div className="mx-auto max-w-[1180px] p-5 text-[13px] text-foreground/45">{t("footer.rights")}</div>
+      <div className="mx-auto max-w-[1760px] px-3 py-5 text-[13px] text-foreground/45 sm:px-4 md:px-6 lg:px-8">{t("footer.rights")}</div>
     </footer>
   );
 }

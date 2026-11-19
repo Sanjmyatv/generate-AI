@@ -23,9 +23,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** The public address, so link previews (Facebook, Messenger, X…) get absolute URLs for the share image. */
+function siteUrl() {
+  const fromEnv = process.env.APP_URL;
+  try {
+    if (fromEnv?.startsWith("http")) return new URL(fromEnv);
+  } catch {
+    /* fall through */
+  }
+  return new URL("https://www.zyro.one");
+}
+
 export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getT();
-  return { title: t("meta.title"), description: t("meta.description") };
+  const { t, locale } = await getT();
+  const title = t("meta.title");
+  const description = t("meta.description");
+  // The share image and the tab icon come from app/opengraph-image.png, twitter-image.png, icon.png and apple-icon.png.
+  return {
+    metadataBase: siteUrl(),
+    title,
+    description,
+    openGraph: { type: "website", siteName: "zyro.ai", title, description, locale: locale === "mn" ? "mn_MN" : "en_US" },
+    twitter: { card: "summary_large_image", title, description },
+  };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -57,7 +77,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <I18nProvider locale={locale} messages={MESSAGES[locale]}>
           <AuthConfigProvider value={{ providers: enabledProviders, emailLogin: emailLoginEnabled }}>
             <Nav user={user ? { name: user.name, email: user.email, credits: Number(user.credits) } : null} />
-            <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 md:px-8 lg:px-16">{children}</main>
+            <main className="mx-auto w-full max-w-[1760px] flex-1 px-3 sm:px-4 md:px-6 lg:px-8">{children}</main>
             <Footer />
           </AuthConfigProvider>
         </I18nProvider>
