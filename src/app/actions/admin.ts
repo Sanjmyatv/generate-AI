@@ -7,6 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin";
 import { baseUrlFromHeaders } from "@/lib/actor";
 import { prisma } from "@/lib/db";
+import { assetIdsOf, deleteUnusedAssets } from "@/lib/assets";
 import { assetIdFromUrl } from "@/lib/media";
 import {
   GENJUTSU_LIGHT_LIST_USD_PER_SECOND,
@@ -40,21 +41,6 @@ export interface TemplateFormState {
   message: string | null;
   /** Set when a price loses money: saving then needs one more click ("confirmLoss"). */
   lossWarning?: string[];
-}
-
-/** Asset ids a template points at: its preview and its source video. */
-function assetIdsOf(previewUrl: string | null, config: unknown, posterUrl: string | null = null) {
-  const ids = [assetIdFromUrl(previewUrl), assetIdFromUrl(posterUrl), assetIdFromUrl((config as { templateVideoUrl?: string } | null)?.templateVideoUrl)];
-  return ids.filter((id): id is string => id !== null);
-}
-
-/** Deletes uploaded files that no template points at any more. */
-async function deleteUnusedAssets(candidates: string[]) {
-  if (candidates.length === 0) return;
-  const templates = await prisma.template.findMany({ select: { previewUrl: true, previewPosterUrl: true, generationConfig: true } });
-  const inUse = new Set(templates.flatMap((t) => assetIdsOf(t.previewUrl, t.generationConfig, t.previewPosterUrl)));
-  const unused = candidates.filter((id) => !inUse.has(id));
-  if (unused.length > 0) await prisma.asset.deleteMany({ where: { id: { in: unused } } });
 }
 
 /** Creates a template, or updates it when the form carries a `templateId`. */

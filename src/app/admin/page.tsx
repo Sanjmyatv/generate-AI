@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PricingSettingsForm } from "@/components/admin/PricingSettingsForm";
+import { ShrinkPreviews } from "@/components/admin/ShrinkPreviews";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { prisma } from "@/lib/db";
 import { assetIdFromUrl } from "@/lib/media";
@@ -10,6 +11,9 @@ import { referenceCredits } from "@/lib/packs";
 import { ENGINES, templateToFormValues } from "@/lib/template-admin";
 
 export const dynamic = "force-dynamic";
+
+/** A video preview over this is heavy (a standard shrunk preview is about half a megabyte). */
+const HEAVY_BYTES = 1.5 * 1024 * 1024;
 
 const NOTICES: Record<string, string> = {
   saved: "Template saved.",
@@ -40,6 +44,12 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
     (await prisma.asset.findMany({ where: { id: { in: previewIds } }, select: { id: true, size: true } })).map((a) => [a.id, a.size]),
   );
 
+  // Uploaded video previews that are still camera-size or have no thumbnail: one button shrinks them all.
+  const heavy = templates.filter((t) => {
+    const bytes = previewSizes.get(assetIdFromUrl(t.previewUrl) ?? "");
+    return bytes !== undefined && /.(mp4|mov|webm|m4v)$/i.test(t.previewUrl ?? "") && (bytes > HEAVY_BYTES || !t.previewPosterUrl);
+  });
+
   // If the discount on our Higgsfield account ever ended, what the reference video would earn at list price.
   const reference = referenceCredits(cfg);
   const atList = marginFor({
@@ -67,6 +77,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       {notice && NOTICES[notice] && (
         <p className="mt-4 rounded-xl border border-foreground/20 p-3 text-sm">{NOTICES[notice]}</p>
       )}
+
+      {heavy.length > 0 && <ShrinkPreviews templates={heavy.map((t) => ({ id: t.id, name: t.name }))} />}
 
       <PricingSettingsForm
         config={cfg}
@@ -100,11 +112,11 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                   )}
                   {(() => {
                     const bytes = previewSizes.get(assetIdFromUrl(t.previewUrl) ?? "");
-                    if (bytes === undefined || (bytes < 6 * 1024 * 1024 && t.previewPosterUrl)) return null;
+                    if (bytes === undefined || (bytes <= HEAVY_BYTES && t.previewPosterUrl)) return null;
                     const mb = (bytes / 1024 / 1024).toFixed(1);
                     return (
                       <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs">
-                        Preview {mb} MB{bytes >= 6 * 1024 * 1024 ? ": too heavy, upload a lighter clip" : ""}
+                        Preview {mb} MB{bytes > HEAVY_BYTES ? ": too heavy" : ""}
                         {t.previewPosterUrl ? "" : ", no thumbnail"}
                       </span>
                     );

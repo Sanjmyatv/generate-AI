@@ -64,7 +64,8 @@ interface UploadState {
 }
 
 const UPLOAD_ERRORS: Record<string, string> = {
-  too_large: "That file is too large. A preview plays on every visitor's phone: keep it under 8 MB (a short, small clip).",
+  too_large: "That file is too large. A preview image plays on every visitor's phone: keep it under 8 MB.",
+  optimize_failed: "Could not shrink this video. Try another file or a shorter clip.",
   unsupported_type: "Use an MP4/MOV/WebM video or a JPG/PNG/WebP image.",
   source_must_be_mp4: "The source video must be an MP4 or MOV file.",
   source_too_short: "The source video must be at least 4 seconds long.",
@@ -92,6 +93,7 @@ export function TemplateForm({
   const [sourceUpload, setSourceUpload] = useState<UploadState>({ busy: false, error: null });
   const [sourceSeconds, setSourceSeconds] = useState<number | null>(null);
   const [posterBusy, setPosterBusy] = useState(false);
+  const [shrinkNote, setShrinkNote] = useState<string | null>(null);
   // A new template is priced automatically; an existing one stays as it was saved (priced by hand unless it was automatic).
   const [autoPrice, setAutoPrice] = useState(initial.autoCredits);
   const [priceStatus, setPriceStatus] = useState<{ error: boolean; note: string | null }>({ error: false, note: null });
@@ -132,6 +134,27 @@ export function TemplateForm({
     }
   }
 
+  /** Shrinks the saved preview on the server (360 px wide, no sound, about half a megabyte) and makes its thumbnail. */
+  async function shrinkSaved() {
+    if (!templateId) return;
+    setPreviewUpload({ busy: true, error: null });
+    try {
+      const res = await fetch("/api/admin/optimize-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(UPLOAD_ERRORS[data.error] ?? "Could not shrink this preview.");
+      set("previewUrl", data.url);
+      set("previewPosterUrl", data.posterUrl);
+      setShrinkNote(`Shrunk from ${(data.beforeBytes / 1024 / 1024).toFixed(1)} MB to ${Math.round(data.afterBytes / 1024)} KB. Already saved.`);
+      setPreviewUpload({ busy: false, error: null });
+    } catch (e) {
+      setPreviewUpload({ busy: false, error: e instanceof Error ? e.message : "Could not shrink this preview." });
+    }
+  }
+
   async function upload(file: File, purpose: "preview" | "source") {
     const setState = purpose === "preview" ? setPreviewUpload : setSourceUpload;
     setState({ busy: true, error: null });
@@ -144,9 +167,12 @@ export function TemplateForm({
       if (!res.ok) throw new Error(UPLOAD_ERRORS[data.error] ?? "Upload failed. Try again.");
       if (purpose === "preview") {
         set("previewUrl", data.url);
-        set("previewPosterUrl", "");
-        // A video preview gets a small thumbnail so cards never have to download the video itself.
-        if (data.kind === "video") await makePoster(file);
+        set("previewPosterUrl", typeof data.posterUrl === "string" ? data.posterUrl : "");
+        if (typeof data.originalSize === "number") {
+          setShrinkNote(`Shrunk from ${(data.originalSize / 1024 / 1024).toFixed(1)} MB to ${Math.round(data.size / 1024)} KB.`);
+        } else setShrinkNote(null);
+        // The server makes the thumbnail with the shrunk video; this is only the fallback.
+        if (data.kind === "video" && typeof data.posterUrl !== "string") await makePoster(file);
       } else {
         set("sourceVideoUrl", data.url);
         setSourceSeconds(typeof data.duration === "number" ? data.duration : null);
@@ -450,7 +476,8 @@ export function TemplateForm({
             onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0], "preview")}
             className="block w-full text-sm"
           />
-          {previewUpload.busy && <p className="mt-1 text-xs">Uploading…</p>}
+          {previewUpload.busy && <p className="mt-1 text-xs">Uploading and shrinking…</p>}
+          {shrinkNote && !previewUpload.busy && <p className="mt-1 text-xs text-foreground/70">{shrinkNote}</p>}
           {v.previewUrl && (
             <div className="mt-2 flex items-center gap-3">
               <div className="h-40 w-24 overflow-hidden rounded-lg">
@@ -467,6 +494,16 @@ export function TemplateForm({
                 >
                   Remove
                 </button>
+                {templateId && v.previewUrl.startsWith("/api/assets/") && /\.(mp4|webm|mov|m4v)$/i.test(v.previewUrl) && (
+                  <button
+                    type="button"
+                    disabled={previewUpload.busy}
+                    onClick={() => void shrinkSaved()}
+                    className="btn-glass btn-compact block disabled:opacity-50"
+                  >
+                    Shrink this preview
+                  </button>
+                )}
                 {/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(v.previewUrl) &&
                   (v.previewPosterUrl ? (
                     <p className="text-foreground/60">Thumbnail made: cards show it and only load the video on hover.</p>
