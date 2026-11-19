@@ -113,6 +113,29 @@ export function HistoryGrid({ items }: { items: HistoryItem[] }) {
                       {g.type === "VIDEO" ? t("gen.video") : t("gen.image")}
                       {g.type === "VIDEO" && g.durationSeconds ? ` · ${t("gen.secondsShort", { n: g.durationSeconds })}` : ""}
                     </span>
+                    {/* Round icon buttons on the picture's top-right corner (clear of video controls): save and delete.
+                        While selecting, the corner holds the checkbox instead. */}
+                    {done && !selecting && (
+                      <div className="absolute right-2 top-2 flex gap-1.5">
+                      {g.status === "COMPLETED" && (
+                        <SaveButton href={`/api/generations/${g.id}/video?download=1`} label={t("history.download")} iconOnly />
+                      )}
+                      {done && !selecting && (
+                        <button
+                          type="button"
+                          onClick={() => setPending([g.id])}
+                          aria-label={`${t("history.delete")}: ${g.templateName}`}
+                          title={t("history.delete")}
+                          className="grid size-9 shrink-0 place-items-center rounded-full border border-danger/50 bg-black/60 text-red-300 backdrop-blur transition hover:bg-danger/40"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 7h16M10 11v6M14 11v6" />
+                            <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                          </svg>
+                        </button>
+                      )}
+                      </div>
+                    )}
                     {selecting && done && (
                       <label className="absolute right-2 top-2 flex size-9 cursor-pointer items-center justify-center rounded-full bg-black/60">
                         <input
@@ -125,30 +148,28 @@ export function HistoryGrid({ items }: { items: HistoryItem[] }) {
                       </label>
                     )}
                   </div>
-                  <div className="mt-2 px-1">
-                    <div className="truncate text-sm font-semibold">{g.templateName}</div>
-                    <div className="text-xs text-muted">
-                      {g.date} · {t("history.credits", { n: formatCredits(g.credits) })}
+                  {/* Name, date and credits, full width; the save and delete icons sit on the picture. */}
+                  <div className="mt-2 px-1 pb-1">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">{g.templateName}</div>
+                      <div className="truncate text-xs text-muted">
+                        {g.date} · {t("history.credits", { n: formatCredits(g.credits) })}
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-2 flex gap-2 px-1 pb-1">
-                    {g.status === "COMPLETED" ? (
-                      <SaveButton href={`/api/generations/${g.id}/video?download=1`} label={t("history.download")} compact className="flex-1" />
-                    ) : g.status === "FAILED" ? (
-                      <Link href={`/templates/${g.templateId}`} className="btn-glass btn-compact flex-1">
-                        {t("history.tryAgain")}
-                      </Link>
-                    ) : (
-                      <Link href={`/templates/${g.templateId}?g=${g.id}`} className="btn-glass btn-compact flex-1">
-                        {t("history.viewProgress")}
-                      </Link>
-                    )}
-                    {done && !selecting && (
-                      <button type="button" onClick={() => setPending([g.id])} className="btn-danger btn-compact" aria-label={`${t("history.delete")}: ${g.templateName}`}>
-                        {t("history.delete")}
-                      </button>
-                    )}
-                  </div>
+                  {g.status !== "COMPLETED" && (
+                    <div className="mt-1 flex px-1 pb-1">
+                      {g.status === "FAILED" ? (
+                        <Link href={`/templates/${g.templateId}`} className="btn-glass btn-compact flex-1">
+                          {t("history.tryAgain")}
+                        </Link>
+                      ) : (
+                        <Link href={`/templates/${g.templateId}?g=${g.id}`} className="btn-glass btn-compact flex-1">
+                          {t("history.viewProgress")}
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
               </Reveal>
             </li>

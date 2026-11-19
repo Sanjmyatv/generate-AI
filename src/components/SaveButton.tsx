@@ -45,6 +45,7 @@ export function SaveButton({
   prefetch = false,
   className = "",
   compact = false,
+  iconOnly = false,
 }: {
   /** The download URL (…?download=1). */
   href: string;
@@ -53,6 +54,8 @@ export function SaveButton({
   prefetch?: boolean;
   className?: string;
   compact?: boolean;
+  /** A round download-arrow button (History cards); the label becomes its accessible name. */
+  iconOnly?: boolean;
 }) {
   const t = useT();
   // Read once in the browser (false while rendering on the server).
@@ -98,6 +101,30 @@ export function SaveButton({
       else if (name === "NotAllowedError" && file.current) setState("again"); // the tap expired while fetching
       else window.location.href = href; // anything else: fall back to a plain download
     }
+  }
+
+  if (iconOnly) {
+    const name = share ? (state === "again" ? t("save.tapAgain") : t("save.photos")) : label;
+    const round = `grid size-9 shrink-0 place-items-center rounded-full bg-[linear-gradient(145deg,var(--brand-light),var(--brand))] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),0_4px_14px_rgba(47,91,255,0.45)] transition hover:brightness-110 disabled:opacity-60 ${className}`;
+    const arrow = (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 4v11M7 10.5l5 5 5-5" />
+        <path d="M5 20h14" />
+      </svg>
+    );
+    if (!share) {
+      return (
+        <a href={href} aria-label={label} title={label} className={round}>
+          {arrow}
+        </a>
+      );
+    }
+    const busyIcon = state === "loading";
+    return (
+      <button type="button" onClick={save} disabled={busyIcon} aria-label={name} title={name} className={round}>
+        {busyIcon ? <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" /> : arrow}
+      </button>
+    );
   }
 
   const size = compact ? "btn-compact" : "";

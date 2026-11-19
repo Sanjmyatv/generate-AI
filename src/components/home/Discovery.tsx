@@ -7,19 +7,53 @@ import { TemplateCard } from "@/components/TemplateCard";
 import { categoryName } from "@/lib/i18n/content";
 import type { Category, Template } from "@/types";
 
+/** Columns per screen size: 2 on phones, 3 on tablets, 4 on laptops, 5 on wide screens (see the grid below). */
+const COLUMNS = { base: 2, sm: 3, lg: 4, xl: 5 };
+const ROWS_COLLAPSED = 2;
+
 /**
- * Cards of different shapes (9:16, 16:9, …) in balanced columns, like a mood board, so nothing is cropped and no row
- * leaves gaps.
+ * Cards in rows, each keeping its template's own shape. With `collapsed`, only the first two rows show at every
+ * screen size (cards past that are hidden by CSS, so it is right before any script runs).
  */
-function TemplateGrid({ items, filter }: { items: Template[]; filter: string }) {
+function TemplateGrid({ items, filter, collapsed = false }: { items: Template[]; filter: string; collapsed?: boolean }) {
+  const limit = (cols: number) => cols * ROWS_COLLAPSED;
   return (
-    <div className="columns-2 gap-[clamp(10px,2.5vw,18px)] sm:columns-3 lg:columns-4">
-      {items.map((template, i) => (
-        // Keyed by filter too, so switching filters plays the reveal again.
-        <Reveal key={`${filter}-${template.id}`} delay={(i % 4) * 90} className="mb-[clamp(10px,2.5vw,18px)] break-inside-avoid">
-          <TemplateCard template={template} />
-        </Reveal>
-      ))}
+    <div className="grid grid-cols-2 items-start gap-[clamp(8px,1.6vw,16px)] sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {items.map((template, i) => {
+        const hide = collapsed
+          ? [
+              i >= limit(COLUMNS.base) ? "max-sm:hidden" : "",
+              i >= limit(COLUMNS.sm) ? "sm:max-lg:hidden" : "",
+              i >= limit(COLUMNS.lg) ? "lg:max-xl:hidden" : "",
+              i >= limit(COLUMNS.xl) ? "xl:hidden" : "",
+            ].join(" ")
+          : "";
+        return (
+          // Keyed by filter too, so switching filters plays the reveal again.
+          <Reveal key={`${filter}-${template.id}`} delay={(i % 5) * 80} className={hide}>
+            <TemplateCard template={template} />
+          </Reveal>
+        );
+      })}
+    </div>
+  );
+}
+
+/** "Бүгдийг харах": shown only at the screen sizes where some cards are hidden. */
+function SeeAllButton({ count, onClick }: { count: number; onClick: () => void }) {
+  const t = useT();
+  const limit = (cols: number) => cols * ROWS_COLLAPSED;
+  const visibility = [
+    count > limit(COLUMNS.base) ? "max-sm:flex" : "max-sm:hidden",
+    count > limit(COLUMNS.sm) ? "sm:max-lg:flex" : "sm:max-lg:hidden",
+    count > limit(COLUMNS.lg) ? "lg:max-xl:flex" : "lg:max-xl:hidden",
+    count > limit(COLUMNS.xl) ? "xl:flex" : "xl:hidden",
+  ].join(" ");
+  return (
+    <div className={`justify-center pt-2 ${visibility}`}>
+      <button type="button" onClick={onClick} className="btn-glass !px-7">
+        {t("disc.seeAll", { count })} <span aria-hidden="true">→</span>
+      </button>
     </div>
   );
 }
@@ -53,6 +87,8 @@ export function Discovery({
   const t = useT();
   const locale = useLocale();
   const [selected, setSelected] = useState("all");
+  // Videos show two rows until "Бүгдийг харах"; changing the filter folds them again.
+  const [expanded, setExpanded] = useState(false);
 
   const videos = templates.filter((x) => x.type === "video");
   const images = templates.filter((x) => x.type === "image");
@@ -92,7 +128,10 @@ export function Discovery({
                     key={tab.id}
                     type="button"
                     aria-pressed={on}
-                    onClick={() => setSelected(tab.id)}
+                    onClick={() => {
+                      setSelected(tab.id);
+                      setExpanded(false);
+                    }}
                     className={`flex-none whitespace-nowrap rounded-full px-[clamp(12px,3vw,18px)] py-2.5 text-[14px] font-medium transition-all duration-300 ease-[cubic-bezier(.2,.8,.2,1)] ${
                       on ? "chip-brand" : "text-foreground/62 hover:text-foreground"
                     }`}
@@ -107,7 +146,10 @@ export function Discovery({
         {shownVideos.length === 0 ? (
           <p className="py-16 text-center text-[14px] text-muted">{active === "all" ? t("disc.emptyVideo") : t("disc.empty")}</p>
         ) : (
-          <TemplateGrid items={shownVideos} filter={active} />
+          <>
+            <TemplateGrid items={shownVideos} filter={active} collapsed={!expanded} />
+            {!expanded && <SeeAllButton count={shownVideos.length} onClick={() => setExpanded(true)} />}
+          </>
         )}
       </section>
 

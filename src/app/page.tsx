@@ -19,7 +19,7 @@ export default async function Home() {
     withPreview[0];
 
   return (
-    <div className="mx-auto w-full max-w-[1140px]">
+    <div className="w-full">
       <Hero featured={featured} />
       <HowItWorks />
       {/* Videos and images, each in its own section (the nav links to #videos and #images). */}

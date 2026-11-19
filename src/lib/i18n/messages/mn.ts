@@ -41,6 +41,7 @@ export const mn: Messages = {
   "disc.imagesTitle": "Зургийн загварууд",
   "disc.imagesSub": "Нэг зургаар шинэ төрх, хөрөг бүтээгээрэй.",
   "disc.filterLabel": "Загвар шүүх",
+  "disc.seeAll": "Бүгдийг харах ({count})",
   "disc.all": "Бүгд",
   "disc.trendingChip": "Эрэлттэй",
   "disc.emptyVideo": "Видео загвар одоогоор алга. Удахгүй нэмэгдэнэ.",
