@@ -101,6 +101,21 @@ export async function setHeroTemplateAction(form: FormData) {
   redirect(on ? "/admin?notice=hero_set" : "/admin?notice=hero_cleared");
 }
 
+/**
+ * Makes a template the one shown in the home page's Trending section, or removes it. Only one at a time: choosing one
+ * clears the others. With none chosen the section shows the most-used template of the moment, if any.
+ */
+export async function setTrendingTemplateAction(form: FormData) {
+  await requireAdmin();
+  const id = String(form.get("templateId") ?? "");
+  const on = form.get("trending") === "true";
+  await prisma.$transaction([
+    prisma.template.updateMany({ where: { trendingFeatured: true }, data: { trendingFeatured: false } }),
+    ...(on ? [prisma.template.updateMany({ where: { id }, data: { trendingFeatured: true } })] : []),
+  ]);
+  redirect(on ? "/admin?notice=trending_set" : "/admin?notice=trending_cleared");
+}
+
 /** Shows or hides a template on the site without deleting it. */
 export async function setTemplateActiveAction(form: FormData) {
   await requireAdmin();

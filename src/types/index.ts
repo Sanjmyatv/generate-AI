@@ -41,6 +41,8 @@ export interface Template {
   trending: boolean;
   /** Chosen in /admin as the home page's hero template. */
   heroFeatured: boolean;
+  /** Chosen in /admin for the home page's Trending section. */
+  trendingFeatured: boolean;
   /** Image templates: "auto" follows the photo, "fixed" always uses ratioFixed; null for videos. */
   ratioMode: "auto" | "fixed" | null;
   /** The ratios the image model supports, for an Auto template (used to snap the photo's shape and as the user's choices). */

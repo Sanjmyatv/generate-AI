@@ -21,15 +21,15 @@ export interface NavUser {
 // Figma: zyro.ai / Navigation. The profile lives in the user menu, not in this row.
 const links = [
   { href: "/", label: "nav.explore" },
-  { href: "/#videos", label: "nav.videos" },
-  { href: "/#images", label: "nav.images" },
+  { href: "/templates?type=video", label: "nav.videos" },
+  { href: "/templates?type=image", label: "nav.images" },
   { href: "/pricing", label: "nav.pricing" },
   { href: "/history", label: "nav.history" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
-  if (href.startsWith("/?")) return false;
+  if (href.includes("?")) return false; // the template list's Video / Image links: the page shows its own tabs
   return pathname.startsWith(href);
 }
 
