@@ -11,16 +11,16 @@ import type { Template } from "@/types";
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
 
 /** The template's own shape ("9:16", "16:9", …) as CSS; "auto" and anything unreadable fall back to 3:4. */
-function shapeOf(ratio: string) {
+export function shapeOf(ratio: string) {
   const [w, h] = ratio.split(":").map(Number);
-  return w > 0 && h > 0 ? { css: `${w} / ${h}`, wide: w > h } : { css: "3 / 4", wide: false };
+  return w > 0 && h > 0 ? { css: `${w} / ${h}`, wide: w > h, w, h } : { css: "3 / 4", wide: false, w: 3, h: 4 };
 }
 
 /**
  * Design: zyro Home → template tile. A tall glass frame that leans toward the pointer; the kind sits top-left, and a
  * glass panel at the bottom carries the name, length or photo count, and the price. A video preview plays on hover.
  */
-export function TemplateCard({ template }: { template: Template }) {
+export function TemplateCard({ template, className = "" }: { template: Template; className?: string }) {
   const t = useT();
   const name = templateName(template, useLocale());
   const [hover, setHover] = useState(false);
@@ -46,7 +46,7 @@ export function TemplateCard({ template }: { template: Template }) {
       onBlur={() => setHover(false)}
       data-tilt="12"
       style={{ aspectRatio: shape.css }}
-      className="glass-frame group block rounded-[26px] border-white/10 bg-white/6 p-[5px] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_20px_40px_rgba(0,0,0,0.35)] hover:border-brand-light/55 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_26px_60px_rgba(47,91,255,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      className={`glass-frame group @container block rounded-[26px] border-white/10 bg-white/6 p-[5px] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_20px_40px_rgba(0,0,0,0.35)] hover:border-brand-light/55 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_26px_60px_rgba(47,91,255,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${className}`}
     >
       <div className="relative size-full overflow-hidden rounded-[21px] bg-brand/20">
         {src ? (
@@ -82,7 +82,8 @@ export function TemplateCard({ template }: { template: Template }) {
         <span className={`text-[14px] font-semibold leading-[1.25] ${shape.wide ? "truncate" : "line-clamp-2"}`}>{name}</span>
         <div className={`items-center justify-between gap-2 text-[12px] ${shape.wide ? "hidden shrink-0 sm:flex" : "flex"}`}>
           {!shape.wide && (
-            <span className="truncate text-foreground/65">
+            // Only on a card wide enough to read it (narrow phone cards keep just the price).
+            <span className="hidden truncate text-foreground/65 @[190px]:inline">
               {kind} · {detail}
             </span>
           )}

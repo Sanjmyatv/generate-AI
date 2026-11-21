@@ -136,6 +136,8 @@ model Template {
   excludeFromTrending Boolean         @default(false)
   /// The template shown in the home page's big hero card. At most one is true (set in /admin).
   heroFeatured       Boolean          @default(false)
+  /// The template shown in the home page's Trending section (one big card with "Try it"). At most one is true (set in /admin).
+  trendingFeatured   Boolean          @default(false)
   type               OutputType
   /// Credits for one generation. For video this is the 480p (default) price.
   creditCost         Decimal          @db.Decimal(10, 2)
