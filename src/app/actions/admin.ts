@@ -102,17 +102,14 @@ export async function setHeroTemplateAction(form: FormData) {
 }
 
 /**
- * Makes a template the one shown in the home page's Trending section, or removes it. Only one at a time: choosing one
- * clears the others. With none chosen the section shows the most-used template of the moment, if any.
+ * Adds a template to the home page's Trending section, or takes it out. Any number can be in it; they show in the
+ * order they were added. With fewer than three chosen, the most-used templates of the moment fill the section up.
  */
 export async function setTrendingTemplateAction(form: FormData) {
   await requireAdmin();
   const id = String(form.get("templateId") ?? "");
   const on = form.get("trending") === "true";
-  await prisma.$transaction([
-    prisma.template.updateMany({ where: { trendingFeatured: true }, data: { trendingFeatured: false } }),
-    ...(on ? [prisma.template.updateMany({ where: { id }, data: { trendingFeatured: true } })] : []),
-  ]);
+  await prisma.template.updateMany({ where: { id }, data: { trendingFeaturedAt: on ? new Date() : null } });
   redirect(on ? "/admin?notice=trending_set" : "/admin?notice=trending_cleared");
 }
 

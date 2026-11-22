@@ -422,6 +422,46 @@ body {
   }
 }
 
+/* Trending section: the template changes with a soft fade; the bar under the active thumbnail fills until the next. */
+@keyframes spot-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.spot-fade {
+  animation: spot-fade 0.5s ease-out;
+}
+@keyframes spot-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.spot-progress {
+  transform-origin: left;
+  animation: spot-progress var(--spot-ms, 7000ms) linear forwards;
+}
+.spot-paused .spot-progress {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spot-fade {
+    animation: none;
+  }
+  /* No automatic turning: the bar stays empty and the visitor picks a thumbnail. */
+  .spot-progress {
+    animation: none;
+    transform: scaleX(0);
+  }
+}
+
 /* Generation progress: a frame whose edge glows and slowly pulses in the brand colour. */
 .glow-box {
   position: relative;

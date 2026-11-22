@@ -20,16 +20,21 @@ export default async function Home() {
     withPreview.find((t) => t.type === "video") ??
     withPreview[0];
 
-  // The Trending section: the template chosen in /admin ("Set as Trending"), else the most-used one right now that has
-  // a preview. With neither, the section is left out.
-  const spotlight =
-    templates.find((t) => t.trendingFeatured) ?? trendingIds.map((id) => withPreview.find((t) => t.id === id)).find(Boolean);
+  // The Trending section: the templates added in /admin ("Add to Trending"), in the order they were added. With fewer
+  // than three, the most-used templates with a preview fill it up to three. With none at all, it is left out.
+  const chosen = templates
+    .filter((t) => t.trendingFeaturedAt)
+    .sort((a, b) => a.trendingFeaturedAt!.localeCompare(b.trendingFeaturedAt!));
+  const fill = trendingIds
+    .map((id) => withPreview.find((t) => t.id === id))
+    .filter((t): t is (typeof templates)[number] => Boolean(t) && !chosen.includes(t!));
+  const spotlight = [...chosen, ...fill.slice(0, Math.max(0, 3 - chosen.length))];
 
   return (
     <div className="w-full">
       <Hero featured={featured} />
       <HowItWorks />
-      {spotlight && <TrendingSpotlight template={spotlight} label={trending?.label ?? t("disc.trendingChip")} />}
+      {spotlight.length > 0 && <TrendingSpotlight templates={spotlight} label={trending?.label ?? t("disc.trendingChip")} />}
       {/* Videos and images, each one sliding row; "Бүгдийг харах" opens /templates. */}
       <Discovery templates={templates} />
       <PricingTeaser />
