@@ -324,7 +324,7 @@ export const mn: Messages = {
   "gen.cost_one": "Үнэ: {amount} кредит",
   "gen.cost_other": "Үнэ: {amount} кредит",
   "gen.youHave": "Танд {amount} байна",
-  "gen.addPhotos": "{count} зураг нэмнэ үү, хүн тус бүрд нэг. ",
+  "gen.addPhotos": "Солих хүн бүрд зураг нэмнэ үү (дор хаяж нэг). Хоосон үлдсэн хүн эх хувилбар дээрх шигээ үлдэнэ. ",
   "gen.hintFull": "Бүтэн биеийн зураг ашиглана уу.",
   "gen.hintFace": "Царай тод харагдаж байгаа зураг ашиглана уу.",
   "gen.generateVideo": "Видео үүсгэх ({amount} кредит)",

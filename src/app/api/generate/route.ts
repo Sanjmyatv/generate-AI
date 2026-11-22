@@ -4,6 +4,7 @@ import { getActor, getBaseUrl } from "@/lib/actor";
 import { DEFAULT_RESOLUTION, type Resolution } from "@/config/pricing";
 import { chooseRatio, ratioSettings, snapRatio } from "@/lib/ratio";
 import { failGeneration, refreshGeneration } from "@/lib/generations";
+import { promptForSlots, validSlots } from "@/lib/partial-photos";
 import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
 import {
   parseGenjutsuConfig,
@@ -32,7 +33,10 @@ function guestLimit() {
 }
 
 /**
- * POST /api/generate  { templateId, uploadIds: string[], resolution?: "480p" | "720p" | "1k" | "2k" | "4k", ratio?: "auto" | "3:4" | ... }
+ * POST /api/generate  { templateId, uploadIds: string[], slots?: number[], resolution?: "480p" | "720p" | "1k" | "2k" | "4k", ratio?: "auto" | "3:4" | ... }
+ *
+ * `slots` says which of the template's people each photo is for (0-based, ascending). The user may fill in only some
+ * of them; the others stay as in the original video. Without `slots` every person must have a photo.
  *
  * The client only chooses a template, its own photos and (for video) 480p or 720p. The
  * template video, the hidden prompt and the price come from the database, so callers cannot
@@ -42,7 +46,7 @@ function guestLimit() {
 export async function POST(req: Request) {
   const actor = await getActor({ createGuest: true });
 
-  let body: { templateId?: unknown; uploadIds?: unknown; resolution?: unknown; ratio?: unknown };
+  let body: { templateId?: unknown; uploadIds?: unknown; slots?: unknown; resolution?: unknown; ratio?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -65,9 +69,13 @@ export async function POST(req: Request) {
   const imageEdit =
     template && !config && !genjutsu ? parseMarketingImageConfig(template.generationConfig) : null;
   if (!template || (!config && !genjutsu && !imageEdit)) return Response.json({ error: "template_unavailable" }, { status: 400 });
-  if (uploadIds.length !== template.requiredPhotoCount) {
-    return Response.json({ error: "invalid_photo_count" }, { status: 400 });
-  }
+  const slots = validSlots(body.slots, uploadIds.length, template.requiredPhotoCount);
+  if (!slots) return Response.json({ error: "invalid_photo_count" }, { status: 400 });
+  // People without a photo are left out of the prompt's replacements and kept as they are.
+  const withSlots = <P extends string | undefined>(prompt: P) =>
+    (prompt || slots.length < template.requiredPhotoCount
+      ? promptForSlots(prompt ?? "", template.requiredPhotoCount, slots, template.photoLabels).trim()
+      : prompt) as P extends string ? string : string | undefined;
 
   // Videos are priced per resolution: 480p by default, 720p only when the template has an HD price.
   let resolution: string;
@@ -118,7 +126,9 @@ export async function POST(req: Request) {
   if (imageEdit) {
     const allowed = supportedImageRatios();
     const settings = ratioSettings(template.generationConfig);
-    const source = uploads.find((u) => u.id === uploadIds[Math.min(settings.sourcePhoto, uploadIds.length - 1)]);
+    // The photo for the template's source person, or the first one given when that person was skipped.
+    const sourceIndex = Math.max(slots.indexOf(Math.min(settings.sourcePhoto, template.requiredPhotoCount - 1)), 0);
+    const source = uploads.find((u) => u.id === uploadIds[sourceIndex]);
     const detected = source?.width && source.height ? snapRatio(source.width, source.height, allowed) : null;
     const choice = chooseRatio(settings, body.ratio, detected, allowed);
     if (!choice.ok) return Response.json({ error: choice.error }, { status: 400 });
@@ -208,7 +218,7 @@ export async function POST(req: Request) {
     const taskId = imageEdit
       ? await submitImageEdit({
           imageUrls,
-          prompt: imageEdit.prompt,
+          prompt: withSlots(imageEdit.prompt),
           quality: imageEdit.quality,
           resolution: imageRenderSize ?? imageEdit.resolution,
           aspectRatio: imageRatio,
@@ -217,7 +227,7 @@ export async function POST(req: Request) {
       ? await submitMotionTransfer({
           templateVideoUrl: genjutsu.templateVideoUrl,
           imageUrls,
-          prompt: genjutsu.prompt,
+          prompt: withSlots(genjutsu.prompt),
           resolution: videoResolution,
           light: genjutsu.light,
         })
@@ -225,7 +235,7 @@ export async function POST(req: Request) {
           // Undefined in reference mode: the video is generated from the photo(s) + prompt alone.
           templateVideoUrl: config!.mode === "reference" ? undefined : config!.templateVideoUrl,
           imageUrls,
-          prompt: config!.prompt,
+          prompt: withSlots(config!.prompt),
           resolution: videoResolution,
           duration: config!.duration,
           ratio: config!.ratio,
@@ -236,7 +246,7 @@ export async function POST(req: Request) {
       data: { providerTaskId: taskId, status: "PROCESSING" },
     });
     console.log(
-      `[generate] ${generation.id} submitted in ${Date.now() - submitStart}ms (template ${template.id}, ${resolution}, ${uploadIds.length} photo(s))`,
+      `[generate] ${generation.id} submitted in ${Date.now() - submitStart}ms (template ${template.id}, ${resolution}, ${uploadIds.length}/${template.requiredPhotoCount} photo(s))`,
     );
   } catch (e) {
     console.error("[generate] submit failed", e);

@@ -13,7 +13,7 @@
     "reprice": "tsx scripts/reprice-templates.ts",
     "compress-previews": "tsx scripts/compress-previews.ts",
     "grant-credits": "tsx scripts/grant-credits.ts",
-    "test": "node --import tsx --test src/lib/pricing.test.ts src/lib/ratio.test.ts"
+    "test": "node --import tsx --test src/lib/pricing.test.ts src/lib/ratio.test.ts src/lib/partial-photos.test.ts"
   },
   "dependencies": {
     "@higgsfield/client": "^0.2.6",
