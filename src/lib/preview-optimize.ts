@@ -1,36 +1,11 @@
-import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import ffmpegPath from "ffmpeg-static";
+import { runFfmpeg } from "@/lib/ffmpeg";
 
 /** The one size every video preview is made: a phone downloads about half a megabyte, never a camera original. */
 export const PREVIEW_MAX_WIDTH = 360;
 export const PREVIEW_MAX_SECONDS = 8;
-const FFMPEG_TIMEOUT_MS = 120_000;
-
-function run(args: string[]) {
-  return new Promise<void>((resolve, reject) => {
-    if (!ffmpegPath) return reject(new Error("ffmpeg is not available on this server"));
-    const child = spawn(ffmpegPath, ["-hide_banner", "-loglevel", "error", "-y", ...args], { stdio: ["ignore", "ignore", "pipe"] });
-    let stderr = "";
-    child.stderr.on("data", (d) => (stderr += String(d).slice(0, 2000)));
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error("ffmpeg took too long"));
-    }, FFMPEG_TIMEOUT_MS);
-    child.on("error", (e) => {
-      clearTimeout(timer);
-      reject(e);
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg failed (${code}): ${stderr.trim().slice(0, 300)}`));
-    });
-  });
-}
-
 export interface OptimizedPreview {
   /** H.264 MP4, at most 360 px wide, 24 fps, no sound, at most 8 s, ready to stream (faststart). */
   video: Buffer;
@@ -51,7 +26,7 @@ export async function optimizePreview(input: Uint8Array): Promise<OptimizedPrevi
     const video = join(dir, "out.mp4");
     const poster = join(dir, "poster.jpg");
     await writeFile(source, input);
-    await run([
+    await runFfmpeg([
       "-i", source,
       "-t", String(PREVIEW_MAX_SECONDS),
       "-an",
@@ -65,7 +40,7 @@ export async function optimizePreview(input: Uint8Array): Promise<OptimizedPrevi
       "-movflags", "+faststart",
       video,
     ]);
-    await run(["-i", video, "-ss", "0.5", "-frames:v", "1", "-q:v", "6", poster]);
+    await runFfmpeg(["-i", video, "-ss", "0.5", "-frames:v", "1", "-q:v", "6", poster]);
     return { video: await readFile(video), poster: await readFile(poster) };
   } finally {
     await rm(dir, { recursive: true, force: true });

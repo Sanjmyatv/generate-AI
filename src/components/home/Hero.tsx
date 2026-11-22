@@ -13,7 +13,7 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
 /** A tilted glass frame around an example picture, drifting with scroll (data-speed) and leaning with the pointer. */
 function SideCard({ src, speed, className, rotate }: { src: string; speed: number; className: string; rotate: string }) {
   return (
-    <div data-speed={speed} className={`absolute h-[70%] w-[44%] ${className}`}>
+    <div data-speed={speed} className={`absolute h-[64%] w-[38%] ${className}`}>
       <div data-tilt="10" className={`glass-frame size-full rounded-[30px] p-1.5 ${rotate}`}>
         <div className="relative size-full overflow-hidden rounded-3xl">
           <Image src={src} alt="" fill sizes="(max-width: 768px) 40vw, 240px" priority className="object-cover" />
@@ -24,7 +24,10 @@ function SideCard({ src, speed, className, rotate }: { src: string; speed: numbe
   );
 }
 
-/** Design: zyro Home → hero. Copy on the left, three floating glass cards on the right; the middle one is a real template. */
+/**
+ * Design: zyro Home → hero. Copy on the left, three floating glass cards on the right; the middle one is a real template.
+ * The side cards fan out to the edges so about three quarters of each stays in view beside the middle card.
+ */
 export async function Hero({ featured }: { featured?: Template }) {
   const { t, locale } = await getT();
   const name = featured ? templateName(featured, locale) : "";
@@ -36,7 +39,7 @@ export async function Hero({ featured }: { featured?: Template }) {
     : "";
 
   const mainCard = (
-    <div data-tilt="8" className="glass-frame relative size-full rounded-[36px] border-white/22 bg-white/10 p-[7px] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_40px_90px_rgba(0,0,0,0.6),0_0_80px_rgba(47,91,255,0.3)] backdrop-blur-[30px]">
+    <div data-tilt="8" className="@container glass-frame relative size-full rounded-[36px] border-white/22 bg-white/10 p-[7px] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_40px_90px_rgba(0,0,0,0.6),0_0_80px_rgba(47,91,255,0.3)] backdrop-blur-[30px]">
       <div className="relative size-full overflow-hidden rounded-[29px]">
         {src && VIDEO_EXT.test(src) ? (
           <LazyVideo src={src} poster={featured?.posterUrl} label={name} playing fill />
@@ -47,12 +50,12 @@ export async function Hero({ featured }: { featured?: Template }) {
       </div>
       <div className="tilt-glow" />
       {featured && (
-        <div className="glass-chip pointer-events-none absolute inset-x-[18px] bottom-[18px] flex items-center justify-between gap-2.5 rounded-[22px] py-2.5 pl-4 pr-2.5">
+        <div className="glass-chip pointer-events-none absolute inset-x-2.5 bottom-2.5 flex items-center justify-between gap-2.5 rounded-[18px] px-3 py-2 @[240px]:inset-x-[18px] @[240px]:bottom-[18px] @[240px]:rounded-[22px] @[240px]:py-2.5 @[240px]:pl-4 @[240px]:pr-2.5">
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="truncate text-[14px] font-semibold">{name}</span>
-            <span className="text-[12px] text-foreground/65">{meta}</span>
+            <span className="truncate text-[12px] text-foreground/65">{meta}</span>
           </div>
-          <span className="grid size-[38px] flex-none place-items-center rounded-full bg-[linear-gradient(145deg,var(--brand-light),var(--brand))] text-[12px] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.5),0_0_20px_rgba(47,91,255,0.8)]">
+          <span className="hidden size-[38px] flex-none @[200px]:grid place-items-center rounded-full bg-[linear-gradient(145deg,var(--brand-light),var(--brand))] text-[12px] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.5),0_0_20px_rgba(47,91,255,0.8)]">
             ▶
           </span>
         </div>
@@ -89,9 +92,9 @@ export async function Hero({ featured }: { featured?: Template }) {
       </div>
 
       <Reveal delay={200} className="relative h-[clamp(440px,118vw,580px)]">
-        <SideCard src="/brand/hero-left.jpg" speed={0.14} className="left-[3%] top-[12%]" rotate="-rotate-[7deg]" />
-        <SideCard src="/brand/hero-right.jpg" speed={0.24} className="right-[3%] top-[17%]" rotate="rotate-[7deg]" />
-        <div data-speed="0.06" className="absolute left-[24%] top-[3%] h-[88%] w-[52%]">
+        <SideCard src="/brand/hero-left.jpg" speed={0.14} className="left-0 top-[14%]" rotate="-rotate-[8deg]" />
+        <SideCard src="/brand/hero-right.jpg" speed={0.24} className="right-0 top-[22%]" rotate="rotate-[8deg]" />
+        <div data-speed="0.06" className="absolute left-[28%] top-[3%] h-[88%] w-[44%]">
           {featured ? (
             <Link href={`/templates/${featured.id}`} aria-label={name} className="block size-full rounded-[36px]">
               {mainCard}
