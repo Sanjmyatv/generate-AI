@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useT } from "@/components/I18nProvider";
+import { useWatermark, withWatermark } from "@/components/WatermarkToggle";
 
 /** The name the server gave the file (Content-Disposition), so a saved file keeps "zyro-<title>-<date>". */
 function fileNameFrom(res: Response, fallback: string) {
@@ -38,6 +39,8 @@ function canShareFiles() {
  * Browsers only allow the share sheet right after a tap, and the file has to be fetched first. With `prefetch` the
  * file is fetched as soon as the button shows (the result screen), so one tap saves it. Without it (a long History
  * list) the first tap fetches; if the browser then refuses to open the sheet, the button asks for a second tap.
+ *
+ * The "Made with ZYRO" badge is added when the watermark switch (WatermarkToggle) is on.
  */
 export function SaveButton({
   href,
@@ -58,6 +61,8 @@ export function SaveButton({
   iconOnly?: boolean;
 }) {
   const t = useT();
+  const [watermark] = useWatermark();
+  const url = withWatermark(href, watermark);
   // Read once in the browser (false while rendering on the server).
   const share = useSyncExternalStore(
     noSubscribe,
@@ -66,16 +71,20 @@ export function SaveButton({
   );
   // "idle" with prefetch on means the file is still being fetched in the background.
   const [state, setState] = useState<"idle" | "loading" | "ready" | "again" | "failed">("idle");
-  const file = useRef<File | null>(null);
+  // The fetched file, with the URL it came from (flipping the watermark switch needs a different file).
+  const fetched = useRef<{ url: string; file: File } | null>(null);
+  const ready = () => (fetched.current?.url === url ? fetched.current.file : null);
 
   async function load() {
-    if (file.current) return file.current;
-    const res = await fetch(href);
+    const have = ready();
+    if (have) return have;
+    const res = await fetch(url);
     if (!res.ok) throw new Error("download_failed");
     const blob = await res.blob();
     const type = blob.type || res.headers.get("content-type") || "video/mp4";
-    file.current = new File([blob], fileNameFrom(res, "zyro.mp4"), { type });
-    return file.current;
+    const f = new File([blob], fileNameFrom(res, "zyro.mp4"), { type });
+    fetched.current = { url, file: f };
+    return f;
   }
 
   useEffect(() => {
@@ -88,18 +97,18 @@ export function SaveButton({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [share, prefetch, href]);
+  }, [share, prefetch, url]);
 
   async function save() {
     try {
-      const f = file.current ?? (setState("loading"), await load());
+      const f = ready() ?? (setState("loading"), await load());
       await navigator.share({ files: [f] });
       setState("ready");
     } catch (e) {
       const name = (e as { name?: string }).name;
       if (name === "AbortError") setState("ready"); // the user closed the sheet
-      else if (name === "NotAllowedError" && file.current) setState("again"); // the tap expired while fetching
-      else window.location.href = href; // anything else: fall back to a plain download
+      else if (name === "NotAllowedError" && ready()) setState("again"); // the tap expired while fetching
+      else window.location.href = url; // anything else: fall back to a plain download
     }
   }
 
@@ -114,7 +123,7 @@ export function SaveButton({
     );
     if (!share) {
       return (
-        <a href={href} aria-label={label} title={label} className={round}>
+        <a href={url} aria-label={label} title={label} className={round}>
           {arrow}
         </a>
       );
@@ -131,7 +140,7 @@ export function SaveButton({
   const busy = state === "loading" || (prefetch && state === "idle");
   if (!share) {
     return (
-      <a href={href} className={`btn-primary ${size} ${className}`}>
+      <a href={url} className={`btn-primary ${size} ${className}`}>
         {label}
       </a>
     );
@@ -142,7 +151,7 @@ export function SaveButton({
         {busy ? t("save.preparing") : state === "again" ? t("save.tapAgain") : t("save.photos")}
       </button>
       {!compact && (
-        <a href={href} className="text-center text-xs text-foreground/60 underline underline-offset-2">
+        <a href={url} className="text-center text-xs text-foreground/60 underline underline-offset-2">
           {t("save.toFiles")}
         </a>
       )}

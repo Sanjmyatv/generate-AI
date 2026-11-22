@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { SaveButton } from "@/components/SaveButton";
+import { WatermarkToggle } from "@/components/WatermarkToggle";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLocale, useT } from "@/components/I18nProvider";
@@ -71,7 +72,9 @@ export function HistoryGrid({ items }: { items: HistoryItem[] }) {
 
   return (
     <>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex items-center justify-end gap-4">
+        {/* Applies to every download button below. */}
+        <WatermarkToggle />
         <button
           type="button"
           aria-pressed={selecting}
