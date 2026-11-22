@@ -10,8 +10,8 @@ export const maxDuration = 120;
 /**
  * POST /api/admin/optimize-preview  { templateId }
  *
- * Admin only. Shrinks a template's uploaded video preview to the standard small size (360 px wide, 24 fps, no sound,
- * at most 8 s, about half a megabyte) and gives it a thumbnail, then points the template at the new files and removes the
+ * Admin only. Shrinks a template's uploaded video preview to the standard small size (longer side 1080 px, 30 fps,
+ * no sound, at most 8 s, about a megabyte) and gives it a thumbnail, then points the template at the new files and removes the
  * old ones. Previews that are not uploads (files shipped with the site) are left alone.
  */
 export async function POST(req: Request) {
