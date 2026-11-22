@@ -12,8 +12,8 @@ import { ENGINES, templateToFormValues } from "@/lib/template-admin";
 
 export const dynamic = "force-dynamic";
 
-/** A video preview over this is heavy (a standard shrunk preview is about half a megabyte). */
-const HEAVY_BYTES = 1.5 * 1024 * 1024;
+/** A video preview over this is heavy (a standard shrunk preview is about a megabyte). */
+const HEAVY_BYTES = 3 * 1024 * 1024;
 
 const NOTICES: Record<string, string> = {
   saved: "Template saved.",

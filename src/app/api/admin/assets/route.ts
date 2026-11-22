@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "too_large", maxMb: MAX_PREVIEW_BYTES / 1024 / 1024 }, { status: 413 });
   }
 
-  // Every video preview is made the same small size (360 px wide, 24 fps, no sound, at most 8 s, about half a megabyte)
+  // Every video preview is made the same small size (longer side 1080 px, 30 fps, no sound, at most 8 s, about a megabyte)
   // and gets a thumbnail, so no card or phone ever downloads a camera original.
   if (purpose === "preview" && media.kind === "video") {
     try {

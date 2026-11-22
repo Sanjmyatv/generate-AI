@@ -198,7 +198,7 @@ export function GenerateFlow({
   const locale = useLocale();
   const name = templateName(template, locale);
   const [step, setStep] = useState<Step>(resumeId ? "processing" : "upload");
-  // One entry per required photo; null until the user picks that photo.
+  // One entry per person in the template; null until the user picks that photo (a person may be left empty).
   const [photos, setPhotos] = useState<(File | null)[]>(() =>
     Array.from({ length: template.requiredPhotoCount }, () => null),
   );
@@ -248,10 +248,11 @@ export function GenerateFlow({
       ? t("gen.generateVideoSeconds", { seconds, amount: formatCredits(cost) })
       : t("gen.generateVideo", { amount: formatCredits(cost) })
     : t("gen.generateImage", { amount: formatCredits(cost) });
-  const allPhotosSelected = photos.every((p): p is File => p !== null);
+  // At least one photo; people left empty stay as they are in the original.
+  const anyPhotoSelected = photos.some((p) => p !== null);
 
   // The browser reads the photo's shape only to preview what Auto will pick; the server decides the final ratio.
-  const ratioFile = photos[Math.min(template.ratioSource, photos.length - 1)] ?? null;
+  const ratioFile = photos[Math.min(template.ratioSource, photos.length - 1)] ?? photos.find((p) => p !== null) ?? null;
   const detectsRatio = template.ratioMode === "auto";
   useEffect(() => {
     if (!detectsRatio || !ratioFile) return;
@@ -295,14 +296,16 @@ export function GenerateFlow({
     setElapsed(0);
     setStep("processing");
     try {
-      // Promise.all keeps the order, which the AI uses to map Image 1..N to the dancers.
+      // Promise.all keeps the order, which the AI uses to map Image 1..N to the dancers; `slots` says which person
+      // each photo is for, so the server can keep the people left empty unchanged.
       const forPhoto = template.type === "image";
-      const uploadIds = await Promise.all(
-        photos.filter((p): p is File => p !== null).map((p) => uploadPhoto(p, forPhoto)),
-      );
+      const filled = photos.flatMap((p, slot) => (p ? [{ p, slot }] : []));
+      const uploadIds = await Promise.all(filled.map(({ p }) => uploadPhoto(p, forPhoto)));
+      const slots = filled.map(({ slot }) => slot);
       const { id } = await postJson<{ id: string }>("/api/generate", {
         templateId: template.id,
         uploadIds,
+        slots,
         ...(isVideo ? { resolution: activeResolution } : imageTiers ? { resolution: activeTier } : {}),
         ...(!isVideo && template.ratioMode === "auto" && template.userRatio && ratio !== "auto" ? { ratio } : {}),
       });
@@ -479,7 +482,7 @@ export function GenerateFlow({
             ))}
           </div>
           <p className="text-xs text-foreground/60">
-            {needed > 1 ? t("gen.addPhotos", { count: needed }) : ""}
+            {needed > 1 ? t("gen.addPhotos") : ""}
             {hint}
           </p>
           {hdPrice !== null && (
@@ -518,7 +521,7 @@ export function GenerateFlow({
             />
           )}
           <button
-            disabled={!allPhotosSelected}
+            disabled={!anyPhotoSelected}
             onClick={generate}
             className="w-full btn-primary disabled:opacity-40"
           >

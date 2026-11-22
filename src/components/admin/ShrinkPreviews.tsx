@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
- * Shrinks the heavy video previews one after another (360 px wide, no sound, about half a megabyte each, with a
+ * Shrinks the heavy video previews one after another (longer side 1080 px, no sound, about a megabyte each, with a
  * thumbnail). Each one is saved as soon as it is done, so it is safe to stop part-way and run it again.
  */
 export function ShrinkPreviews({ templates }: { templates: { id: string; name: string }[] }) {
@@ -47,8 +47,8 @@ export function ShrinkPreviews({ templates }: { templates: { id: string; name: s
         {templates.length} preview{templates.length === 1 ? " is" : "s are"} heavy or have no thumbnail
       </p>
       <p className="mt-1 text-xs text-foreground/60">
-        Visitors download these on their phones. Shrinking makes every preview the same small size (360 px wide, no sound, about
-        half a megabyte) and makes a thumbnail. It takes a few seconds per video.
+        Visitors download these on their phones. Shrinking makes every preview the same small size (longer side 1080 px, no sound,
+        about a megabyte) and makes a thumbnail. It takes a few seconds per video.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <button type="button" disabled={state.busy} onClick={() => void run()} className="btn-primary btn-compact disabled:opacity-50">

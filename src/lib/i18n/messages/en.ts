@@ -326,7 +326,7 @@ export const en = {
   "gen.cost_one": "Cost: {amount} credit",
   "gen.cost_other": "Cost: {amount} credits",
   "gen.youHave": "You have {amount}",
-  "gen.addPhotos": "Add {count} photos, one per person. ",
+  "gen.addPhotos": "Add a photo for each person you want to swap in (at least one). Anyone left empty stays as in the original. ",
   "gen.hintFull": "Use a full-body photo.",
   "gen.hintFace": "Use a clear photo with your face visible.",
   "gen.generateVideo": "Generate Video ({amount} Credits)",

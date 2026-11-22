@@ -134,7 +134,7 @@ export function TemplateForm({
     }
   }
 
-  /** Shrinks the saved preview on the server (360 px wide, no sound, about half a megabyte) and makes its thumbnail. */
+  /** Shrinks the saved preview on the server (longer side 1080 px, no sound, about a megabyte) and makes its thumbnail. */
   async function shrinkSaved() {
     if (!templateId) return;
     setPreviewUpload({ busy: true, error: null });
