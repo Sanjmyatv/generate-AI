@@ -34,7 +34,7 @@ function toTemplate(t: DbTemplateWithCategories, trending: Set<string>): Templat
     active: t.active,
     trending: trending.has(t.id),
     heroFeatured: t.heroFeatured,
-    trendingFeatured: t.trendingFeatured,
+    trendingFeaturedAt: t.trendingFeaturedAt?.toISOString() ?? null,
     createdAt: t.createdAt.toISOString(),
     ...imageRatioOptions(t),
   };

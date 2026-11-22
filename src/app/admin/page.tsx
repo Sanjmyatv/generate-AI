@@ -19,8 +19,8 @@ const NOTICES: Record<string, string> = {
   saved: "Template saved.",
   hero_set: "Hero template set: the home page's big card now shows it.",
   hero_cleared: "Hero template removed: the home page picks one automatically again.",
-  trending_set: "Trending template set: the home page's Trending section now shows it.",
-  trending_cleared: "Trending template removed: the Trending section shows the most-used template again.",
+  trending_set: "Added to the home page's Trending section.",
+  trending_cleared: "Removed from the home page's Trending section.",
   deleted: "Template deleted.",
   has_generations: "This template has been used to generate content, so it can't be deleted. Hide it instead.",
   pricing_saved: "Pricing settings saved. No template with automatic credits changed.",
@@ -107,7 +107,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                       ★ Hero{t.active ? "" : " (hidden, so not shown)"}
                     </span>
                   )}
-                  {t.trendingFeatured && (
+                  {t.trendingFeaturedAt && (
                     <span className="rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold text-white">
                       🔥 Trending{t.active ? "" : " (hidden, so not shown)"}
                     </span>
@@ -163,18 +163,18 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                   </form>
                   <form action={setTrendingTemplateAction}>
                     <input type="hidden" name="templateId" value={t.id} />
-                    <input type="hidden" name="trending" value={String(!t.trendingFeatured)} />
+                    <input type="hidden" name="trending" value={String(!t.trendingFeaturedAt)} />
                     <button
                       className={`rounded-full px-3 py-1 ${
-                        t.trendingFeatured ? "border border-orange-400/60 bg-orange-500/20" : "border border-foreground/30"
+                        t.trendingFeaturedAt ? "border border-orange-400/60 bg-orange-500/20" : "border border-foreground/30"
                       }`}
                       title={
-                        t.trendingFeatured
+                        t.trendingFeaturedAt
                           ? "Stop showing this template in the home page's Trending section"
                           : "Show this template in the home page's Trending section"
                       }
                     >
-                      {t.trendingFeatured ? "🔥 Remove from Trending" : "🔥 Set as Trending"}
+                      {t.trendingFeaturedAt ? "🔥 Remove from Trending" : "🔥 Add to Trending"}
                     </button>
                   </form>
                   <form action={setTemplateActiveAction}>
