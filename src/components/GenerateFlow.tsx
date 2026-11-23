@@ -17,7 +17,7 @@ import { prepareImage } from "@/lib/image-client";
 import { snapRatio } from "@/lib/ratio";
 import { templateDescription, templateName } from "@/lib/i18n/content";
 import type { T } from "@/lib/i18n/translate";
-import type { CreditPackage, Template } from "@/types";
+import type { CreditPackage, PhotoRequirement, Template } from "@/types";
 
 type Step = "upload" | "processing" | "result" | "error";
 
@@ -214,6 +214,8 @@ export function GenerateFlow({
   const [imageTier, setImageTier] = useState("1k");
   // Image ratio: "auto" follows the photo; a chip the user picked overrides it and survives a change of photo.
   const [ratio, setRatio] = useState("auto");
+  // Face swap or full-body change, when the template lets the user choose; its photo type is the default.
+  const [swap, setSwap] = useState<PhotoRequirement>(template.photoRequirement);
   const [detectedFor, setDetectedFor] = useState<{ file: File; ratio: string | null } | null>(null);
   // The live balance shared with the header: it moves at once when this generation is charged or refunded.
   const balance = useLiveCredits(credits);
@@ -270,7 +272,8 @@ export function GenerateFlow({
     };
   }, [detectsRatio, ratioFile, template.ratios]);
   const detectedRatio = detectedFor && detectedFor.file === ratioFile ? detectedFor.ratio : null;
-  const hint = template.photoRequirement === "full-body" ? t("gen.hintFull") : t("gen.hintFace");
+  const swapMode = template.swapChoice ? swap : template.photoRequirement;
+  const hint = swapMode === "full-body" ? t("gen.hintFull") : t("gen.hintFace");
 
   const fail = useCallback((flowError: FlowError) => {
     setError(flowError);
@@ -307,6 +310,7 @@ export function GenerateFlow({
         templateId: template.id,
         uploadIds,
         slots,
+        ...(template.swapChoice ? { swap } : {}),
         ...(isVideo ? { resolution: activeResolution } : imageTiers ? { resolution: activeTier } : {}),
         ...(!isVideo && template.ratioMode === "auto" && template.userRatio && ratio !== "auto" ? { ratio } : {}),
       });
@@ -473,6 +477,33 @@ export function GenerateFlow({
 
       {step === "upload" && !locked && (
         <div className="mt-6 space-y-3">
+          {template.swapChoice && (
+            <div>
+              <p className="mb-2 text-sm font-medium text-foreground">{t("swap.title")}</p>
+              <div role="radiogroup" aria-label={t("swap.title")} className="grid grid-cols-2 gap-3">
+                {(["face", "full-body"] as const).map((mode) => {
+                  const on = swap === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setSwap(mode)}
+                      className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition ${
+                        on ? "border-brand bg-brand/15" : "border-line bg-surface hover:bg-[rgba(255,255,255,0.07)]"
+                      }`}
+                    >
+                      <span className={`text-[15px] font-medium ${on ? "text-brand-light" : "text-foreground"}`}>
+                        {mode === "face" ? t("swap.face") : t("swap.full")}
+                      </span>
+                      <span className="text-[11px] text-muted">{mode === "face" ? t("swap.faceTagline") : t("swap.fullTagline")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {/* One slot per required photo, in the order the AI maps them to the template. On desktop a single slot
               keeps a tile's size instead of filling the column. */}
           <div className={needed > 1 ? "grid grid-cols-3 gap-3" : "lg:grid lg:grid-cols-3 lg:gap-3"}>

@@ -31,6 +31,7 @@ function toTemplate(t: DbTemplateWithCategories, trending: Set<string>): Templat
     requiredPhotoCount: t.requiredPhotoCount,
     photoLabels: t.photoLabels,
     photoRequirement: t.photoRequirement === "FULL_BODY" ? "full-body" : "face",
+    swapChoice: (t.generationConfig as { swapChoice?: unknown } | null)?.swapChoice === true,
     active: t.active,
     trending: trending.has(t.id),
     heroFeatured: t.heroFeatured,
