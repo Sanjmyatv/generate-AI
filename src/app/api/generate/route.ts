@@ -5,6 +5,7 @@ import { DEFAULT_RESOLUTION, type Resolution } from "@/config/pricing";
 import { chooseRatio, ratioSettings, snapRatio } from "@/lib/ratio";
 import { failGeneration, refreshGeneration } from "@/lib/generations";
 import { promptForSlots, validSlots } from "@/lib/partial-photos";
+import { chooseSwapMode, withSwapMode } from "@/lib/swap-mode";
 import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
 import {
   parseGenjutsuConfig,
@@ -33,7 +34,7 @@ function guestLimit() {
 }
 
 /**
- * POST /api/generate  { templateId, uploadIds: string[], slots?: number[], resolution?: "480p" | "720p" | "1k" | "2k" | "4k", ratio?: "auto" | "3:4" | ... }
+ * POST /api/generate  { templateId, uploadIds: string[], slots?: number[], resolution?: "480p" | "720p" | "1k" | "2k" | "4k", ratio?: "auto" | "3:4" | ..., swap?: "face" | "full-body" }
  *
  * `slots` says which of the template's people each photo is for (0-based, ascending). The user may fill in only some
  * of them; the others stay as in the original video. Without `slots` every person must have a photo.
@@ -46,7 +47,7 @@ function guestLimit() {
 export async function POST(req: Request) {
   const actor = await getActor({ createGuest: true });
 
-  let body: { templateId?: unknown; uploadIds?: unknown; slots?: unknown; resolution?: unknown; ratio?: unknown };
+  let body: { templateId?: unknown; uploadIds?: unknown; slots?: unknown; resolution?: unknown; ratio?: unknown; swap?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -72,10 +73,18 @@ export async function POST(req: Request) {
   const slots = validSlots(body.slots, uploadIds.length, template.requiredPhotoCount);
   if (!slots) return Response.json({ error: "invalid_photo_count" }, { status: 400 });
   // People without a photo are left out of the prompt's replacements and kept as they are.
-  const withSlots = <P extends string | undefined>(prompt: P) =>
-    (prompt || slots.length < template.requiredPhotoCount
-      ? promptForSlots(prompt ?? "", template.requiredPhotoCount, slots, template.photoLabels).trim()
-      : prompt) as P extends string ? string : string | undefined;
+  // A template that lets the user choose gets "face swap only" or "full-body change" added to its prompt.
+  const swapChoice = (template.generationConfig as { swapChoice?: unknown } | null)?.swapChoice === true;
+  const swap = swapChoice
+    ? chooseSwapMode(body.swap, template.photoRequirement === "FULL_BODY" ? "full-body" : "face")
+    : null;
+  const withSlots = <P extends string | undefined>(prompt: P) => {
+    const slotted =
+      prompt || slots.length < template.requiredPhotoCount
+        ? promptForSlots(prompt ?? "", template.requiredPhotoCount, slots, template.photoLabels).trim()
+        : prompt;
+    return (swap ? withSwapMode(slotted, swap) : slotted) as P extends string ? string : string | undefined;
+  };
 
   // Videos are priced per resolution: 480p by default, 720p only when the template has an HD price.
   let resolution: string;

@@ -96,6 +96,8 @@ export interface TemplateFormValues {
   /** One label per line, in photo order. */
   photoLabels: string;
   photoRequirement: "FACE" | "FULL_BODY";
+  /** The user picks face swap or full-body change on the generate page (photoRequirement is the default). */
+  swapChoice: boolean;
   active: boolean;
   /** Credits worked out by the pricing formula; a settings change may reprice the template. */
   autoCredits: boolean;
@@ -147,6 +149,7 @@ export function defaultFormValues(): TemplateFormValues {
     requiredPhotoCount: "1",
     photoLabels: "",
     photoRequirement: "FACE",
+    swapChoice: false,
     active: true,
     autoCredits: true,
     excludeFromTrending: false,
@@ -203,6 +206,7 @@ export function templateToFormValues(t: DbTemplate & { categories: { categoryId:
   v.requiredPhotoCount = String(t.requiredPhotoCount);
   v.photoLabels = t.photoLabels.join("\n");
   v.photoRequirement = t.photoRequirement;
+  v.swapChoice = (config as { swapChoice?: unknown }).swapChoice === true;
   v.active = t.active;
   v.autoCredits = t.autoCredits;
   v.excludeFromTrending = t.excludeFromTrending;
@@ -257,6 +261,7 @@ export function readForm(form: FormData): TemplateFormValues {
     requiredPhotoCount: text("requiredPhotoCount").trim(),
     photoLabels: text("photoLabels"),
     photoRequirement: text("photoRequirement") === "FULL_BODY" ? "FULL_BODY" : "FACE",
+    swapChoice: form.get("swapChoice") === "on",
     active: form.get("active") === "on",
     autoCredits: form.get("autoCredits") === "on",
     excludeFromTrending: form.get("excludeFromTrending") === "on",
@@ -404,6 +409,7 @@ export function buildTemplateData(
     if (!Number.isFinite(cost) || cost < 0 || cost > 1000) errors[key] = "Enter the cost in USD, e.g. 0.12.";
     else config[key] = cost;
   }
+  if (v.swapChoice) config.swapChoice = true;
   const prevVersion = (existingConfig as { version?: unknown } | null)?.version;
   if (typeof prevVersion === "number") config.version = prevVersion;
 

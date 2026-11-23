@@ -35,7 +35,10 @@ export interface Template {
   requiredPhotoCount: number;
   /** Label for each required photo slot, in order. May be shorter than requiredPhotoCount. */
   photoLabels: string[];
+  /** The default swap: "face" swaps only the face, "full-body" changes the whole person. */
   photoRequirement: PhotoRequirement;
+  /** The user may pick face swap or full-body change before generating. */
+  swapChoice: boolean;
   active: boolean;
   /** In the automatic Trending list right now. */
   trending: boolean;

@@ -44,3 +44,11 @@ test("slot validation", () => {
   assert.equal(validSlots([3], 1, 3), null);
   assert.equal(validSlots([0], 2, 3), null);
 });
+
+test("swap mode: instruction added, unknown values fall back to the default", async () => {
+  const { chooseSwapMode, withSwapMode } = await import("./swap-mode");
+  assert.equal(chooseSwapMode("full-body", "face"), "full-body");
+  assert.equal(chooseSwapMode("anything", "face"), "face");
+  assert.match(withSwapMode("Keep the moves.", "face"), /^Keep the moves\.\n\nFace swap only:/);
+  assert.match(withSwapMode(undefined, "full-body"), /^Full-body change:/);
+});

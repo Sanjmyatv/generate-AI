@@ -629,13 +629,29 @@ export function TemplateForm({
           <Field label="Photos the user uploads" error={err.requiredPhotoCount} hint={`1 to ${MAX_PHOTOS}.`}>
             <input {...text("requiredPhotoCount")} inputMode="numeric" className={inputClass} />
           </Field>
-          <Field label="Photo type">
+          <Field label={v.swapChoice ? "Swap type (selected by default)" : "Swap type"}>
             <select {...text("photoRequirement")} className={inputClass}>
-              <option value="FACE">Clear face</option>
-              <option value="FULL_BODY">Full body</option>
+              <option value="FACE">Face swap only (clear face photo)</option>
+              <option value="FULL_BODY">Full body change (full-body photo)</option>
             </select>
           </Field>
         </div>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="swapChoice"
+            checked={v.swapChoice}
+            onChange={(e) => set("swapChoice", e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Let the user choose face swap or full body
+            <span className="block text-xs text-foreground/60">
+              Write the prompt as usual (&ldquo;Replace the dancer with the person in the first reference image…&rdquo;). The
+              user&rsquo;s choice adds &ldquo;face only, keep hair, body and clothes&rdquo; or &ldquo;the whole person&rdquo; to it.
+            </span>
+          </span>
+        </label>
         <Field
           label="Photo labels"
           error={err.photoLabels}
