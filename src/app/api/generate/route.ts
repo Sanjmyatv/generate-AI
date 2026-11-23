@@ -239,6 +239,8 @@ export async function POST(req: Request) {
           prompt: withSlots(genjutsu.prompt),
           resolution: videoResolution,
           light: genjutsu.light,
+          // Motion transfer always replaces the whole character; a face swap goes to Object Swap instead.
+          faceOnly: swap === "face",
         })
       : await submitVideoEdit({
           // Undefined in reference mode: the video is generated from the photo(s) + prompt alone.
