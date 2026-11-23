@@ -36,7 +36,7 @@ export interface PriceContext {
 }
 
 const ERRORS: Record<string, string> = {
-  not_configured: "Gemini is not set up: add GEMINI_API_KEY on the server.",
+  not_configured: "Gemini is not set up: add OPENROUTER_API_KEY (or GEMINI_API_KEY) on the server.",
   upload_first: "Upload the source video first (links to other sites can't be analyzed).",
   forbidden: "You are not allowed to do this.",
   analysis_failed: "Gemini could not analyze this video. Try again, or fill the fields by hand.",

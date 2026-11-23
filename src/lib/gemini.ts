@@ -4,6 +4,7 @@
  *
  *     GEMINI_API_KEY      API key from Google AI Studio (GOOGLE_API_KEY also works)
  *     GEMINI_BASE_URL     optional API address override (for testing against a stand-in server)
+ *     OPENROUTER_API_KEY  key from openrouter.ai; when set, Gemini is reached through OpenRouter instead of Google
  *     Docs: https://aistudio.google.com/docs
  */
 const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
@@ -30,6 +31,11 @@ export function geminiApiKey() {
   return cleanEnv(process.env.GEMINI_API_KEY) || cleanEnv(process.env.GOOGLE_API_KEY);
 }
 
+/** OpenRouter (openrouter.ai) sells the same Gemini models, paid there; it takes priority over a Google key. */
+export function openRouterApiKey() {
+  return cleanEnv(process.env.OPENROUTER_API_KEY);
+}
+
 export function geminiConfigured() {
-  return Boolean(geminiApiKey());
+  return Boolean(openRouterApiKey() || geminiApiKey());
 }
