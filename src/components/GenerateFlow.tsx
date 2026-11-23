@@ -6,6 +6,7 @@ import { useLocale, useT } from "@/components/I18nProvider";
 import { GenerationProgress } from "@/components/GenerationProgress";
 import { LoginModal } from "@/components/LoginModal";
 import { SaveButton } from "@/components/SaveButton";
+import { adjustCredits, refreshCredits, setCredits, useLiveCredits } from "@/lib/credits-client";
 import { WatermarkToggle } from "@/components/WatermarkToggle";
 import { QPayModal } from "@/components/QPayModal";
 import { ResolutionSelector } from "@/components/ResolutionSelector";
@@ -214,8 +215,8 @@ export function GenerateFlow({
   // Image ratio: "auto" follows the photo; a chip the user picked overrides it and survives a change of photo.
   const [ratio, setRatio] = useState("auto");
   const [detectedFor, setDetectedFor] = useState<{ file: File; ratio: string | null } | null>(null);
-  // Kept locally so the balance stays right after paying for or being refunded a generation.
-  const [balance, setBalance] = useState(credits);
+  // The live balance shared with the header: it moves at once when this generation is charged or refunded.
+  const balance = useLiveCredits(credits);
   const charged = useRef(0);
   const [elapsed, setElapsed] = useState(0);
   // Set when polling starts; kept in a ref so the timer doesn't re-render the tree.
@@ -310,7 +311,8 @@ export function GenerateFlow({
         ...(!isVideo && template.ratioMode === "auto" && template.userRatio && ratio !== "auto" ? { ratio } : {}),
       });
       charged.current = cost;
-      setBalance((b) => (b === null ? b : b - cost));
+      adjustCredits(-cost);
+      void refreshCredits();
       // Keep the id in the URL so the result survives a login redirect or refresh.
       window.history.replaceState(null, "", `?g=${id}`);
       setGenerationId(id);
@@ -322,7 +324,7 @@ export function GenerateFlow({
       }
       if (e instanceof ApiError && e.code === "insufficient_credits") {
         // The server's balance is the truth; show the packs with it.
-        if (typeof e.extra?.balance === "number") setBalance(e.extra.balance);
+        if (typeof e.extra?.balance === "number") setCredits(e.extra.balance);
         setStep("upload");
         setShowPay(true);
         return;
@@ -351,11 +353,13 @@ export function GenerateFlow({
         failures = 0;
         if (data.status === "COMPLETED" && data.videoUrl) {
           setVideoUrl(data.videoUrl);
+          void refreshCredits();
           setStep("result");
         } else if (data.status === "FAILED") {
           const refund = data.refunded ? t("gen.err.refunded") : "";
-          if (data.refunded) setBalance((b) => (b === null ? b : b + charged.current));
+          if (data.refunded) adjustCredits(charged.current);
           charged.current = 0;
+          void refreshCredits(); // the exact figure, also when the page was reopened mid-generation
           if (data.error && REJECTED_INPUT.test(data.error)) {
             fail({
               title: t("gen.err.invalidImageTitle"),
@@ -614,7 +618,7 @@ export function GenerateFlow({
           packages={packages}
           required={cost}
           balance={balance ?? 0}
-          onPaid={setBalance}
+          onPaid={setCredits}
           onClose={() => setShowPay(false)}
         />
       )}

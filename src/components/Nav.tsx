@@ -10,6 +10,7 @@ import { LoginModal } from "@/components/LoginModal";
 import { Logo } from "@/components/Logo";
 import { QPayModal } from "@/components/QPayModal";
 import { formatCredits } from "@/config/pricing";
+import { useCreditsOnFocus, useLiveCredits } from "@/lib/credits-client";
 import type { CreditPackage } from "@/types";
 
 export interface NavUser {
@@ -45,6 +46,9 @@ const menuItemClass =
 
 export function Nav({ user }: { user: NavUser | null }) {
   const t = useT();
+  // Live: changes as soon as a generation is charged or refunded, or credits are bought, without a reload.
+  const credits = useLiveCredits(user ? user.credits : null);
+  useCreditsOnFocus(Boolean(user));
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -172,7 +176,7 @@ export function Nav({ user }: { user: NavUser | null }) {
                   </div>
 
                   <div className="mx-1 mb-2 flex items-center justify-between rounded-2xl border border-brand/30 bg-brand/10 px-3 py-2.5">
-                    <span className="text-sm text-foreground">⚡ {t("nav.creditsLine", { amount: formatCredits(user.credits) })}</span>
+                    <span className="text-sm text-foreground">⚡ {t("nav.creditsLine", { amount: formatCredits(credits ?? user.credits) })}</span>
                     <button
                       type="button"
                       onClick={() => void openTopUp()}
@@ -265,7 +269,7 @@ export function Nav({ user }: { user: NavUser | null }) {
       {header}
       {/* Outside the header: its backdrop blur would otherwise make "fixed" mean "inside the header". */}
       {authOpen && <LoginModal redirectTo={authRedirect} onClose={() => setAuthOpen(false)} />}
-      {packages && <QPayModal packages={packages} balance={user?.credits} onClose={() => setPackages(null)} />}
+      {packages && <QPayModal packages={packages} balance={credits ?? undefined} onClose={() => setPackages(null)} />}
     </>
   );
 }
