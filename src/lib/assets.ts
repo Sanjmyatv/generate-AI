@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/db";
 import { assetIdFromUrl, assetPath, mp4Duration, sniffMedia } from "@/lib/media";
 
-/** Asset ids a template points at: its preview, the preview's thumbnail and its source video. */
+/** Asset ids a template points at: its preview, the preview's thumbnail, its source video and that video's upscaled
+ * copy for face swaps (see object-swap-video.ts). */
 export function assetIdsOf(previewUrl: string | null, config: unknown, posterUrl: string | null = null) {
   const ids = [
     assetIdFromUrl(previewUrl),
     assetIdFromUrl(posterUrl),
     assetIdFromUrl((config as { templateVideoUrl?: string } | null)?.templateVideoUrl),
+    assetIdFromUrl((config as { objectSwapVideo?: { url?: string } } | null)?.objectSwapVideo?.url),
   ];
   return ids.filter((id): id is string => id !== null);
 }

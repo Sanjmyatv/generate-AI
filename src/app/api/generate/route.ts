@@ -6,6 +6,7 @@ import { chooseRatio, ratioSettings, snapRatio } from "@/lib/ratio";
 import { failGeneration, refreshGeneration } from "@/lib/generations";
 import { promptForSlots, validSlots } from "@/lib/partial-photos";
 import { chooseSwapMode, withSwapMode } from "@/lib/swap-mode";
+import { objectSwapSource } from "@/lib/object-swap-video";
 import { SeedanceError, parseSeedanceConfig, submitVideoEdit } from "@/lib/seedance";
 import {
   parseGenjutsuConfig,
@@ -234,7 +235,11 @@ export async function POST(req: Request) {
         })
       : genjutsu
       ? await submitMotionTransfer({
-          templateVideoUrl: genjutsu.templateVideoUrl,
+          // Object Swap needs a bigger frame than motion transfer: a small source video is upscaled once, then reused.
+          templateVideoUrl:
+            swap === "face"
+              ? new URL(await objectSwapSource(template.id, template.generationConfig, genjutsu.templateVideoUrl), base).toString()
+              : genjutsu.templateVideoUrl,
           imageUrls,
           prompt: withSlots(genjutsu.prompt),
           resolution: videoResolution,
