@@ -17,12 +17,13 @@ const MODEL_PATH = "higgsfield/genjutsu/motion-transfer/v1.0";
 const LIGHT_MODEL_PATH = "higgsfield/genjutsu-light/motion-transfer/v1.0";
 /**
  * Genjutsu Object Swap: the same request, but it swaps the referenced object (here: the face) instead of the whole
- * character, so it is used when the user picks "Face swap". Higgsfield's own video face swap runs on it. It has no
- * Light variant.
+ * character, so it is used when the user picks "Face swap". Like motion transfer it has a Light variant, priced the
+ * same as Light motion transfer; a Light template uses it.
  */
 const OBJECT_SWAP_PATH = "higgsfield/genjutsu/object-swap/v1.0";
+const LIGHT_OBJECT_SWAP_PATH = "higgsfield/genjutsu-light/object-swap/v1.0";
 const motionModelPath = (light?: boolean, faceOnly?: boolean) =>
-  faceOnly ? OBJECT_SWAP_PATH : light ? LIGHT_MODEL_PATH : MODEL_PATH;
+  faceOnly ? (light ? LIGHT_OBJECT_SWAP_PATH : OBJECT_SWAP_PATH) : light ? LIGHT_MODEL_PATH : MODEL_PATH;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export class HiggsfieldError extends Error {
@@ -148,15 +149,21 @@ export interface SubmitMotionTransferInput {
 
 /** Starts a motion-transfer request and returns Higgsfield's request id. */
 export async function submitMotionTransfer(input: SubmitMotionTransferInput): Promise<string> {
-  const data = (await request(motionModelPath(input.light, input.faceOnly), {
-    method: "POST",
-    body: JSON.stringify({
-      prompt: input.prompt ?? "",
-      video_url: input.templateVideoUrl,
-      image_urls: input.imageUrls,
-      resolution: input.resolution ?? "720p",
-    }),
-  })) as { request_id?: unknown };
+  const body = JSON.stringify({
+    prompt: input.prompt ?? "",
+    video_url: input.templateVideoUrl,
+    image_urls: input.imageUrls,
+    resolution: input.resolution ?? "720p",
+  });
+  let data: { request_id?: unknown };
+  try {
+    data = (await request(motionModelPath(input.light, input.faceOnly), { method: "POST", body })) as typeof data;
+  } catch (e) {
+    // Should the Light Object Swap address ever be unavailable, a face swap still goes through on the regular one.
+    if (!(input.faceOnly && input.light && e instanceof HiggsfieldError && e.status === 404)) throw e;
+    console.error("[higgsfield] Light Object Swap not found, using the regular Object Swap");
+    data = (await request(OBJECT_SWAP_PATH, { method: "POST", body })) as typeof data;
+  }
   if (typeof data.request_id !== "string" || !data.request_id) {
     throw new HiggsfieldError("Higgsfield did not return a request_id");
   }
