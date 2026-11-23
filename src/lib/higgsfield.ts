@@ -15,7 +15,14 @@ const baseUrl = () => process.env.HIGGSFIELD_BASE_URL?.trim().replace(/\/+$/, ""
 const MODEL_PATH = "higgsfield/genjutsu/motion-transfer/v1.0";
 /** The cheaper variant: uses the first 30 s of the source video and keeps its audio. */
 const LIGHT_MODEL_PATH = "higgsfield/genjutsu-light/motion-transfer/v1.0";
-const motionModelPath = (light?: boolean) => (light ? LIGHT_MODEL_PATH : MODEL_PATH);
+/**
+ * Genjutsu Object Swap: the same request, but it swaps the referenced object (here: the face) instead of the whole
+ * character, so it is used when the user picks "Face swap". Higgsfield's own video face swap runs on it. It has no
+ * Light variant.
+ */
+const OBJECT_SWAP_PATH = "higgsfield/genjutsu/object-swap/v1.0";
+const motionModelPath = (light?: boolean, faceOnly?: boolean) =>
+  faceOnly ? OBJECT_SWAP_PATH : light ? LIGHT_MODEL_PATH : MODEL_PATH;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export class HiggsfieldError extends Error {
@@ -135,11 +142,13 @@ export interface SubmitMotionTransferInput {
   resolution?: GenjutsuTemplateConfig["resolution"];
   /** Use Genjutsu Light (see GenjutsuTemplateConfig.light). */
   light?: boolean;
+  /** Swap only the face (Genjutsu Object Swap) and keep the character's hair, body and clothes. */
+  faceOnly?: boolean;
 }
 
 /** Starts a motion-transfer request and returns Higgsfield's request id. */
 export async function submitMotionTransfer(input: SubmitMotionTransferInput): Promise<string> {
-  const data = (await request(motionModelPath(input.light), {
+  const data = (await request(motionModelPath(input.light, input.faceOnly), {
     method: "POST",
     body: JSON.stringify({
       prompt: input.prompt ?? "",
@@ -227,7 +236,7 @@ async function estimateUsd(modelPath: string, body: unknown): Promise<number> {
 }
 
 export function estimateMotionTransferUsd(input: SubmitMotionTransferInput) {
-  return estimateUsd(motionModelPath(input.light), {
+  return estimateUsd(motionModelPath(input.light, input.faceOnly), {
     prompt: input.prompt ?? "",
     video_url: input.templateVideoUrl,
     image_urls: input.imageUrls,
