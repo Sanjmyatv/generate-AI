@@ -52,3 +52,15 @@ test("swap mode: instruction added, unknown values fall back to the default", as
   assert.match(withSwapMode("Keep the moves.", "face"), /^Keep the moves\.\n\nFace swap only:/);
   assert.match(withSwapMode(undefined, "full-body"), /^Full-body change:/);
 });
+
+test("object swap upscale size: just over the minimum, same shape, even", async () => {
+  const { upscaledSize, OBJECT_SWAP_MIN_PIXELS } = await import("./object-swap-video");
+  assert.equal(upscaledSize(720, 1280), null);
+  for (const [w, h] of [[360, 640], [480, 480], [640, 360], [406, 720]]) {
+    const s = upscaledSize(w, h)!;
+    assert.ok(s.width * s.height >= OBJECT_SWAP_MIN_PIXELS, `${w}x${h}`);
+    assert.equal(s.width % 2, 0);
+    assert.equal(s.height % 2, 0);
+    assert.ok(Math.abs(s.width / s.height - w / h) < 0.01);
+  }
+});
