@@ -5,8 +5,14 @@
  * GEMINI_API_KEY as the image engine (see gemini.ts).
  *
  *     GEMINI_ANALYSIS_MODEL  optional model override, default gemini-3.6-flash
+ *
+ * With OPENROUTER_API_KEY set, the same model is used through OpenRouter (see analyzeViaOpenRouter).
  */
-import { cleanEnv, geminiApiKey, geminiBaseUrl, GeminiError } from "@/lib/gemini";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { runFfmpeg } from "@/lib/ffmpeg";
+import { cleanEnv, geminiApiKey, geminiBaseUrl, GeminiError, openRouterApiKey } from "@/lib/gemini";
 
 const API_REVISION = "2026-05-20";
 const DEFAULT_MODEL = "gemini-3.6-flash";
@@ -213,6 +219,7 @@ export async function analyzeTemplateVideo(
   video: { contentType: string; data: Uint8Array },
   options: { style: PromptStyle; maxPeople: number },
 ): Promise<VideoAnalysis> {
+  if (openRouterApiKey()) return analyzeViaOpenRouter(video, options);
   const key = geminiApiKey();
   if (!key) throw new GeminiError("GEMINI_API_KEY is not set");
 
@@ -233,17 +240,101 @@ export async function analyzeTemplateVideo(
   });
   if (!res.ok) return failed(res, "video analysis");
 
-  const text = answerText(await res.json().catch(() => null));
+  return parseAnswer(answerText(await res.json().catch(() => null)), options.maxPeople);
+}
+
+function parseAnswer(text: string | null, maxPeople: number): VideoAnalysis {
   let parsed: unknown = null;
   try {
     parsed = text ? JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")) : null;
   } catch {
     // fall through to the error below
   }
-  const analysis = normalizeAnalysis(parsed, options.maxPeople);
+  const analysis = normalizeAnalysis(parsed, maxPeople);
   if (!analysis) {
     console.error("[gemini] unusable video analysis", (text ?? "").slice(0, 800));
     throw new GeminiError("Gemini did not return a usable analysis");
   }
   return analysis;
+}
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+/** Shorter side of the copy sent for analysis; enough to tell people and clothes apart. */
+const ANALYSIS_SHORT_SIDE = 640;
+
+/**
+ * A small copy of the video for the model: shorter side 640 px, 5 frames a second, no sound, H.264 MP4. Gemini only
+ * samples about one frame a second, so nothing it uses is lost, and the request (base64 in the body) stays a few MB
+ * whatever the source format (MOV included).
+ */
+async function smallCopy(data: Uint8Array) {
+  const dir = await mkdtemp(join(tmpdir(), "zyro-an-"));
+  try {
+    const source = join(dir, "in");
+    const out = join(dir, "out.mp4");
+    await writeFile(source, data);
+    const s = ANALYSIS_SHORT_SIDE;
+    const scale = `scale=w='if(gte(iw,ih),-2,min(${s},iw))':h='if(gte(iw,ih),min(${s},ih),-2)',fps=5`;
+    await runFfmpeg(
+      ["-i", source, "-vf", scale, "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out],
+      120_000,
+    );
+    return await readFile(out);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+/** The same analysis through OpenRouter's OpenAI-style chat API, billed to the OpenRouter account. */
+async function analyzeViaOpenRouter(
+  video: { contentType: string; data: Uint8Array },
+  options: { style: PromptStyle; maxPeople: number },
+): Promise<VideoAnalysis> {
+  let mp4: Buffer;
+  try {
+    mp4 = await smallCopy(video.data);
+  } catch (e) {
+    console.error("[gemini] could not prepare the video", e);
+    throw new GeminiError("Could not read the video");
+  }
+  const model = cleanEnv(process.env.GEMINI_ANALYSIS_MODEL) || DEFAULT_MODEL;
+  let res: Response;
+  try {
+    res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openRouterApiKey()}`,
+        "Content-Type": "application/json",
+        "X-Title": "zyro.one",
+      },
+      body: JSON.stringify({
+        model: model.includes("/") ? model : `google/${model}`,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "video_url", video_url: { url: `data:video/mp4;base64,${mp4.toString("base64")}` } },
+              { type: "text", text: instruction(options.style, options.maxPeople) },
+            ],
+          },
+        ],
+        response_format: { type: "json_schema", json_schema: { name: "template_setup", schema: SCHEMA } },
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      cache: "no-store",
+    });
+  } catch (e) {
+    throw new GeminiError(`OpenRouter request failed: ${e instanceof Error ? e.message : e}`);
+  }
+  const body = (await res.json().catch(() => null)) as {
+    error?: { message?: string };
+    choices?: { message?: { content?: string | { type?: string; text?: string }[] } }[];
+  } | null;
+  if (!res.ok || body?.error) {
+    console.error("[gemini] OpenRouter error", res.status, JSON.stringify(body?.error ?? body).slice(0, 800));
+    throw new GeminiError(`OpenRouter video analysis failed (${res.status})`, res.status);
+  }
+  const content = body?.choices?.[0]?.message?.content;
+  const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((p) => p.text ?? "").join("") : null;
+  return parseAnswer(text, options.maxPeople);
 }
