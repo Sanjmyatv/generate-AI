@@ -18,7 +18,16 @@ import {
   estimateMotionTransferUsd,
 } from "@/lib/higgsfield";
 import { GENJUTSU_LIGHT_MAX_SECONDS } from "@/config/pricing";
-import { creditsForCostUsd, lossLines, targetMarginFor, videoCostUsd, type ImageQuality, type PricingConfig } from "@/lib/pricing";
+import {
+  GENJUTSU_STANDARD_RATE_FACTOR,
+  creditsForCostUsd,
+  lossLines,
+  targetMarginFor,
+  videoCostUsd,
+  type ImageQuality,
+  type PricingConfig,
+  type VideoRate,
+} from "@/lib/pricing";
 import { getPricingConfig } from "@/lib/pricing-settings";
 import { invalidateTrending } from "@/lib/trending";
 import { changeData, planRepricing, type PriceChange } from "@/lib/repricing";
@@ -365,9 +374,13 @@ export async function suggestPriceAction(
     cost720 = input.manualCostUsdHd && input.manualCostUsdHd > 0 ? input.manualCostUsdHd : null;
     note = "Provider cost typed by hand.";
   } else {
-    cost480 = videoCostUsd(seconds, "480p", cfg);
-    cost720 = videoCostUsd(seconds, "720p", cfg);
-    note = `Manual rate: $${cfg.videoUsdPerSecond}/s × ${seconds} s (720p ×${cfg.hdMultiplier}).`;
+    const rate: VideoRate = input.engine === "genjutsu" ? "standard" : "rate";
+    cost480 = videoCostUsd(seconds, "480p", cfg, rate);
+    cost720 = videoCostUsd(seconds, "720p", cfg, rate);
+    note =
+      rate === "standard"
+        ? `Regular Genjutsu: $${cfg.videoUsdPerSecond}/s × ${GENJUTSU_STANDARD_RATE_FACTOR["480p"].toFixed(2)} (its list price vs Light) × ${seconds} s; 720p ×${GENJUTSU_STANDARD_RATE_FACTOR["720p"].toFixed(2)}.`
+        : `Manual rate: $${cfg.videoUsdPerSecond}/s × ${seconds} s (720p ×${cfg.hdMultiplier}).`;
   }
 
   return {

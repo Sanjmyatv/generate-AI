@@ -130,3 +130,16 @@ test("pack image counts follow the real 1K image price when there is one", () =>
   // The video count does not depend on the image price.
   assert.equal(packCounts(100, cfg, 3).video480, 1);
 });
+
+test("regular Genjutsu is priced at its own (higher) rate; Light and the rest at the settings' rate", async () => {
+  const { videoRateOf } = await import("./pricing");
+  const cfg = { ...DEFAULT_PRICING, videoUsdPerSecond: 0.0739 };
+  // At the list rate, regular Genjutsu costs its published $0.318/s (480p) and $0.681/s (720p).
+  assert.ok(Math.abs(videoCostUsd(10, "480p", cfg, "standard") - 3.18) < 1e-9);
+  assert.ok(Math.abs(videoCostUsd(10, "720p", cfg, "standard") - 6.81) < 1e-9);
+  assert.ok(videoCredits(11, "480p", cfg, "standard") > 4 * videoCredits(11, "480p", cfg));
+  assert.equal(videoRateOf({ provider: "genjutsu" }), "standard");
+  assert.equal(videoRateOf({ provider: "genjutsu", light: true }), "rate");
+  assert.equal(videoRateOf({ provider: "seedance" }), "rate");
+  assert.equal(videoRateOf(null), "rate");
+});
