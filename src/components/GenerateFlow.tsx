@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useT } from "@/components/I18nProvider";
 import { GenerationProgress } from "@/components/GenerationProgress";
+import { PhotoHint, PhotoQualityNotice } from "@/components/PhotoTips";
 import { LoginModal } from "@/components/LoginModal";
 import { SaveButton } from "@/components/SaveButton";
 import { adjustCredits, refreshCredits, setCredits, useLiveCredits } from "@/lib/credits-client";
@@ -516,10 +517,8 @@ export function GenerateFlow({
               />
             ))}
           </div>
-          <p className="text-xs text-foreground/60">
-            {needed > 1 ? t("gen.addPhotos") : ""}
-            {hint}
-          </p>
+          {needed > 1 && <p className="text-xs text-foreground/60">{t("gen.addPhotos").trim()}</p>}
+          <PhotoHint mode={swapMode} text={hint} />
           {hdPrice !== null && (
             <ResolutionSelector
               value={activeResolution}
@@ -555,6 +554,7 @@ export function GenerateFlow({
               detected={detectedRatio}
             />
           )}
+          <PhotoQualityNotice mode={swapMode} when="before" />
           <button
             disabled={!anyPhotoSelected}
             onClick={generate}
@@ -566,7 +566,14 @@ export function GenerateFlow({
       )}
 
 
-      {step === "processing" && <GenerationProgress elapsed={elapsed} isVideo={isVideo} />}
+      {step === "processing" && (
+        <>
+          <GenerationProgress elapsed={elapsed} isVideo={isVideo} />
+          <div className="mt-4">
+            <PhotoQualityNotice mode={swapMode} when="during" />
+          </div>
+        </>
+      )}
 
       {step === "error" && error && (
         <div className="mt-6 space-y-3 text-center" role="alert">
