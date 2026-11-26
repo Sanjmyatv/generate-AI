@@ -1,5 +1,5 @@
 import { GENJUTSU_LIGHT_MAX_SECONDS } from "@/config/pricing";
-import { creditsForCostUsd, videoCredits, type PricingConfig } from "@/lib/pricing";
+import { creditsForCostUsd, videoCredits, videoRateOf, type PricingConfig } from "@/lib/pricing";
 
 /** The fields of a template the repricing needs. */
 export interface RepriceTemplate {
@@ -52,15 +52,16 @@ export function formulaLines(t: RepriceTemplate, cfg: PricingConfig): { seconds:
   if (t.type === "VIDEO") {
     const seconds = pricedSeconds(t);
     if (seconds === null) return null;
+    const rate = videoRateOf(t.generationConfig);
     return {
       seconds,
       lines: [
-        { key: "creditCost", label: "480p", oldCredits: t.creditCost, newCredits: videoCredits(seconds, "480p", cfg) },
+        { key: "creditCost", label: "480p", oldCredits: t.creditCost, newCredits: videoCredits(seconds, "480p", cfg, rate) },
         {
           key: "creditCostHd",
           label: "720p",
           oldCredits: t.creditCostHd,
-          newCredits: t.creditCostHd === null ? null : videoCredits(seconds, "720p", cfg),
+          newCredits: t.creditCostHd === null ? null : videoCredits(seconds, "720p", cfg, rate),
         },
       ],
     };

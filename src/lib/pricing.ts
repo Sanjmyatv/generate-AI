@@ -87,14 +87,31 @@ export function creditsForCostUsd(costUsd: number, cfg: PricingConfig, kind: Pri
   return Math.max(1, credits);
 }
 
+/**
+ * The per-second rate in the settings is the 480p rate of Genjutsu Light (and the other cheap engines). Regular
+ * Genjutsu is billed far more: Higgsfield's list price is $0.318/s at 480p and $0.681/s at 720p, against Light's
+ * $0.0739/s at 480p. Its cost is the rate scaled by those list prices, so a discount on the rate carries over.
+ */
+export const GENJUTSU_STANDARD_RATE_FACTOR: Record<VideoResolution, number> = { "480p": 0.318 / 0.0739, "720p": 0.681 / 0.0739 };
+
+/** "standard" is regular Genjutsu; everything else ("rate") costs the per-second rate in the settings. */
+export type VideoRate = "rate" | "standard";
+
 /** What a video of this length costs at the provider on our account, in USD. */
-export function videoCostUsd(seconds: number, resolution: VideoResolution, cfg: PricingConfig) {
-  return seconds * cfg.videoUsdPerSecond * (resolution === "720p" ? cfg.hdMultiplier : 1);
+export function videoCostUsd(seconds: number, resolution: VideoResolution, cfg: PricingConfig, rate: VideoRate = "rate") {
+  const factor = rate === "standard" ? GENJUTSU_STANDARD_RATE_FACTOR[resolution] : resolution === "720p" ? cfg.hdMultiplier : 1;
+  return seconds * cfg.videoUsdPerSecond * factor;
 }
 
 /** Credits for a video of this length, from the per-second rate. */
-export function videoCredits(seconds: number, resolution: VideoResolution, cfg: PricingConfig) {
-  return creditsForCostUsd(videoCostUsd(seconds, resolution, cfg), cfg);
+export function videoCredits(seconds: number, resolution: VideoResolution, cfg: PricingConfig, rate: VideoRate = "rate") {
+  return creditsForCostUsd(videoCostUsd(seconds, resolution, cfg, rate), cfg);
+}
+
+/** Which rate a saved template's configuration is priced at: regular Genjutsu, or the settings' rate. */
+export function videoRateOf(config: unknown): VideoRate {
+  const c = config as { provider?: unknown; light?: unknown } | null;
+  return c?.provider === "genjutsu" && c.light !== true ? "standard" : "rate";
 }
 
 /** Credits for one 1K image at the default (Low) tier: what pack counts and the pricing page use. */
