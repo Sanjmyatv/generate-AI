@@ -6,7 +6,7 @@ import { LazyVideo } from "@/components/LazyVideo";
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
 
 /**
- * Shows a template's preview: a muted looping video, an image, or a gradient
+ * Shows a template's preview: a looping video (muted; the detail page has a sound button), an image, or a gradient
  * placeholder when none is set. Works with any template (previews are data, not code).
  */
 export function TemplatePreview({
@@ -23,7 +23,7 @@ export function TemplatePreview({
   className?: string;
   /**
    * "card": paused first frame, plays on hover/focus (cheap on pages with many templates).
-   * "detail": autoplays muted in a loop.
+   * "detail": autoplays muted in a loop, with a button to turn the sound on.
    */
   mode?: "card" | "detail";
 }) {
@@ -52,7 +52,7 @@ export function TemplatePreview({
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
-      <LazyVideo src={src} poster={poster} label={alt} playing={mode === "detail" || hovering} controls={mode === "detail"} fill />
+      <LazyVideo src={src} poster={poster} label={alt} playing={mode === "detail" || hovering} controls={mode === "detail"} sound={mode === "detail"} fill />
     </div>
   );
 }

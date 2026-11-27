@@ -348,6 +348,8 @@ export const mn: Messages = {
   "gen.buy": "Кредит авах",
   "gen.tryAgain": "Дахин оролдох",
   "gen.cancel": "Болих",
+  "video.soundOn": "Дуу асаах",
+  "video.soundOff": "Дуу хаах",
   "gen.ready": "Таны бүтээл бэлэн боллоо.",
   "gen.download": "Татах",
   "save.photos": "Зургийн санд хадгалах",
