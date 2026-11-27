@@ -351,6 +351,8 @@ export const en = {
   "gen.tryAgain": "Try Again",
   "gen.cancel": "Cancel",
   "gen.ready": "Your creation is ready.",
+  "video.soundOn": "Sound on",
+  "video.soundOff": "Mute",
   "gen.download": "Download",
   "save.photos": "Save to Photos",
   "save.preparing": "Preparing…",

@@ -10,7 +10,7 @@ import { runFfmpeg } from "@/lib/ffmpeg";
 export const PREVIEW_MAX_SIDE = 1080;
 export const PREVIEW_MAX_SECONDS = 8;
 export interface OptimizedPreview {
-  /** H.264 MP4, longer side at most 1080 px, 30 fps, no sound, at most 8 s, ready to stream (faststart). */
+  /** H.264 MP4, longer side at most 1080 px, 30 fps, small AAC sound (if any), at most 8 s, ready to stream (faststart). */
   video: Buffer;
   /** A JPEG still of it, for cards. */
   poster: Buffer;
@@ -18,7 +18,8 @@ export interface OptimizedPreview {
 
 /**
  * Makes a video preview light and uniform: the longer side scaled to at most 1080 px (even sizes, aspect kept), 30
- * frames a second, good-quality H.264 capped near 1.6 Mbit/s, sound removed (previews play muted), cut to 8 seconds,
+ * frames a second, good-quality H.264 capped near 1.6 Mbit/s, sound kept as small 96 kbit/s AAC (cards play muted; the detail page
+ * can turn it on), cut to 8 seconds,
  * with the index at the front so it starts playing before it has downloaded. A 15 s, 1080p phone clip of many
  * megabytes comes out at roughly one megabyte. The poster is a sharp frame half a second in.
  */
@@ -32,7 +33,8 @@ export async function optimizePreview(input: Uint8Array): Promise<OptimizedPrevi
     await runFfmpeg([
       "-i", source,
       "-t", String(PREVIEW_MAX_SECONDS),
-      "-an",
+      "-map", "0:v:0",
+      "-map", "0:a:0?",
       "-vf", `scale=w='if(gte(iw,ih),min(${PREVIEW_MAX_SIDE},iw),-2)':h='if(gte(iw,ih),-2,min(${PREVIEW_MAX_SIDE},ih))',fps=30`,
       "-c:v", "libx264",
       "-preset", "medium",
@@ -40,6 +42,9 @@ export async function optimizePreview(input: Uint8Array): Promise<OptimizedPrevi
       "-maxrate", "1600k",
       "-bufsize", "3200k",
       "-pix_fmt", "yuv420p",
+      "-c:a", "aac",
+      "-b:a", "96k",
+      "-ac", "2",
       "-movflags", "+faststart",
       video,
     ]);
